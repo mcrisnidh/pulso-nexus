@@ -1,0 +1,14 @@
+$ for p in 'src/nexus/hashing.py' 'src/nexus/storage/*' 'src/nexus/snapshots/*' 'src/nexus/pipeline/*' 'src/nexus/engines/*'; do echo "== $p"; uv run coverage report --include="$p" --fail-under=90 | tail -1 || exit 1; done
+# commit: 62c5600d3904a02dfcc8f9025b43a540d26e8d09  core.autocrlf=true  fecha_utc: 2026-11-05T17:40:31Z
+
+== src/nexus/hashing.py
+TOTAL                     67      0     18      0   100%
+== src/nexus/storage/*
+TOTAL                                 279      0     60      1    99%
+== src/nexus/snapshots/*
+TOTAL                                65      0      6      0   100%
+== src/nexus/pipeline/*
+TOTAL                              372      0     74      1    99%
+== src/nexus/engines/*
+TOTAL                                   70      0     14      0   100%
+# exit_code: 0

@@ -1,0 +1,48 @@
+$ uv run pytest tests/adversarial/test_relocation.py -v -s   (código de producción SIN modificar: ef4b045f4f9c6f6a7b78c5049160a780def97805; solo se añade la sonda)
+# sha256 sonda: d1cb83c87c4fbba8b976f96681097b25159dae1fa5f1a35fcfbd5b89a58ce035  fecha_utc: 2026-11-05T17:33:05Z
+?? tests/adversarial/test_relocation.py
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/user/pulso-nexus/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /home/user/pulso-nexus
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 2 items
+
+tests/adversarial/test_relocation.py::test_external_relocation_during_publish[move] log={'relocated': True} outcome=ObjectRef(key='a/x.bin', sha256='ad538195b0528f51462d0b17b0ff29a7d57a3f04f3e7397d1f4ed4a281991c02', size=29) outside=['moved/seed.bin', 'moved/x.bin']
+FAILED
+tests/adversarial/test_relocation.py::test_external_relocation_during_publish[move+symlink] log={'relocated': True, 'symlink': True} outcome=ObjectRef(key='a/x.bin', sha256='ad538195b0528f51462d0b17b0ff29a7d57a3f04f3e7397d1f4ed4a281991c02', size=29) outside=['moved/seed.bin', 'moved/x.bin']
+FAILED
+
+=================================== FAILURES ===================================
+________________ test_external_relocation_during_publish[move] _________________
+tests/adversarial/test_relocation.py:70: in test_external_relocation_during_publish
+    assert created_outside == [], f"el almacén creó archivos FUERA: {created_outside}"
+E   AssertionError: el almacén creó archivos FUERA: ['moved/x.bin']
+E   assert ['moved/x.bin'] == []
+E     
+E     Left contains one more item: 'moved/x.bin'
+E     
+E     Full diff: (-: missing in left side, +: extra in left side)
+E     - []
+E     + [
+E     +     'moved/x.bin',
+E     + ]
+____________ test_external_relocation_during_publish[move+symlink] _____________
+tests/adversarial/test_relocation.py:70: in test_external_relocation_during_publish
+    assert created_outside == [], f"el almacén creó archivos FUERA: {created_outside}"
+E   AssertionError: el almacén creó archivos FUERA: ['moved/x.bin']
+E   assert ['moved/x.bin'] == []
+E     
+E     Left contains one more item: 'moved/x.bin'
+E     
+E     Full diff: (-: missing in left side, +: extra in left side)
+E     - []
+E     + [
+E     +     'moved/x.bin',
+E     + ]
+=========================== short test summary info ============================
+FAILED tests/adversarial/test_relocation.py::test_external_relocation_during_publish[move]
+FAILED tests/adversarial/test_relocation.py::test_external_relocation_during_publish[move+symlink]
+============================== 2 failed in 0.28s ===============================
+# exit_code: 1

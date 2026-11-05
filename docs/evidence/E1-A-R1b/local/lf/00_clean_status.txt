@@ -1,0 +1,6 @@
+$ git status --porcelain && git rev-parse HEAD && git log -1 --format=%s
+# commit: 62c5600d3904a02dfcc8f9025b43a540d26e8d09  core.autocrlf=false  fecha_utc: 2026-11-05T17:37:41Z
+
+62c5600d3904a02dfcc8f9025b43a540d26e8d09
+R1b: NX-E1A-03, contención frente a relocalización externa de directorios
+# exit_code: 0

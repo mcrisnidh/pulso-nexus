@@ -1,0 +1,47 @@
+$ NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest -p no:cacheprovider tests/reproducibility -v
+# commit: 62c5600d3904a02dfcc8f9025b43a540d26e8d09  core.autocrlf=false  fecha_utc: 2026-11-05T17:39:03Z
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1b-lf/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1b-lf
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 33 items
+
+tests/reproducibility/test_replay_levels.py::test_replay_same_environment_is_l3 PASSED [  3%]
+tests/reproducibility/test_replay_levels.py::test_writer_change_degrades_to_l2 PASSED [  6%]
+tests/reproducibility/test_replay_levels.py::test_float_change_within_tolerance_is_l1 PASSED [  9%]
+tests/reproducibility/test_replay_levels.py::test_float_change_outside_tolerance_is_none_with_first_discrepancy PASSED [ 12%]
+tests/reproducibility/test_replay_levels.py::test_environment_difference_reported PASSED [ 15%]
+tests/reproducibility/test_replay_levels.py::test_tampered_snapshot_fails_integrity PASSED [ 18%]
+tests/reproducibility/test_replay_levels.py::test_tampered_artifact_fails_integrity PASSED [ 21%]
+tests/reproducibility/test_replay_levels.py::test_tampered_run_record_fails_integrity PASSED [ 24%]
+tests/reproducibility/test_replay_levels.py::test_missing_artifact_fails_integrity PASSED [ 27%]
+tests/reproducibility/test_replay_levels.py::test_missing_snapshot_is_not_reproducible_without_partial_result PASSED [ 30%]
+tests/reproducibility/test_replay_levels.py::test_missing_run_is_not_reproducible PASSED [ 33%]
+tests/reproducibility/test_replay_levels.py::test_cli_level_requirement_exit_code PASSED [ 36%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override0-L2] PASSED [ 39%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override1-L1] PASSED [ 42%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override2-L1] PASSED [ 45%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override3-NONE] PASSED [ 48%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override4-NONE] PASSED [ 51%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override5-NONE] PASSED [ 54%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override6-NONE] PASSED [ 57%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override7-NONE] PASSED [ 60%]
+tests/reproducibility/test_replay_levels.py::test_comparator_mutations[override8-NONE] PASSED [ 63%]
+tests/reproducibility/test_replay_levels.py::test_comparator_detects_extra_and_missing_rows PASSED [ 66%]
+tests/reproducibility/test_replay_levels.py::test_comparator_nan_and_identity PASSED [ 69%]
+tests/reproducibility/test_replay_levels.py::test_comparator_artifact_set_mismatch_and_empty PASSED [ 72%]
+tests/reproducibility/test_replay_levels.py::test_exact_float_columns_have_no_tolerance PASSED [ 75%]
+tests/reproducibility/test_replay_levels.py::test_values_equal_handles_nulls PASSED [ 78%]
+tests/reproducibility/test_run_twice.py::test_two_runs_same_manifest_equivalent_results PASSED [ 81%]
+tests/reproducibility/test_run_twice.py::test_artifacts_contain_no_run_metadata PASSED [ 84%]
+tests/reproducibility/test_run_twice.py::test_result_digest_sensitive_to_business_inputs PASSED [ 87%]
+tests/reproducibility/test_run_twice.py::test_cli_two_runs_from_separate_processes PASSED [ 90%]
+tests/reproducibility/test_threads_tz.py::test_result_identical_across_threads_tz_locale[None] PASSED [ 93%]
+tests/reproducibility/test_threads_tz.py::test_result_identical_across_threads_tz_locale[500] PASSED [ 96%]
+tests/reproducibility/test_threads_tz.py::test_in_process_thread_counts PASSED [100%]
+
+============================== 33 passed in 7.30s ==============================
+# exit_code: 0

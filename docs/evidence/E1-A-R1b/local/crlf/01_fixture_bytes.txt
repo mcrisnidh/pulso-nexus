@@ -1,0 +1,9 @@
+$ (cd tests/fixtures/synthetic && sha256sum -c --strict SHA256SUMS) && git ls-files --eol tests/fixtures/synthetic/
+# commit: 62c5600d3904a02dfcc8f9025b43a540d26e8d09  core.autocrlf=true  fecha_utc: 2026-11-05T17:39:34Z
+
+input_v1.csv: OK
+input_v1_invalid.csv: OK
+i/lf    w/lf    attr/-text            	tests/fixtures/synthetic/SHA256SUMS
+i/lf    w/lf    attr/-text            	tests/fixtures/synthetic/input_v1.csv
+i/lf    w/lf    attr/-text            	tests/fixtures/synthetic/input_v1_invalid.csv
+# exit_code: 0

@@ -1,0 +1,15 @@
+00_clean_status	0	git status --porcelain && git rev-parse HEAD && git log -1 --format=%s
+01_fixture_bytes	0	(cd tests/fixtures/synthetic && sha256sum -c --strict SHA256SUMS) && git ls-files --eol tests/fixtures/synthetic/
+02_uv_sync	0	uv sync --frozen --python 3.12
+03_ruff	0	uv run ruff check . && uv run ruff format --check .
+04_mypy	0	uv run mypy --strict src
+05_lint_imports	0	uv run lint-imports
+06_pytest_cov	0	uv run pytest -p no:cacheprovider -ra --cov=nexus --cov-branch --cov-report=term-missing --cov-fail-under=90 --junitxml=/tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/ev-r1b-crlf/junit.xml
+07_coverage_by_package	0	for p in 'src/nexus/hashing.py' 'src/nexus/storage/*' 'src/nexus/snapshots/*' 'src/nexus/pipeline/*' 'src/nexus/engines/*'; do echo "== $p"; uv run coverage report --include="$p" --fail-under=90 | tail -1 || exit 1; done
+08_repro_adv_arch	0	uv run pytest -p no:cacheprovider tests/reproducibility tests/adversarial tests/architecture -v
+09_repro_threads1_utc_C	0	NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest -p no:cacheprovider tests/reproducibility -v
+10_repro_threads8_mx_cutf8	0	NEXUS_THREADS=8 TZ=America/Mexico_City LC_ALL=C.UTF-8 uv run pytest -p no:cacheprovider tests/reproducibility -v
+11_demo	0	bash scripts/e1a_demo.sh
+12_toctou_probes	0	uv run pytest -p no:cacheprovider tests/adversarial/test_toctou.py -v -s
+13_toctou_x20	0	for i in $(seq 1 20); do uv run pytest -p no:cacheprovider -q -s tests/adversarial/test_toctou.py 2>&1 | grep -E 'swaps=|passed|failed' | tr '\n' ' '; echo; done
+14_post_status	0	git status --porcelain --untracked-files=no && echo 'arbol limpio tras las pruebas'

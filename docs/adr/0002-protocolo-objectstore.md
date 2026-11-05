@@ -17,6 +17,13 @@
 6. **Tras publicar:** `fsync` del directorio (solo POSIX), relectura con verificación de hash y eliminación del temporal propio. En Windows se quita el atributo de solo lectura **solo** si `st_nlink == 1`.
 7. **Lectura:** exige el hash esperado, compara la identidad `(st_dev, st_ino)` antes y después de abrir y falla cerrado (`IntegrityError`).
 
+## Contención física (NX-E1A-03, E1-A-R1b)
+
+- La defensa del punto 2 impide **seguir enlaces**, pero **no** garantiza contención física. En POSIX un descriptor de directorio apunta a un inodo, y si otro proceso mueve el directorio fuera del almacén, `linkat(dst_dir_fd)` escribe fuera. No existe mecanismo de espacio de usuario que lo impida y toda comprobación de ruta conserva una carrera.
+- **Control efectivo:** aislamiento por permisos del SO (`ensure_private_dir`). El árbol se crea con modo `0700` y es propiedad del uid efectivo, y no se abre una raíz de otro uid ni una escribible por grupo u otros.
+- **Complemento:** no declarar éxito si se detecta la pérdida de contención y retirar el enlace propio. Es detección con carrera residual declarada.
+- **Windows:** el bloqueo de la cadena sin `FILE_SHARE_DELETE` impide la relocalización durante la operación.
+
 ## Prohibido
 
 `os.replace`, `shutil.move`, `Path.replace` y `Path.rename` en `src/`. Además, el ObjectStore no puede llamar directamente a `os.open`, `os.link`, `os.rename`, `os.unlink`, `open`, `os.stat` ni `os.lstat`. Lo verifica `tests/architecture/test_no_replace.py`.

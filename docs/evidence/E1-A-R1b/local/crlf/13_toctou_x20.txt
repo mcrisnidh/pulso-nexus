@@ -1,0 +1,24 @@
+$ for i in $(seq 1 20); do uv run pytest -p no:cacheprovider -q -s tests/adversarial/test_toctou.py 2>&1 | grep -E 'swaps=|passed|failed' | tr '\n' ' '; echo; done
+# commit: 62c5600d3904a02dfcc8f9025b43a540d26e8d09  core.autocrlf=true  fecha_utc: 2026-11-05T17:41:13Z
+
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 21, 'rejected': 624, 'missing': 4250, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.30s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 26, 'rejected': 715, 'missing': 4255, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.35s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 34, 'rejected': 826, 'missing': 3608, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.26s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 13, 'rejected': 577, 'missing': 2688, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.27s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 26, 'rejected': 562, 'missing': 3790, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.32s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 51, 'rejected': 547, 'missing': 5681, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.26s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 81, 'rejected': 550, 'missing': 6113, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.31s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 19, 'rejected': 500, 'missing': 5763, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.27s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 33, 'rejected': 667, 'missing': 4782, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.34s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 20, 'rejected': 628, 'missing': 5784, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.29s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 43, 'rejected': 586, 'missing': 6611, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.29s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 46, 'rejected': 548, 'missing': 5196, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.27s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 39, 'rejected': 976, 'missing': 9571, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.31s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 18, 'rejected': 773, 'missing': 4725, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.41s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 40, 'rejected': 656, 'missing': 6480, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.28s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 44, 'rejected': 526, 'missing': 4699, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.31s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 54, 'rejected': 729, 'missing': 4223, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.30s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 67, 'rejected': 529, 'missing': 5394, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.36s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 20, 'rejected': 528, 'missing': 5786, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.28s 
+.swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 15, 'rejected': 588, 'missing': 4019, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0 6 passed in 0.29s 
+# exit_code: 0

@@ -1,0 +1,20 @@
+$ uv run pytest tests/adversarial/test_relocation.py -v -s   (corrección: 62c5600d3904a02dfcc8f9025b43a540d26e8d09)
+# fecha_utc: 2026-11-05T17:41:26Z  uid: 0
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1b-lf/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1b-lf
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 4 items
+
+tests/adversarial/test_relocation.py::test_external_relocation_during_publish[move] log={'relocated': True} outcome=IntegrityError('a/x.bin: frontera de almacenamiento perdida (directorio relocalizado durante la operación); no se declara éxito; enlace propio retirado=True') outside=['moved/seed.bin']
+PASSED
+tests/adversarial/test_relocation.py::test_external_relocation_during_publish[move+symlink] log={'relocated': True, 'symlink': True} outcome=IntegrityError('a/x.bin: frontera de almacenamiento perdida (directorio relocalizado durante la operación); no se declara éxito; enlace propio retirado=True') outside=['moved/seed.bin']
+PASSED
+tests/adversarial/test_relocation.py::test_permission_isolation_prevents_relocation_by_other_principal events={'result': {'renamed': False, 'errno': 13, 'error': "PermissionError(13, 'Permission denied')"}}
+PASSED
+tests/adversarial/test_relocation.py::test_residual_race_after_check_is_detected_not_prevented PASSED
+
+============================== 4 passed in 0.19s ===============================
+# exit_code: 0

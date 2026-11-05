@@ -1,0 +1,30 @@
+$ uv run lint-imports
+# commit: 62c5600d3904a02dfcc8f9025b43a540d26e8d09  core.autocrlf=false  fecha_utc: 2026-11-05T17:37:43Z
+
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+
+---------
+Contracts
+---------
+
+Analyzed 29 files, 67 dependencies.
+-----------------------------------
+
+engines: sin dependencias de E/S internas KEPT
+normalize: puro, sin E/S interna KEPT
+contracts: base sin dependencias de capas superiores KEPT
+connectors: transporte sin reglas ni integración KEPT
+storage y snapshots: sin lógica de datos KEPT
+pipeline no depende del CLI KEPT
+
+Contracts: 6 kept, 0 broken.
+# exit_code: 0
