@@ -42,6 +42,13 @@ CREATE TABLE nexus.scope_lease (
     expires_at    datetime2(7)  NULL
 );
 GO
+-- Índices de concurrencia (defecto hallado en CI real: sin ellos, las lecturas con
+-- UPDLOCK/HOLDLOCK y los UPDATE por attempt_id recorrían la tabla completa, tomaban rangos
+-- serializables sobre filas de otros workers y serializaban a todos -> leases vencidos).
+CREATE INDEX ix_scope_lease_attempt ON nexus.scope_lease (attempt_id);
+GO
+CREATE INDEX ix_scope_lease_expiry ON nexus.scope_lease (expires_at);
+GO
 
 CREATE TABLE nexus.attempt (
     attempt_id    nvarchar(64)  NOT NULL CONSTRAINT pk_attempt PRIMARY KEY,
@@ -57,6 +64,8 @@ CREATE TABLE nexus.attempt (
     finished_at   datetime2(7)  NULL
 );
 GO
+CREATE INDEX ix_attempt_request ON nexus.attempt (request_id) INCLUDE (attempt_no, state);
+GO
 
 CREATE TABLE nexus.generation (
     attempt_id    nvarchar(64) NOT NULL CONSTRAINT pk_generation PRIMARY KEY
@@ -71,6 +80,8 @@ CREATE TABLE nexus.generation (
 );
 GO
 -- C3: como máximo una generación sellada por solicitud (sealed_at nunca vuelve a NULL).
+CREATE INDEX ix_generation_request ON nexus.generation (request_id) INCLUDE (state, sealed_at);
+GO
 CREATE UNIQUE INDEX uq_generation_one_sealed_per_request ON nexus.generation (request_id)
     WHERE sealed_at IS NOT NULL;
 GO

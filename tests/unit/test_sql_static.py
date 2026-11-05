@@ -74,3 +74,17 @@ def test_permissions_never_deny_control() -> None:
         if stmt.strip().startswith("DENY"):
             assert "CONTROL" not in stmt, stmt
     assert "GRANT EXECUTE ON SCHEMA::NEXUS TO NEXUS_PRODUCER_ROLE" in code
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        "ix_scope_lease_attempt",
+        "ix_scope_lease_expiry",
+        "ix_attempt_request",
+        "ix_generation_request",
+    ],
+)
+def test_concurrency_indexes_present(index: str) -> None:
+    """Regresión: sin estos índices, UPDLOCK/HOLDLOCK por attempt_id/request_id recorría tablas."""
+    assert f"CREATE INDEX {index} ON" in SQL["0001_schema.sql"]
