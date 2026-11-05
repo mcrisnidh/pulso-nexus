@@ -31,7 +31,7 @@ PROFILE = load_profile("e1b-ephemeral")
 
 def settings(**kw: Any) -> ConnectionSettings:
     base = {
-        "host": "localhost",
+        "host": "nexus-sql",
         "port": 1433,
         "database": "nexus_e1b_abcdef12",
         "user": "u",
@@ -84,7 +84,7 @@ def test_host_injection_rejected() -> None:
 # --------------------------------------------------------------------------- perfil (B4)
 def test_profile_rules() -> None:
     assert PROFILE.lease_ms == 5000 and PROFILE.heartbeat_ms == 1000
-    PROFILE.check_host("localhost")
+    PROFILE.check_host("nexus-sql")
     for host in ("ASUSMSRV0004\\SQLEXPRESS", "asusmsrv0004", "db.corp.local", "127.0.0.1"):
         with pytest.raises(GuardError):
             PROFILE.check_host(host)
@@ -144,20 +144,20 @@ GOOD_SERVER = ("Developer Edition (64-bit)", "nexus-sql")
 
 def test_bootstrap_guard() -> None:
     ok = FakeConn({"server": GOOD_SERVER, "user_dbs": []})
-    assert bootstrap_guard(ok, PROFILE, "abcdef12", "localhost") == "nexus_e1b_abcdef12"
+    assert bootstrap_guard(ok, PROFILE, "abcdef12", "nexus-sql") == "nexus_e1b_abcdef12"
     cases = [
         (
             {"server": ("Express Edition (64-bit)", "nexus-sql"), "user_dbs": []},
             "abcdef12",
-            "localhost",
+            "nexus-sql",
         ),
         (
             {"server": ("Developer Edition (64-bit)", "otro"), "user_dbs": []},
             "abcdef12",
-            "localhost",
+            "nexus-sql",
         ),
-        ({"server": GOOD_SERVER, "user_dbs": ["PULSO_MAGNUM_STAGE"]}, "abcdef12", "localhost"),
-        ({"server": GOOD_SERVER, "user_dbs": []}, None, "localhost"),
+        ({"server": GOOD_SERVER, "user_dbs": ["PULSO_MAGNUM_STAGE"]}, "abcdef12", "nexus-sql"),
+        ({"server": GOOD_SERVER, "user_dbs": []}, None, "nexus-sql"),
         ({"server": GOOD_SERVER, "user_dbs": []}, "abcdef12", "ASUSMSRV0004\\SQLEXPRESS"),
     ]
     for answers, nonce, host in cases:
@@ -170,7 +170,7 @@ def test_bootstrap_guard() -> None:
 def test_runtime_guard() -> None:
     env = ("e1b-ephemeral", "EPHEMERAL", "abcdef12", 3)
     runtime_guard(
-        FakeConn({"db": "nexus_e1b_abcdef12", "env": env}), PROFILE, "abcdef12", "localhost"
+        FakeConn({"db": "nexus_e1b_abcdef12", "env": env}), PROFILE, "abcdef12", "nexus-sql"
     )
     bad = [
         ({"db": "PULSO_MAGNUM_STAGE", "env": env}, "abcdef12"),
@@ -186,7 +186,7 @@ def test_runtime_guard() -> None:
     ]
     for answers, nonce in bad:
         with pytest.raises(GuardError):
-            runtime_guard(FakeConn(answers), PROFILE, nonce, "localhost")
+            runtime_guard(FakeConn(answers), PROFILE, nonce, "nexus-sql")
 
 
 # --------------------------------------------------------------------------- migraciones

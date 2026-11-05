@@ -5,7 +5,7 @@ name = "e1b-ephemeral"
 kind = "EPHEMERAL"
 schema_version = 3
 
-host_allowlist = ["localhost"]
+host_allowlist = ["nexus-sql"]
 # Cualquier host que contenga alguno de estos fragmentos se rechaza (insensible a mayúsculas).
 host_denylist = ["asusmsrv0004", "sqlexpress"]
 database_pattern = "^nexus_e1b_[a-z0-9]{8,32}$"

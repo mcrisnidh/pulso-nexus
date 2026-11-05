@@ -89,12 +89,12 @@ def test_b04a_bootstrap_guard_refuses_non_empty_or_foreign_server(
     try:
         dbs_before = count(conn, "SELECT COUNT(*) FROM sys.databases")
         with pytest.raises(GuardError, match="no está vacío"):
-            bootstrap_guard(conn, profile, sql_env["NEXUS_SQL_NONCE"], "localhost")
+            bootstrap_guard(conn, profile, sql_env["NEXUS_SQL_NONCE"], sql_env["NEXUS_SQL_HOST"])
         express = dataclasses.replace(profile, allowed_editions=("Express Edition (64-bit)",))
         with pytest.raises(GuardError, match="edición"):
-            bootstrap_guard(conn, express, sql_env["NEXUS_SQL_NONCE"], "localhost")
+            bootstrap_guard(conn, express, sql_env["NEXUS_SQL_NONCE"], sql_env["NEXUS_SQL_HOST"])
         with pytest.raises(GuardError):
-            bootstrap_guard(conn, profile, None, "localhost")
+            bootstrap_guard(conn, profile, None, sql_env["NEXUS_SQL_HOST"])
         with pytest.raises(GuardError):
             bootstrap_guard(conn, profile, sql_env["NEXUS_SQL_NONCE"], "ASUSMSRV0004\\SQLEXPRESS")
         assert count(conn, "SELECT COUNT(*) FROM sys.databases") == dbs_before  # nada creado
@@ -116,11 +116,19 @@ def test_b04b_runtime_guard_aborts_before_any_write(
         wrong_nonce.enqueue("guard-1", "s", "manual", {}, 1)
     future = dataclasses.replace(profile, schema_version=99)
     with pytest.raises(GuardError, match="versión de esquema"):
-        runtime_guard(connect(base_settings, 30), future, sql_env["NEXUS_SQL_NONCE"], "localhost")
+        runtime_guard(
+            connect(base_settings, 30),
+            future,
+            sql_env["NEXUS_SQL_NONCE"],
+            sql_env["NEXUS_SQL_HOST"],
+        )
     other_kind = dataclasses.replace(profile, kind="CERTIFICATION")
     with pytest.raises(GuardError, match="perfil"):
         runtime_guard(
-            connect(base_settings, 30), other_kind, sql_env["NEXUS_SQL_NONCE"], "localhost"
+            connect(base_settings, 30),
+            other_kind,
+            sql_env["NEXUS_SQL_NONCE"],
+            sql_env["NEXUS_SQL_HOST"],
         )
     assert count(admin, "SELECT COUNT(*) FROM nexus.run_event") == events
     assert count(admin, "SELECT COUNT(*) FROM nexus.run_request") == 0
@@ -139,7 +147,7 @@ def test_b04b_profile_rejects_simulated_pulso_magnum_stage(
         sim = connect(dataclasses.replace(admin_settings, database="PULSO_MAGNUM_STAGE"), 60)
         try:
             with pytest.raises(GuardError, match="prohibida"):
-                runtime_guard(sim, profile, sql_env["NEXUS_SQL_NONCE"], "localhost")
+                runtime_guard(sim, profile, sql_env["NEXUS_SQL_NONCE"], sql_env["NEXUS_SQL_HOST"])
             tables = count(sim, "SELECT COUNT(*) FROM sys.tables")
             assert tables == 0
         finally:

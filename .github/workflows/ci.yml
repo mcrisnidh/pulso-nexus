@@ -73,7 +73,7 @@ jobs:
         session: ["READ COMMITTED", "SNAPSHOT"]
     env:
       SQL_IMAGE: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
-      NEXUS_SQL_HOST: localhost
+      NEXUS_SQL_HOST: nexus-sql
       NEXUS_SQL_PORT: "1433"
       NEXUS_SQL_ADMIN_USER: sa
       NEXUS_TEST_SESSION_ISOLATION: ${{ matrix.session }}
@@ -98,6 +98,10 @@ jobs:
           odbcinst -q -d -n "ODBC Driver 18 for SQL Server"
           mkdir -p "$NEXUS_EVIDENCE_DIR"
           dpkg -s msodbcsql18 | grep -E "^(Package|Version)" > "$NEXUS_EVIDENCE_DIR/odbc_driver.txt" || true
+      - name: Nombre del servidor efímero (solo IPv4 de loopback, en el SAN del certificado)
+        run: |
+          echo "127.0.0.1 nexus-sql" | sudo tee -a /etc/hosts
+          getent hosts nexus-sql
       - name: Credenciales y nonce efímeros (enmascarados; nunca se imprimen)
         run: |
           gen() { python3 -c "import secrets; print(secrets.token_urlsafe(24) + 'Aa1-')"; }
@@ -107,15 +111,15 @@ jobs:
           nonce="$(python3 -c 'import secrets; print(secrets.token_hex(8))')"
           echo "NEXUS_SQL_NONCE=$nonce" >> "$GITHUB_ENV"
           echo "NEXUS_SQL_DATABASE=nexus_e1b_$nonce" >> "$GITHUB_ENV"
-      - name: CA y certificado de servidor efímeros (SAN localhost, nexus-sql)
+      - name: CA y certificado de servidor efímeros (SAN nexus-sql, localhost)
         run: |
           set -euo pipefail
           d="$RUNNER_TEMP/tls"; mkdir -p "$d"; cd "$d"
           openssl req -x509 -newkey rsa:3072 -nodes -keyout ca.key -out ca.crt -days 2 \
             -subj "/CN=pulso-nexus-e1b-ephemeral-ca" \
             -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
-          openssl req -newkey rsa:3072 -nodes -keyout server.key -out server.csr -subj "/CN=localhost"
-          printf '%s\n' "subjectAltName=DNS:localhost,DNS:nexus-sql" "extendedKeyUsage=serverAuth" \
+          openssl req -newkey rsa:3072 -nodes -keyout server.key -out server.csr -subj "/CN=nexus-sql"
+          printf '%s\n' "subjectAltName=DNS:nexus-sql,DNS:localhost" "extendedKeyUsage=serverAuth" \
             "keyUsage=critical,digitalSignature,keyEncipherment" "basicConstraints=CA:FALSE" > ext.cnf
           openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt \
             -days 2 -extfile ext.cnf
