@@ -62,6 +62,8 @@ def odbc_string(settings: ConnectionSettings) -> str:
         f"PWD={_braced(settings.password)}",
         f"Encrypt={settings.encrypt}",
         f"TrustServerCertificate={settings.trust_server_certificate}",
+        # Determinista: IPv4 primero (en CI el contenedor solo publica 127.0.0.1).
+        "IpAddressPreference=IPv4First",
         "APP=pulso-nexus-e1b",
     ]
     raw = ";".join(parts) + ";"

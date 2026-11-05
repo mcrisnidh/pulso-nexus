@@ -134,16 +134,15 @@ jobs:
             -e ACCEPT_EULA=Y -e MSSQL_PID=Developer -e MSSQL_SA_PASSWORD="$NEXUS_SQL_ADMIN_PASSWORD" \
             -v "$d/mssql.conf:/var/opt/mssql/mssql.conf:ro" -v "$d/secrets:/var/opt/mssql/secrets:ro" \
             "$SQL_IMAGE"
+          ready() { docker logs nexus-sql > "$RUNNER_TEMP/sql.log" 2>&1; grep -q "SQL Server is now ready for client connections" "$RUNNER_TEMP/sql.log"; }
           for i in $(seq 1 90); do
-            if docker logs nexus-sql 2>&1 | grep -q "SQL Server is now ready for client connections"; then
-              echo "listo tras ${i}x2 s"; break
-            fi
+            if ready; then echo "listo tras ${i}x2 s"; break; fi
             if [ "$(docker inspect -f '{{.State.Running}}' nexus-sql)" != "true" ]; then
               docker logs nexus-sql | tail -50; exit 1
             fi
             sleep 2
           done
-          docker logs nexus-sql 2>&1 | grep -q "SQL Server is now ready for client connections"
+          ready
           docker inspect --format '{{index .RepoDigests 0}}' "$SQL_IMAGE" > "$NEXUS_EVIDENCE_DIR/sql_image_digest.txt"
           cat "$NEXUS_EVIDENCE_DIR/sql_image_digest.txt"
       - name: TLS negativo (CA efímera AÚN no confiable -> debe fallar)
@@ -154,7 +153,15 @@ jobs:
           sudo update-ca-certificates
       - name: TLS positivo y negativo por nombre de host
         run: |
-          uv run python scripts/e1b_tls_probe.py --expect ok | tee "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"
+          # El mensaje "ready" precede a la recuperación de bases de sistema: se reintenta la sonda positiva.
+          for i in $(seq 1 20); do
+            if uv run python scripts/e1b_tls_probe.py --expect ok > "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"; then
+              echo "conexión TLS verificada en el intento $i"; break
+            fi
+            cat "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"; sleep 3
+          done
+          cat "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"
+          grep -q '"passed": true' "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"
           uv run python scripts/e1b_tls_probe.py --expect hostname-fails --host 127.0.0.1 | tee "$NEXUS_EVIDENCE_DIR/tls_3_hostname.json"
       - id: bootstrap
         name: Bootstrap (guard de bootstrap, base nexus_e1b_<nonce>, RCSI=${{ matrix.rcsi }})
@@ -188,6 +195,9 @@ jobs:
                   "snapshot_isolation", "collation", "server_ts"]
           print(json.dumps(dict(zip(keys, [str(x) for x in r])), indent=1))
           PY
+      - name: Registro del contenedor SQL (diagnóstico)
+        if: ${{ failure() }}
+        run: docker logs nexus-sql 2>&1 | tail -80 || true
       - name: Evidencias de la celda de la matriz
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
