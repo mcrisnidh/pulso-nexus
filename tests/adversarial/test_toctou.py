@@ -32,7 +32,11 @@ from nexus.hashing import sha256_bytes
 from nexus.storage.object_store import LocalObjectStore
 
 REAL = b"contenido-real-del-almacen"
-WINDOWS_SHARING_VIOLATION = 32
+# Rechazos cerrados de Windows durante el ataque (no devuelven datos):
+#   32 ERROR_SHARING_VIOLATION: el renombrado del atacante y nuestro bloqueo compiten.
+#   5  ERROR_ACCESS_DENIED: la junction del atacante quedó en estado "delete-pending"
+#      (borrada mientras estaba abierta) y Windows deniega nuevas aperturas.
+WINDOWS_CLOSED_REJECTIONS = {5, 32}
 ATTACKER = b"contenido-externo-del-atacante"
 
 
@@ -199,7 +203,7 @@ def test_concurrent_reads_during_parent_swaps(tmp_path: Path) -> None:
     store.put("a/x.bin", REAL)
     expected = sha256_bytes(REAL)
     attacker = ParentSwapAttacker(store.root, outside)
-    outcomes = {"real": 0, "rejected": 0, "missing": 0, "lock_contention": 0}
+    outcomes = {"real": 0, "rejected": 0, "missing": 0, "win_denied_5": 0, "win_denied_32": 0}
     escapes: list[str] = []
     previous_interval = sys.getswitchinterval()
     sys.setswitchinterval(1e-6)  # fuerza intercalados frecuentes entre hilos
@@ -220,12 +224,11 @@ def test_concurrent_reads_during_parent_swaps(tmp_path: Path) -> None:
             except FileNotFoundError:
                 outcomes["missing"] += 1
             except PermissionError as exc:
-                # Windows: el renombrado del atacante y nuestro bloqueo de directorio
-                # compiten; se rechaza cerrado con WinError 32 (violación de compartición).
-                # Cualquier otro PermissionError hace fallar la prueba.
-                if getattr(exc, "winerror", None) != WINDOWS_SHARING_VIOLATION:
+                # Solo Windows: rechazo cerrado por bloqueo o por objeto pendiente de borrado.
+                # Cualquier otro PermissionError (incluido cualquiera en POSIX) hace fallar.
+                if getattr(exc, "winerror", None) not in WINDOWS_CLOSED_REJECTIONS:
                     raise
-                outcomes["lock_contention"] += 1
+                outcomes[f"win_denied_{exc.winerror}"] += 1  # type: ignore[attr-defined]
     finally:
         attacker.finish()
         sys.setswitchinterval(previous_interval)
