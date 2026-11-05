@@ -86,10 +86,11 @@ jobs:
       - run: uv sync --frozen
       - name: Microsoft ODBC Driver 18 (instalación solo si falta; acepta su EULA)
         run: |
+          mkdir -p "$NEXUS_EVIDENCE_DIR"
           if odbcinst -q -d -n "ODBC Driver 18 for SQL Server" >/dev/null 2>&1; then
             echo "msodbcsql18 ya presente en el runner"
           else
-            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
             curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
             sudo apt-get update
             sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc
@@ -170,7 +171,7 @@ jobs:
           2>&1 | tee "$NEXUS_EVIDENCE_DIR/pytest.log"; exit "${PIPESTATUS[0]}"
         shell: bash
       - name: Registro del servidor (versión, edición, opciones de aislamiento)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && env.NEXUS_SQL_DATABASE != '' }}
         run: |
           uv run python - <<'PY' | tee "$NEXUS_EVIDENCE_DIR/server_info.json"
           import json, os
