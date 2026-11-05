@@ -1,0 +1,77 @@
+$ bash scripts/e1a_demo.sh
+# commit: 9cf187f6f2ce75ba9259719117ffefccb84886a4  fecha_utc: 2026-11-05T16:06:23Z
+
+
+== 1. Regenerar fixtures sintéticos y verificar SHA256SUMS
+0b7e48ec2ab7455ead6624a381b88ac2c12fff799be3f2a4b394d8bcc5ac513a  input_v1.csv
+b06a240c9214fecde0b667a744351852b155d36bf600fe802fa50197af153f49  input_v1_invalid.csv
+input_v1.csv: OK
+input_v1_invalid.csv: OK
+
+== 2. nexus snapshot
+{
+  "content_sha256": "0b7e48ec2ab7455ead6624a381b88ac2c12fff799be3f2a4b394d8bcc5ac513a",
+  "size": 257466,
+  "snapshot_id": "snap-2ca212db4823449ba49503902b4178e4"
+}
+
+== 3. nexus run (dos veces, mismo input_manifest, hilos/TZ distintos)
+run A: run-ed88c34d7ce34d6ab15326e0bdf9be18  result_digest=19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694  input_digest=1fb723a4805e1a81bd13417bf04d02a877d71979317a2708cbb500ed796622c7
+run B: run-1cb4b46bab46431892fe7e255debb13e  result_digest=19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694  input_digest=1fb723a4805e1a81bd13417bf04d02a877d71979317a2708cbb500ed796622c7
+
+== 4. Comprobación: run_id distintos; result_digest e input_digest iguales
+OK
+
+== 5. nexus replay --level L3 y nexus verify --all
+{
+  "code_match": true,
+  "discrepancy": null,
+  "environment_differences": {},
+  "environment_match": true,
+  "level": "L3",
+  "meets_required_level": true,
+  "per_artifact": {
+    "synthetic_input@1.0.0": "L3",
+    "synthetic_output@1.0.0": "L3",
+    "synthetic_rejection@1.0.0": "L3"
+  },
+  "recorded_result_digest": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694",
+  "replayed_result_digest": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694",
+  "required_level": "L3",
+  "run_id": "run-ed88c34d7ce34d6ab15326e0bdf9be18"
+}
+{
+  "failures": [],
+  "incomplete_runs": [],
+  "objects_verified": 12,
+  "ok": true,
+  "runs_ok": 2,
+  "snapshots_ok": 1,
+  "staging_leftovers": [],
+  "unreferenced_objects": []
+}
+
+== 6. Alterar 1 byte de un artefacto: verify y replay deben fallar cerrado
+{
+  "failures": [
+    "run run-ed88c34d7ce34d6ab15326e0bdf9be18: IntegrityError: runs/run-ed88c34d7ce34d6ab15326e0bdf9be18/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet: hash no coincide (esperado=af736eb8a31b…, actual=c6d6f651b029…)"
+  ],
+  "incomplete_runs": [],
+  "objects_verified": 9,
+  "ok": false,
+  "runs_ok": 1,
+  "snapshots_ok": 1,
+  "staging_leftovers": [],
+  "unreferenced_objects": []
+}
+{
+  "detail": "runs/run-ed88c34d7ce34d6ab15326e0bdf9be18/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet: hash no coincide (esperado=af736eb8a31b…, actual=c6d6f651b029…)",
+  "error": "integrity"
+}
+verify exit=5 (esperado 5) · replay exit=3 (esperado 3)
+
+== 7. La corrida B no fue afectada y sigue reproduciendo en L3
+OK
+
+DEMO E1-A: COMPLETADA SIN DESVIACIONES
+# exit_code: 0

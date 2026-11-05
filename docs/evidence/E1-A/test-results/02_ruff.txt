@@ -1,0 +1,6 @@
+$ uv run ruff check . && uv run ruff format --check .
+# commit: 9cf187f6f2ce75ba9259719117ffefccb84886a4  fecha_utc: 2026-11-05T16:04:47Z
+
+All checks passed!
+60 files already formatted
+# exit_code: 0

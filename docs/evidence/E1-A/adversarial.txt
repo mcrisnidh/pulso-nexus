@@ -1,0 +1,77 @@
+$ uv run pytest -p no:cacheprovider tests/adversarial -v -s
+# commit: 9cf187f6f2ce75ba9259719117ffefccb84886a4  fecha_utc: 2026-11-05T16:06:26Z
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clean-clone/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clean-clone
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 43 items
+
+tests/adversarial/test_concurrency.py::test_same_content_concurrent_writers_all_succeed[0] PASSED
+tests/adversarial/test_concurrency.py::test_same_content_concurrent_writers_all_succeed[1] PASSED
+tests/adversarial/test_concurrency.py::test_same_content_concurrent_writers_all_succeed[2] PASSED
+tests/adversarial/test_concurrency.py::test_same_content_concurrent_writers_all_succeed[3] PASSED
+tests/adversarial/test_concurrency.py::test_same_content_concurrent_writers_all_succeed[4] PASSED
+tests/adversarial/test_concurrency.py::test_different_content_exactly_one_winner[0] PASSED
+tests/adversarial/test_concurrency.py::test_different_content_exactly_one_winner[1] PASSED
+tests/adversarial/test_concurrency.py::test_different_content_exactly_one_winner[2] PASSED
+tests/adversarial/test_concurrency.py::test_different_content_exactly_one_winner[3] PASSED
+tests/adversarial/test_concurrency.py::test_different_content_exactly_one_winner[4] PASSED
+tests/adversarial/test_crash_injection.py::test_object_put_crash_leaves_absent_or_valid[before_fsync] PASSED
+tests/adversarial/test_crash_injection.py::test_object_put_crash_leaves_absent_or_valid[before_publish] PASSED
+tests/adversarial/test_crash_injection.py::test_object_put_crash_leaves_absent_or_valid[before_verify] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_fsync-1] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_fsync-2] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_fsync-3] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_fsync-4] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_fsync-5] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_publish-1] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_publish-2] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_publish-3] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_publish-4] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_publish-5] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_verify-1] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_verify-2] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_verify-3] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_verify-4] PASSED
+tests/adversarial/test_crash_injection.py::test_pipeline_crash_never_yields_referenced_corrupt_or_partial_run[before_verify-5] PASSED
+tests/adversarial/test_crash_injection.py::test_crash_injection_records_evidence [
+  {
+    "point": "before_fsync",
+    "exit": 77,
+    "final_exists": false,
+    "final_valid": false
+  },
+  {
+    "point": "before_publish",
+    "exit": 77,
+    "final_exists": false,
+    "final_valid": false
+  },
+  {
+    "point": "before_verify",
+    "exit": 77,
+    "final_exists": true,
+    "final_valid": true
+  }
+]
+PASSED
+tests/adversarial/test_resealed_tampering.py::test_inconsistent_resealed_run_record[<lambda>-no corresponde] PASSED
+tests/adversarial/test_resealed_tampering.py::test_inconsistent_resealed_run_record[<lambda>-input_digest] PASSED
+tests/adversarial/test_resealed_tampering.py::test_inconsistent_resealed_run_record[<lambda>-result_digest] PASSED
+tests/adversarial/test_resealed_tampering.py::test_inconsistent_resealed_run_record[<lambda>-logical_hash] PASSED
+tests/adversarial/test_resealed_tampering.py::test_resealed_manifest_with_unknown_schema PASSED
+tests/adversarial/test_resealed_tampering.py::test_consistent_manifest_changes_still_rejected[<lambda>-ConfigurationError0] PASSED
+tests/adversarial/test_resealed_tampering.py::test_consistent_manifest_changes_still_rejected[<lambda>-ContractError] PASSED
+tests/adversarial/test_resealed_tampering.py::test_consistent_manifest_changes_still_rejected[<lambda>-ConfigurationError1] PASSED
+tests/adversarial/test_resealed_tampering.py::test_fully_consistent_admin_tampering_is_a_declared_residual_risk PASSED
+tests/adversarial/test_tampering.py::test_planted_file_before_write_is_detected_and_untouched PASSED
+tests/adversarial/test_tampering.py::test_substitution_after_write_detected_on_read PASSED
+tests/adversarial/test_tampering.py::test_artifact_substitution_detected_by_verify_and_replay PASSED
+tests/adversarial/test_tampering.py::test_object_replaced_by_symlink_detected PASSED
+tests/adversarial/test_tampering.py::test_conflict_never_modifies_existing PASSED
+
+============================= 43 passed in 14.65s ==============================
+# exit_code: 0

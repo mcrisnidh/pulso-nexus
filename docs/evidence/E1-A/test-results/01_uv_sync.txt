@@ -1,0 +1,34 @@
+$ uv sync --frozen --python 3.12
+# commit: 9cf187f6f2ce75ba9259719117ffefccb84886a4  fecha_utc: 2026-11-05T16:04:47Z
+
+Using CPython 3.12.3 interpreter at: /usr/bin/python3.12
+Creating virtual environment at: .venv
+   Building pulso-nexus @ file:///tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clean-clone
+      Built pulso-nexus @ file:///tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clean-clone
+Prepared 1 package in 480ms
+Installed 24 packages in 31ms
+ + ast-serialize==0.13.1
+ + click==8.5.0
+ + coverage==7.17.2
+ + grimp==3.18
+ + hypothesis==6.170.14
+ + import-linter==2.15
+ + iniconfig==2.3.1
+ + librt==0.16.0
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + mypy==2.4.1
+ + mypy-extensions==1.2.0
+ + packaging==26.3
+ + pathspec==1.1.1
+ + pluggy==1.7.0
+ + pulso-nexus==0.1.0a1 (from file:///tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clean-clone)
+ + pyarrow==26.0.1
+ + pygments==2.21.0
+ + pytest==9.2.0
+ + pytest-cov==7.1.0
+ + rich==15.0.0
+ + ruff==0.17.3
+ + sortedcontainers==2.4.0
+ + typing-extensions==4.16.0
+# exit_code: 0

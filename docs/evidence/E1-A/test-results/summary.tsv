@@ -1,0 +1,13 @@
+00_clean_status	0	git status --porcelain && git rev-parse HEAD && git log -1 --format=%H%n%s
+01_uv_sync	0	uv sync --frozen --python 3.12
+02_ruff	0	uv run ruff check . && uv run ruff format --check .
+03_mypy	0	uv run mypy --strict src
+04_lint_imports	0	uv run lint-imports
+05_pytest_cov	0	uv run pytest -p no:cacheprovider -ra --cov=nexus --cov-branch --cov-report=term-missing --cov-fail-under=90 --junitxml=/tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/evidence/junit.xml
+06_coverage_by_package	0	for p in 'src/nexus/hashing.py' 'src/nexus/storage/*' 'src/nexus/snapshots/*' 'src/nexus/pipeline/*' 'src/nexus/engines/*'; do echo "== $p"; uv run coverage report --include="$p" --fail-under=90 | tail -1 || exit 1; done
+07_repro_adv_arch	0	uv run pytest -p no:cacheprovider tests/reproducibility tests/adversarial tests/architecture -v
+08_repro_threads1_utc_C	0	NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest -p no:cacheprovider tests/reproducibility -v
+09_repro_threads8_mx_cutf8	0	NEXUS_THREADS=8 TZ=America/Mexico_City LC_ALL=C.UTF-8 uv run pytest -p no:cacheprovider tests/reproducibility -v
+10_demo	0	bash scripts/e1a_demo.sh
+11_adversarial_detail	0	uv run pytest -p no:cacheprovider tests/adversarial -v -s
+12_post_status	0	git status --porcelain --untracked-files=no && echo 'arbol limpio tras las pruebas'
