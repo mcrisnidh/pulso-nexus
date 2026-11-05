@@ -177,7 +177,9 @@ jobs:
           test "$created" = "$NEXUS_SQL_DATABASE"
       - name: B3–B16 contra SQL Server real + suite completa (cobertura total >= 90 %)
         run: >-
-          uv run pytest -ra --tb=short -s -p no:cacheprovider --durations=25
+          timeout --signal=INT 70m
+          uv run pytest -ra --tb=short -s -p no:cacheprovider --durations=25 -v
+          -o faulthandler_timeout=420
           --junitxml="$NEXUS_EVIDENCE_DIR/junit.xml"
           --cov=nexus --cov-branch --cov-report=term --cov-fail-under=90
           2>&1 | tee "$NEXUS_EVIDENCE_DIR/pytest.log"; exit "${PIPESTATUS[0]}"

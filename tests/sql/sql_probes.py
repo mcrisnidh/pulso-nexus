@@ -6,6 +6,7 @@ Cada sonda devuelve un diccionario de evidencia con ``violations`` (lista vacía
 from __future__ import annotations
 
 import threading
+import time
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -16,6 +17,8 @@ from nexus.metadata.sqlserver import SqlServerMetadata
 
 Factory = Callable[..., SqlServerMetadata]
 SHA = "a" * 64
+MAX_CONSECUTIVE_ERRORS = 20
+DRAIN_DEADLINE_S = 300
 
 
 def fake_execute(repo: SqlServerMetadata, attempt_id: str, token: int, tag: str) -> None:
@@ -38,7 +41,12 @@ def drain(
 ) -> None:
     repo = factory(proc_schema=proc_schema, actor=worker)
     idle = 0
+    failures = 0
+    deadline = time.monotonic() + DRAIN_DEADLINE_S
     while not stop.is_set() and idle < 3:
+        if failures >= MAX_CONSECUTIVE_ERRORS or time.monotonic() > deadline:
+            errors.append(f"{worker}: abandona tras {failures} errores seguidos o plazo agotado")
+            return
         try:
             claim = repo.claim(worker, 30000)
             if claim is None:
@@ -53,7 +61,9 @@ def drain(
             fake_execute(
                 repo, str(lease.attempt_id), int(lease.fencing_token or 0), uuid.uuid4().hex
             )
+            failures = 0
         except Exception as exc:  # cualquier error se registra como evidencia
+            failures += 1
             errors.append(f"{worker}: {type(exc).__name__}: {exc}"[:300])
 
 
