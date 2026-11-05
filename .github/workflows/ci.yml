@@ -123,7 +123,7 @@ jobs:
           printf '%s\n' "[network]" "tlscert = /var/opt/mssql/secrets/server.crt" \
             "tlskey = /var/opt/mssql/secrets/server.key" "tlsprotocols = 1.2" "forceencryption = 1" > mssql.conf
           mkdir secrets && mv server.crt server.key secrets/
-          sudo chown -R 10001:0 secrets && sudo chmod 500 secrets && sudo chmod 400 secrets/*
+          chmod 400 secrets/server.crt secrets/server.key && chmod 500 secrets && sudo chown -R 10001:0 secrets
           openssl x509 -in ca.crt -noout -fingerprint -sha256 > "$NEXUS_EVIDENCE_DIR/ephemeral_ca_fingerprint.txt"
       - name: SQL Server 2022 Developer efímero (solo 127.0.0.1)
         run: |
@@ -156,7 +156,8 @@ jobs:
         run: |
           uv run python scripts/e1b_tls_probe.py --expect ok | tee "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"
           uv run python scripts/e1b_tls_probe.py --expect hostname-fails --host 127.0.0.1 | tee "$NEXUS_EVIDENCE_DIR/tls_3_hostname.json"
-      - name: Bootstrap (guard de bootstrap, base nexus_e1b_<nonce>, RCSI=${{ matrix.rcsi }})
+      - id: bootstrap
+        name: Bootstrap (guard de bootstrap, base nexus_e1b_<nonce>, RCSI=${{ matrix.rcsi }})
         env:
           NEXUS_BOOTSTRAP_PROFILE: e1b-ephemeral
         run: |
@@ -171,7 +172,7 @@ jobs:
           2>&1 | tee "$NEXUS_EVIDENCE_DIR/pytest.log"; exit "${PIPESTATUS[0]}"
         shell: bash
       - name: Registro del servidor (versión, edición, opciones de aislamiento)
-        if: ${{ !cancelled() && env.NEXUS_SQL_DATABASE != '' }}
+        if: ${{ !cancelled() && steps.bootstrap.outcome == 'success' }}
         run: |
           uv run python - <<'PY' | tee "$NEXUS_EVIDENCE_DIR/server_info.json"
           import json, os
