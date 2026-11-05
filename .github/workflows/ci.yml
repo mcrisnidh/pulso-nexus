@@ -17,9 +17,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv python install 3.12
       - run: uv sync --frozen
-      - name: Bytes de fixtures y manifiesto (política .gitattributes)
-        run: sha256sum -c tests/fixtures/synthetic/SHA256SUMS --strict
-        working-directory: .
+      - name: Bytes de fixtures (política .gitattributes)
+        run: sha256sum -c --strict SHA256SUMS
+        working-directory: tests/fixtures/synthetic
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy --strict src
       - run: uv run lint-imports
@@ -43,7 +43,8 @@ jobs:
       - run: uv sync --frozen
       - name: Bytes de fixtures tras el checkout de Windows
         shell: bash
-        run: sha256sum -c tests/fixtures/synthetic/SHA256SUMS --strict
+        run: sha256sum -c --strict SHA256SUMS
+        working-directory: tests/fixtures/synthetic
       - name: Pruebas (resumen completo de fallos, sin truncar)
         if: ${{ !cancelled() }}
         run: uv run pytest -ra --tb=line -p no:cacheprovider --cov=nexus --cov-branch --cov-report=term
