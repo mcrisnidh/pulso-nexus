@@ -33,6 +33,7 @@ import errno
 import os
 import stat
 import sys
+import time
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
@@ -116,15 +117,27 @@ if sys.platform == "win32":
     _DIR_FLAGS = 0x02000000 | 0x00200000  # BACKUP_SEMANTICS | OPEN_REPARSE_POINT
     _ATTR_DIRECTORY = 0x10
 
+    _ERROR_SHARING_VIOLATION = 32
+    _LOCK_ATTEMPTS = 3
+    _LOCK_RETRY_SECONDS = 0.05
+
     def _win_lock_dir(path: Path) -> int:
-        handle = _CreateFileW(
-            str(path), _DIR_ACCESS, _SHARE_NO_DELETE, None, _OPEN_EXISTING, _DIR_FLAGS, None
-        )
-        if handle is None or handle == _INVALID_HANDLE:
+        """Abre y bloquea un directorio. Ante una violación de compartición transitoria
+        (otro proceso lo tiene abierto sin compartir, p. ej. un renombrado en curso o un
+        antivirus) reintenta de forma acotada; si persiste, falla cerrado con
+        ``PermissionError`` (WinError 32). Nunca continúa sin el bloqueo."""
+        for attempt in range(_LOCK_ATTEMPTS):
+            handle = _CreateFileW(
+                str(path), _DIR_ACCESS, _SHARE_NO_DELETE, None, _OPEN_EXISTING, _DIR_FLAGS, None
+            )
+            if handle is not None and handle != _INVALID_HANDLE:
+                break
             code = ctypes.get_last_error()
             if code in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
                 raise FileNotFoundError(errno.ENOENT, "no existe", str(path))
-            raise ctypes.WinError(code)
+            if code != _ERROR_SHARING_VIOLATION or attempt == _LOCK_ATTEMPTS - 1:
+                raise ctypes.WinError(code)
+            time.sleep(_LOCK_RETRY_SECONDS)
         info = _ByHandleFileInformation()
         if not _GetFileInformationByHandle(handle, ctypes.byref(info)):
             code = ctypes.get_last_error()

@@ -1,29 +1,36 @@
-# Garantías por plataforma: almacén de objetos (E1-A)
+# Garantías por plataforma: almacén de objetos (E1-A, revisado en E1-A-R1)
 
-Fuente: `src/nexus/storage/_fs.py`, el único módulo de E1-A con llamadas específicas
-del sistema operativo. Leyenda:
-- **Demostrada**: hay una prueba automatizada que la ejecuta en este entorno y pasa.
-- **Diseñada**: implementada según la semántica documentada de la API, pero no ejecutada
-  en esa plataforma.
+Fuente: `src/nexus/storage/_fs.py`, el único módulo con llamadas específicas del sistema
+operativo. Leyenda:
+- **Demostrada**: hay una prueba automatizada que la ejecuta en esa plataforma y pasa.
+- **Ejecutada en CI**: las pruebas pasan en el runner de GitHub Actions de esa plataforma
+  (sistema de archivos local del runner). Ejecución satisfactoria **no** es certificación.
 - **Pendiente**: requiere certificación en el almacenamiento real.
 
-Entorno de demostración: Linux (kernel 6.18), contenedor del sandbox con sistema de
-archivos de tipo overlay/ext4, Python 3.12.3 y pyarrow 26.0.1.
+Entornos:
+- **Linux:** contenedor del sandbox (kernel 6.18) y runner `ubuntu-24.04`.
+- **Windows:** runner `windows-2022` (NTFS local). Resultados por ejecución en `docs/evidence/E1-A-R1/ci/`.
 
 | Garantía | Linux / POSIX | Windows / NTFS |
 |---|---|---|
-| **Publicación sin reemplazo** | **Demostrada.** `os.link` falla con `EEXIST` si el destino existe (`test_concurrency.py`: 8 procesos × 5 rondas con el mismo contenido y con contenidos distintos; exactamente un ganador, el contenido final es el del ganador) | **Diseñada.** `os.rename` → `MoveFileExW` sin `MOVEFILE_REPLACE_EXISTING`, que falla si el destino existe. Solo se ha simulado la **ruta de código** en Linux (`test_windows_code_path_uses_non_replacing_rename`). **Pendiente de certificar en NTFS real.** |
-| No usar `os.replace` ni `shutil.move` | **Demostrada** (prueba AST `test_no_replace.py`, independiente de la plataforma) | Igual |
-| FS sin enlaces duros | **Demostrada:** falla cerrado (`UnsupportedFilesystemError`), sin degradar a rename | No aplica: en Windows `os.rename` ya es no-reemplazante |
-| Exclusividad del temporal | **Demostrada:** `O_CREAT\|O_EXCL\|O_NOFOLLOW` | Diseñada: `O_CREAT\|O_EXCL\|O_BINARY` (Windows no tiene `O_NOFOLLOW`) |
-| `fsync` del archivo | Se ejecuta (`os.fsync`). La durabilidad ante corte eléctrico **no** se demuestra (requeriría hardware o una VM con corte real) | Diseñada: `os.fsync` → `FlushFileBuffers`. **Pendiente** |
-| `fsync` del directorio | Se ejecuta (`test_fsync_dir_posix`) | **No disponible** en Windows. La durabilidad del rename en NTFS queda **pendiente de certificar** (posible `MOVEFILE_WRITE_THROUGH` vía API nativa en una etapa futura) |
-| Caídas en mitad de la escritura | **Demostrada:** `os._exit` en `before_fsync`, `before_publish` y `before_verify`. El resultado es siempre o ningún objeto final o un objeto válido (`test_crash_injection.py`) | Diseñada. No ejecutada en Windows |
-| Enlaces simbólicos o junctions en destino o ruta | **Demostrada:** se detectan con `lstat` y se rechazan; el destino del enlace no se toca | Diseñada: se detectan por `FILE_ATTRIBUTE_REPARSE_POINT`. Solo la detección por atributo está simulada en Linux |
-| Solo lectura | `chmod 0444` antes de publicar (**disuade, no impide** a root) | Atributo read-only (disuade). Las ACL reales están pendientes (P13) |
-| Claves portables | **Demostrada:** minúsculas `[a-z0-9._-]`, sin nombres reservados (`CON`, `NUL`, `COM1`…), sin `:` (ADS), sin punto final, longitud ≤ 180 | Las mismas reglas evitan colisiones por mayúsculas y minúsculas y rutas inválidas en NTFS. **Pendiente** de probar en NTFS real |
-| Recursos de red SMB/NAS | **No probado** | **No probado** (P5) |
-| Escritor externo malicioso o administrador | **Detectado al leer** (hash), no prevenido | Igual. La prevención y la evidencia externa corresponden a E1-C (P16) |
+| **Publicación sin reemplazo** | **Demostrada.** `linkat` falla con `EEXIST` (`test_concurrency.py`: 8 procesos × 5 rondas; `test_publication_primitive_never_replaces`) | **Ejecutada en CI.** `MoveFileExW` sin `REPLACE_EXISTING`, con las mismas pruebas sobre la primitiva real (ya no simulada). Pendiente de certificar en el almacenamiento corporativo |
+| **TOCTOU: directorio intermedio sustituido por un enlace (escritura)** | **Demostrada.** `openat`/`linkat` relativos a descriptores: nunca se crea un archivo fuera (`test_toctou.py`; antes de corregir, 2 de 3 variantes escribían fuera) | **Ejecutada en CI.** Directorios bloqueados sin `FILE_SHARE_DELETE`: el renombrado del atacante falla. Las junctions se rechazan |
+| **TOCTOU: lectura (determinista y concurrente)** | **Demostrada.** 0 escapes en 20 × 300 sustituciones concurrentes (antes de corregir, entre 30 y 100 lecturas abrían el archivo externo) | **Ejecutada en CI** (mismas sondas, con junction) |
+| **Objeto sustituido entre comprobación y apertura** | **Demostrada:** la identidad `(st_dev, st_ino)` difiere y se lanza `IntegrityError` | **Ejecutada en CI** (identificador de archivo NTFS) |
+| No usar `os.replace` ni `shutil.move`; ningún acceso por ruta completa en el ObjectStore | **Demostrada** (prueba AST) | Igual |
+| FS sin enlaces duros | **Demostrada:** falla cerrado (`UnsupportedFilesystemError`) | No aplica |
+| Temporales de solo lectura en staging | Se eliminan; el modo de un objeto publicado no se toca (`test_remove_own_temp_never_touches_published_object`) | **Ejecutada en CI.** Se quita el atributo solo si `st_nlink == 1`. Esta era la causa del `WinError 5` en R0 |
+| `fsync` del archivo | Se ejecuta (`os.fsync`) | Se ejecuta (`FlushFileBuffers`) |
+| `fsync` del directorio | Se ejecuta (`test_fsync_dir_by_platform`) | **No disponible.** La durabilidad del rename en NTFS queda **pendiente de certificar** |
+| **Resistencia a cortes eléctricos** | **No demostrada** (requiere pruebas de pérdida de energía real o VM con corte) | **No demostrada** |
+| Caídas del proceso en mitad de la escritura | **Demostrada** (`os._exit` en 3 puntos y 15 combinaciones en el pipeline) | **Ejecutada en CI.** Tras un rename no queda temporal |
+| Bytes de fixtures y manifiestos | LF (`.gitattributes`) | **Ejecutada en CI:** `sha256sum -c` tras el checkout de Windows. Antes de corregir, `autocrlf` cambiaba el SHA-256 |
+| Solo lectura | `0444` (disuade, no impide a root) | Atributo read-only (disuade) |
+| Recursos de red SMB/NAS | **No probado** (P5) | **No probado** (P5) |
+| Escritor externo malicioso o administrador | **Detectado al leer** (hash e identidad), no prevenido | Igual. La prevención y la evidencia externa corresponden a E1-C (P16) |
 
-CI incluye un job `windows-2022` **informativo** (`continue-on-error: true`). Su resultado,
-si llega a observarse, se trata como evidencia auxiliar y no como certificación.
+## Límites declarados de la defensa TOCTOU
+
+1. Los ancestros de la raíz del almacén (`<root>` y superiores) son de confianza.
+2. En Windows, el bloqueo dura solo mientras la operación está en curso. Un atacante puede sustituir un directorio entre operaciones; la siguiente operación lo detecta (punto de reanálisis) y falla cerrado.
+3. En Windows, `os.open` no tiene `O_NOFOLLOW`. Si el componente final se sustituye por un symlink de archivo (requiere privilegio), la comparación de identidad detecta el cambio y falla cerrado.
