@@ -72,6 +72,11 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+# Un hilo que muere con una excepción no capturada invalida la prueba (p. ej., un
+# atacante concurrente que deja de atacar): se trata como error, no como aviso.
+filterwarnings = [
+    "error::pytest.PytestUnhandledThreadExceptionWarning",
+]
 markers = [
     "posix_only: garantía demostrada solo en POSIX; en Windows queda pendiente de certificar",
 ]

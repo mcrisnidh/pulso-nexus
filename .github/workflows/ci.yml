@@ -24,6 +24,8 @@ jobs:
       - run: uv run mypy --strict src
       - run: uv run lint-imports
       - run: uv run pytest -ra --tb=short --cov=nexus --cov-branch --cov-fail-under=90
+      - name: Sondas TOCTOU con estadísticas de ataque
+        run: uv run pytest tests/adversarial/test_toctou.py -v -s -p no:cacheprovider
       - run: NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest tests/reproducibility -v
       - run: NEXUS_THREADS=8 TZ=America/Mexico_City LC_ALL=C.UTF-8 uv run pytest tests/reproducibility -v
       - run: bash scripts/e1a_demo.sh
@@ -48,3 +50,6 @@ jobs:
       - name: Pruebas (resumen completo de fallos, sin truncar)
         if: ${{ !cancelled() }}
         run: uv run pytest -ra --tb=line -p no:cacheprovider --cov=nexus --cov-branch --cov-report=term
+      - name: Sondas TOCTOU con estadísticas de ataque
+        if: ${{ !cancelled() }}
+        run: uv run pytest tests/adversarial/test_toctou.py -v -s -p no:cacheprovider

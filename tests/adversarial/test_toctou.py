@@ -131,7 +131,12 @@ def test_read_never_opens_file_outside_store(tmp_path: Path) -> None:
 
 
 class ParentSwapAttacker(threading.Thread):
-    """Hilo atacante: alterna ``objects/a`` entre el directorio real y un enlace externo."""
+    """Hilo atacante: alterna ``objects/a`` entre el directorio real y un enlace externo.
+
+    En Windows cada paso puede chocar con el bloqueo del almacén (WinError 32). El
+    atacante NO se rinde: reintenta y lo contabiliza. Cualquier otra excepción queda en
+    ``self.error`` y hace fallar la prueba, así que un ataque no puede morir en silencio.
+    """
 
     def __init__(self, root: Path, outside: Path) -> None:
         super().__init__(daemon=True)
@@ -139,28 +144,39 @@ class ParentSwapAttacker(threading.Thread):
         self.moved = root / "objects" / "a-moved"
         self.outside = outside
         self.stop = threading.Event()
-        self.swaps = {"ok": 0, "blocked": 0}
+        self.swaps = {"ok": 0, "blocked": 0, "contention": 0}
+        self.error: BaseException | None = None
 
-    def run(self) -> None:
+    def _persist(self, action: Callable[[], None]) -> bool:
         while not self.stop.is_set():
             try:
-                os.rename(self.victim, self.moved)
-            except OSError:
-                self.swaps["blocked"] += 1
-                continue
-            make_dir_link(self.outside, self.victim)
-            self.swaps["ok"] += 1
-            remove_dir_link(self.victim)
-            self._restore()
+                action()
+                return True
+            except PermissionError:
+                self.swaps["contention"] += 1
+        return False
 
-    def _restore(self) -> None:
-        while True:  # puede competir con un lector que mantiene el directorio abierto
-            try:
-                os.rename(self.moved, self.victim)
-                return
-            except OSError:
-                if self.stop.is_set():
+    def run(self) -> None:
+        try:
+            while not self.stop.is_set():
+                try:
+                    os.rename(self.victim, self.moved)
+                except PermissionError:
+                    self.swaps["blocked"] += 1  # el almacén tiene el directorio bloqueado
+                    continue
+                if not self._persist(lambda: make_dir_link(self.outside, self.victim)):
                     return
+                self.swaps["ok"] += 1
+                if not self._persist(lambda: remove_dir_link(self.victim)):
+                    return
+                if not self._persist(lambda: os.rename(self.moved, self.victim)):
+                    return
+        except BaseException as exc:  # registrada y comprobada por la prueba
+            self.error = exc
+
+    @property
+    def attempts(self) -> int:
+        return self.swaps["ok"] + self.swaps["blocked"]
 
     def finish(self) -> None:
         self.stop.set()
@@ -191,7 +207,7 @@ def test_concurrent_reads_during_parent_swaps(tmp_path: Path) -> None:
     attacker.start()
     try:
         while time.monotonic() < deadline and (
-            attacker.swaps["ok"] < 300 or sum(outcomes.values()) < 300
+            attacker.attempts < 300 or sum(outcomes.values()) < 300
         ):
             try:
                 assert store.get("a/x.bin", expected) == REAL
@@ -215,8 +231,9 @@ def test_concurrent_reads_during_parent_swaps(tmp_path: Path) -> None:
         sys.setswitchinterval(previous_interval)
         shutil.rmtree(outside, ignore_errors=True)
     print(f"swaps={attacker.swaps} outcomes={outcomes} escapes={len(escapes)}")
+    assert attacker.error is None, f"el hilo atacante terminó con error: {attacker.error!r}"
+    assert attacker.attempts >= 300, f"ataque insuficiente: {attacker.swaps}"
     assert escapes == [], f"{len(escapes)} lecturas abrieron un archivo externo: {escapes[:2]}"
-    assert attacker.swaps["ok"] + attacker.swaps["blocked"] > 0
 
 
 def test_final_component_swap_between_check_and_open(tmp_path: Path) -> None:
