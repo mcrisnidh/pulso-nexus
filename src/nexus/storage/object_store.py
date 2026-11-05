@@ -104,6 +104,7 @@ class LocalObjectStore:
             if _fs.is_link_like(path):
                 raise IntegrityError(f"{key}: el objeto es un enlace, no un archivo regular")
             raise FileNotFoundError(key)
+        self._checkpoint("before_open_read")
         fd = _fs.open_read_nofollow(path)
         with os.fdopen(fd, "rb") as fh:
             data = fh.read()

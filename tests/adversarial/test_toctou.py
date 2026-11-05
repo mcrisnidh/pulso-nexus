@@ -1,0 +1,204 @@
+"""NX-E1A-02 — sondas TOCTOU: sustitución de un directorio intermedio por un enlace.
+
+Atacante: entre la validación de la ruta y la operación de E/S, renombra un
+directorio intermedio del almacén y pone en su lugar un enlace (symlink en POSIX,
+junction en Windows) hacia un directorio EXTERNO.
+
+Invariantes exigidos:
+- Escritura: nunca se crea un archivo fuera del ObjectStore.
+- Lectura: nunca se abre un archivo fuera del ObjectStore. La sonda pone en el
+  directorio externo un archivo con contenido distinto. Si el almacén lo abre, el
+  hash no coincide y aparece "hash no coincide": esa es la firma de una lectura fuera.
+
+En Windows el ataque puede fallar en el propio renombrado: el almacén mantiene
+abiertos los directorios de la ruta sin compartir DELETE. Se registra igualmente y el
+invariante se comprueba en ambos casos.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import sys
+import threading
+import time
+from collections.abc import Callable
+from pathlib import Path
+
+import pytest
+
+from nexus.errors import IntegrityError, NexusError
+from nexus.hashing import sha256_bytes
+from nexus.storage.object_store import LocalObjectStore
+
+REAL = b"contenido-real-del-almacen"
+ATTACKER = b"contenido-externo-del-atacante"
+
+
+def make_dir_link(target: Path, link: Path) -> None:
+    """Crea un enlace de directorio: symlink en POSIX, junction en Windows (sin privilegios)."""
+    if os.name == "nt":
+        import _winapi
+
+        _winapi.CreateJunction(str(target), str(link))
+    else:
+        link.symlink_to(target, target_is_directory=True)
+
+
+def remove_dir_link(link: Path) -> None:
+    if os.name == "nt":
+        os.rmdir(link)  # elimina la junction sin tocar el destino
+    else:
+        link.unlink()
+
+
+def files_under(path: Path) -> list[str]:
+    return sorted(p.relative_to(path).as_posix() for p in path.rglob("*") if p.is_file())
+
+
+def swapper(root: Path, rel_dir: str, outside: Path, log: dict[str, object]) -> Callable[[], None]:
+    def swap() -> None:
+        victim = root / "objects" / rel_dir
+        try:
+            os.rename(victim, victim.with_name(victim.name + "-moved"))
+        except OSError as exc:
+            log["swapped"] = False
+            log["swap_error"] = repr(exc)
+            return
+        make_dir_link(outside, victim)
+        log["swapped"] = True
+
+    return swap
+
+
+@pytest.mark.parametrize(
+    ("key", "rel_dir"),
+    [("a/x.bin", "a"), ("a/b/x.bin", "a"), ("a/b/x.bin", "a/b")],
+)
+def test_publish_never_creates_file_outside_store(tmp_path: Path, key: str, rel_dir: str) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    root = tmp_path / "store"
+    LocalObjectStore(root).put(f"{rel_dir}/seed.bin", b"seed")  # crea los directorios
+    log: dict[str, object] = {}
+    swap = swapper(root, rel_dir, outside, log)
+
+    def hook(point: str) -> None:
+        if point == "before_publish" and "swapped" not in log:
+            swap()
+
+    store = LocalObjectStore(root, fault_hook=hook)
+    outcome: object
+    try:
+        outcome = store.put(key, REAL)
+    except (NexusError, OSError) as exc:
+        outcome = exc
+    print(f"swap={log} outcome={outcome!r}")
+    assert "swapped" in log, "la sonda debe haber intentado el ataque"
+    assert files_under(outside) == [], f"archivo creado FUERA del almacén: {files_under(outside)}"
+
+
+def test_read_never_opens_file_outside_store(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "x.bin").write_bytes(ATTACKER)
+    root = tmp_path / "store"
+    LocalObjectStore(root).put("a/x.bin", REAL)
+    log: dict[str, object] = {}
+    swap = swapper(root, "a", outside, log)
+
+    def hook(point: str) -> None:
+        if point == "before_open_read" and "swapped" not in log:
+            swap()
+
+    store = LocalObjectStore(root, fault_hook=hook)
+    try:
+        data = store.get("a/x.bin", sha256_bytes(REAL))
+    except IntegrityError as exc:
+        assert "hash no coincide" not in str(exc), f"se leyó un archivo FUERA del almacén: {exc}"
+        assert "enlace" in str(exc)  # rechazo legítimo por enlace detectado
+        return
+    print(f"swap={log}")
+    assert data == REAL
+
+
+class ParentSwapAttacker(threading.Thread):
+    """Hilo atacante: alterna ``objects/a`` entre el directorio real y un enlace externo."""
+
+    def __init__(self, root: Path, outside: Path) -> None:
+        super().__init__(daemon=True)
+        self.victim = root / "objects" / "a"
+        self.moved = root / "objects" / "a-moved"
+        self.outside = outside
+        self.stop = threading.Event()
+        self.swaps = {"ok": 0, "blocked": 0}
+
+    def run(self) -> None:
+        while not self.stop.is_set():
+            try:
+                os.rename(self.victim, self.moved)
+            except OSError:
+                self.swaps["blocked"] += 1
+                continue
+            make_dir_link(self.outside, self.victim)
+            self.swaps["ok"] += 1
+            remove_dir_link(self.victim)
+            self._restore()
+
+    def _restore(self) -> None:
+        while True:  # puede competir con un lector que mantiene el directorio abierto
+            try:
+                os.rename(self.moved, self.victim)
+                return
+            except OSError:
+                if self.stop.is_set():
+                    return
+
+    def finish(self) -> None:
+        self.stop.set()
+        self.join(timeout=30)
+        if self.victim.is_symlink() or (
+            os.name == "nt" and self.victim.exists() and self.moved.exists()
+        ):
+            remove_dir_link(self.victim)
+        if self.moved.exists() and not self.victim.exists():
+            os.rename(self.moved, self.victim)
+
+
+def test_concurrent_reads_during_parent_swaps(tmp_path: Path) -> None:
+    """Variante concurrente: un hilo atacante alterna el directorio con un enlace mientras
+    otro hilo lee repetidamente. Ninguna lectura debe abrir el archivo externo."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "x.bin").write_bytes(ATTACKER)
+    store = LocalObjectStore(tmp_path / "store")
+    store.put("a/x.bin", REAL)
+    expected = sha256_bytes(REAL)
+    attacker = ParentSwapAttacker(store.root, outside)
+    outcomes = {"real": 0, "rejected": 0, "missing": 0}
+    escapes: list[str] = []
+    previous_interval = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)  # fuerza intercalados frecuentes entre hilos
+    deadline = time.monotonic() + 20
+    attacker.start()
+    try:
+        while time.monotonic() < deadline and (
+            attacker.swaps["ok"] < 300 or sum(outcomes.values()) < 300
+        ):
+            try:
+                assert store.get("a/x.bin", expected) == REAL
+                outcomes["real"] += 1
+            except IntegrityError as exc:
+                if "hash no coincide" in str(exc):
+                    escapes.append(str(exc))
+                else:
+                    outcomes["rejected"] += 1
+            except FileNotFoundError:
+                outcomes["missing"] += 1
+    finally:
+        attacker.finish()
+        sys.setswitchinterval(previous_interval)
+        shutil.rmtree(outside, ignore_errors=True)
+    print(f"swaps={attacker.swaps} outcomes={outcomes} escapes={len(escapes)}")
+    assert escapes == [], f"{len(escapes)} lecturas abrieron un archivo externo: {escapes[:2]}"
+    assert attacker.swaps["ok"] + attacker.swaps["blocked"] > 0

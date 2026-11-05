@@ -17,23 +17,33 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv python install 3.12
       - run: uv sync --frozen
+      - name: Bytes de fixtures y manifiesto (política .gitattributes)
+        run: sha256sum -c tests/fixtures/synthetic/SHA256SUMS --strict
+        working-directory: .
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy --strict src
       - run: uv run lint-imports
-      - run: uv run pytest --cov=nexus --cov-branch --cov-fail-under=90
+      - run: uv run pytest -ra --tb=short --cov=nexus --cov-branch --cov-fail-under=90
       - run: NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest tests/reproducibility -v
       - run: NEXUS_THREADS=8 TZ=America/Mexico_City LC_ALL=C.UTF-8 uv run pytest tests/reproducibility -v
       - run: bash scripts/e1a_demo.sh
 
   windows:
-    # Evidencia INFORMATIVA de compatibilidad Windows/NTFS. No certifica garantías
-    # (ver docs/evidence/E1-A/PLATFORM_GUARANTEES.md).
-    name: E1-A (Windows, informativo)
+    # Evidencia de ejecución en Windows/NTFS. Este job YA NO usa continue-on-error:
+    # un fallo en Windows hace fallar el workflow. Pasar aquí demuestra ejecución
+    # satisfactoria, NO resistencia a cortes eléctricos (ver PLATFORM_GUARANTEES.md).
+    name: E1-A (Windows)
     runs-on: windows-2022
-    continue-on-error: true
     steps:
+      - name: Política de git del runner (registro)
+        run: git config --show-origin --get-all core.autocrlf; exit 0
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv python install 3.12
       - run: uv sync --frozen
-      - run: uv run pytest -ra
+      - name: Bytes de fixtures tras el checkout de Windows
+        shell: bash
+        run: sha256sum -c tests/fixtures/synthetic/SHA256SUMS --strict
+      - name: Pruebas (resumen completo de fallos, sin truncar)
+        if: ${{ !cancelled() }}
+        run: uv run pytest -ra --tb=line -p no:cacheprovider --cov=nexus --cov-branch --cov-report=term
