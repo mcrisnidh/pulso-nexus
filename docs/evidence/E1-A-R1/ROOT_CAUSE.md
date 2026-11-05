@@ -9,7 +9,10 @@ Alcance: solo E1-A. Sin SQL, sin infraestructura corporativa, sin E1-B ni E1-C.
 | `268d138` | **Reproducción.** Sondas TOCTOU y un único punto de instrumentación (`before_open_read`). La protección **no** se modifica. CI de Windows sin `continue-on-error` y con resumen de fallos sin truncar | **ROJO** a propósito |
 | `f0d03cf` | Corrección TOCTOU y causas raíz de Windows | Linux verde |
 | `17b9d72` | Corrige la ruta de `sha256sum -c` en el CI (error introducido en `268d138`/`f0d03cf`) | Linux verde, Windows 1 fallo (ver §1.6) |
-| `f01e8ac` | Reintento acotado del bloqueo de directorios en Windows (`WinError 32`) | Verde en ambas plataformas (ver `ci/`) |
+| `f01e8ac` | Reintento acotado del bloqueo de directorios en Windows (`WinError 32`) | Verde, pero **no aceptado**: el hilo atacante había muerto (§1.6) |
+| `aa7962c` | La sonda concurrente no puede debilitarse en silencio (atacante persistente, ≥ 300 intentos; los avisos de hilos pasan a ser error) | Windows: 1 fallo cerrado no clasificado (`WinError 5`) |
+| `cada514` | Clasificación restringida de los rechazos cerrados de Windows (`winerror` 5 y 32) | Verde en Linux y Windows |
+| `e401cf6` | #8: la lectura en Windows tolera handles exclusivos transitorios (reintento acotado) y se añade una prueba con un handle exclusivo real | **Verde en Linux y Windows (código final)** |
 | commit de evidencia | Este documento, logs, manifiesto e informe | — |
 
 ## 1. NX-E1A-01: fallos en Windows (run `42061556595`, job `127364324413`)
@@ -30,8 +33,8 @@ Alcance: solo E1-A. Sin SQL, sin infraestructura corporativa, sin E1-B ni E1-C.
 | 3 | `test_unsupported_filesystem_fails_closed` | `PermissionError [WinError 5]` al borrar `staging\*.tmp` | **(a) Producción:** en Windows un archivo con atributo de solo lectura no se puede borrar, y el temporal se marca como solo lectura antes de publicarse. **(b) Prueba:** hacía `monkeypatch IS_WINDOWS=False` (simulaba POSIX) y la limpieza decidía por esa bandera, no por el SO real | (a) `remove_own_temp` (Windows) quita el atributo solo si `st_nlink == 1`, así que nunca toca un objeto publicado. (b) Ninguna prueba simula otra plataforma: se rompe la primitiva **real** (`os.link` en POSIX, `os.rename` en Windows) |
 | 4 | `test_other_link_errors_propagate` | `assert 13 == 28` | El `WinError 5` (errno 13) de la limpieza **ocultaba** el error original `ENOSPC` (28) | Igual que #3. La prueba verifica que el error original se propaga |
 | 5 | `test_missing_snapshot_not_reproducible` | `WinError 5` en `shutil.rmtree` sobre `manifest.json` | La prueba simula una purga de operador con `shutil.rmtree`, que en Windows no puede borrar archivos de solo lectura | Helper `force_rmtree` (`conftest.py`) que quita el atributo, como haría un operador. El código de producción no borra objetos |
-| 6 | Pendiente de confirmar con `268d138` (§1.5) | — | Hipótesis: `test_missing_snapshot_is_not_reproducible_without_partial_result`. Mismo `shutil.rmtree` que #5 | `force_rmtree` |
-| 7 | Pendiente de confirmar con `268d138` (§1.5) | — | Hipótesis: `test_object_put_crash_leaves_absent_or_valid[before_verify]`. La prueba esperaba 1 temporal tras una caída posterior a la publicación, pero en Windows `os.rename` **mueve** el temporal | La expectativa depende de la primitiva real: 0 temporales en Windows y 1 en POSIX (`os.link`). Se mantiene "nunca referenciado" |
+| 6 | `test_missing_snapshot_is_not_reproducible_without_partial_result` (**observado** en `268d138`) | `WinError 5` en `content.bin` | Mismo `shutil.rmtree` sobre objetos de solo lectura que #5 | `force_rmtree` |
+| 7 | `test_object_put_crash_leaves_absent_or_valid[before_verify]` (**observado** en `268d138`) | `assert (0 == 1)` | La prueba esperaba 1 temporal tras una caída posterior a la publicación, pero en Windows `os.rename` **mueve** el temporal | La expectativa depende de la primitiva real: 0 temporales en Windows y 1 en POSIX (`os.link`). Se mantiene "nunca referenciado" |
 
 ### 1.3 Pruebas que simulaban POSIX en Windows
 
@@ -46,17 +49,33 @@ Alcance: solo E1-A. Sin SQL, sin infraestructura corporativa, sin E1-B ni E1-C.
 - **R1:** 5. `test_fsync_dir_posix` pasó a ser `test_fsync_dir_by_platform`, que se ejecuta en ambas plataformas con la expectativa propia de cada una.
 - No se añadió **ningún** skip ni xfail nuevo. Las 5 restantes necesitan crear symlinks POSIX, y su equivalente en Windows (junctions) lo cubren las sondas TOCTOU, que sí se ejecutan en Windows.
 
-### 1.5 Confirmación en Windows con el código original
+### 1.5 Confirmación en Windows con el código original y defecto adicional (#8)
 
-Ver `ci/r1-repro-268d138-windows.log`: resultado de las pruebas de `268d138` en Windows (código de producción de R0 más sondas). Si ese log no estaba disponible al cerrar la entrega, se indica en `REPORT.md`.
+El run de reproducción `268d138` (código de producción de R0) se canceló a los 35 minutos. pytest seguía calculando con `difflib` el diff del fixture CRLF de 5000 filas, que es también la causa de los 14,5 minutos de R0. Tras la cancelación, su log quedó disponible: `ci/r1-repro-268d138-windows-job-127381167198-extract.log`.
 
-### 1.6 Fallo observado tras la primera corrección (`17b9d72`)
+- **#6 y #7 se observan** en Windows, con los mismos síntomas analizados arriba.
+- **NX-E1A-02 se reproduce también en Windows:** archivos creados fuera en 2 variantes, lectura del archivo externo y 9 lecturas concurrentes escapadas.
+- **#8 (nuevo, defecto de producto en Windows):** `test_same_content_concurrent_writers_all_succeed[2]` y `[4]`.
+  - **Síntoma:** el proceso perdedor recibe `FileExistsError` (correcto) y, al verificar el objeto recién publicado por el ganador, `PermissionError [Errno 13]`, de modo que `put` falla en falso en lugar de ser idempotente.
+  - **Causa:** violación de compartición transitoria sobre un archivo recién creado (antivirus o indexador, o el cierre del `MoveFileEx` del otro proceso). La CRT de Windows la traduce a `EACCES`. Es intermitente: en R0 pasó.
+  - **Corrección (`e401cf6`):** la apertura de lectura en Windows reintenta de forma acotada (5 × 50 ms) ante `PermissionError`. Si persiste, el error se propaga (fallo cerrado).
+  - **Prueba:** `test_read_tolerates_transient_exclusive_handle` sujeta el objeto con `CreateFileW(GENERIC_READ, share=0)`, un handle exclusivo **real**, durante 120 ms. Pasa en Windows (CI de `e401cf6`).
+
+### 1.6 Fallos observados durante la corrección (`17b9d72`, `f01e8ac`, `aa7962c`)
 
 - **Resultado:** 220 pasadas, 5 omitidas y 1 fallo en `test_concurrent_reads_during_parent_swaps` por `PermissionError [WinError 32]`.
 - **Causa:** el renombrado del atacante y el `CreateFileW` sin `FILE_SHARE_DELETE` competían por el directorio. Es un **fallo cerrado, sin escape**, pero la sonda no lo clasificaba.
 - **Corrección (`f01e8ac`):**
   - Reintento acotado (3 × 50 ms) ante violaciones de compartición transitorias. Si persisten, `PermissionError`, y nunca se continúa sin bloqueo.
   - La sonda cuenta `WinError 32` como `lock_contention`. Cualquier otro error sigue haciendo fallar la prueba.
+- **`f01e8ac` pasó, pero no se aceptó.** El aviso `PytestUnhandledThreadExceptionWarning` reveló que el hilo atacante había muerto (`WinError 32` al borrar la junction que el lector mantenía abierta). Una prueba verde con el ataque detenido no es evidencia.
+- **`aa7962c`:**
+  - El atacante persiste ante contención y se exigen al menos 300 intentos.
+  - Cualquier excepción del atacante hace fallar la prueba.
+  - En toda la suite, los avisos de hilos no capturados pasan a ser **error**.
+  - Resultado en Windows: 1 fallo cerrado no clasificado. Era `WinError 5` (`ERROR_ACCESS_DENIED`) al abrir la junction en estado *delete-pending*.
+- **`cada514`:** la sonda acepta como rechazo cerrado **solo** `winerror` 5 y 32. CI verde en ambas plataformas, con 3965 sustituciones reales y 0 escapes.
+- Se verificó además que la sonda endurecida **sigue fallando** contra la protección original (5 de 6 en rojo, 74 escapes).
 
 ## 2. NX-E1A-02: carrera TOCTOU en el ObjectStore
 

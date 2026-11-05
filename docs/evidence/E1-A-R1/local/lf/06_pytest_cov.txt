@@ -1,0 +1,74 @@
+$ uv run pytest -p no:cacheprovider -ra --cov=nexus --cov-branch --cov-report=term-missing --cov-fail-under=90 --junitxml=/tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/ev-r1-lf/junit.xml
+# commit: e401cf650488cbd3ea784dca603f31db42fa383e  core.autocrlf=false  fecha_utc: 2026-11-05T17:16:59Z
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0
+rootdir: /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1-lf
+configfile: pyproject.toml
+testpaths: tests
+plugins: hypothesis-6.170.14, cov-7.1.0
+collected 227 items
+
+tests/adversarial/test_concurrency.py ..........                         [  4%]
+tests/adversarial/test_crash_injection.py ...................            [ 12%]
+tests/adversarial/test_resealed_tampering.py .........                   [ 16%]
+tests/adversarial/test_tampering.py .....                                [ 18%]
+tests/adversarial/test_toctou.py ......                                  [ 21%]
+tests/architecture/test_boundaries.py ........                           [ 25%]
+tests/architecture/test_forbidden_deps.py ...                            [ 26%]
+tests/architecture/test_manifest_hygiene.py ..                           [ 27%]
+tests/architecture/test_no_replace.py ...                                [ 28%]
+tests/contract/test_normalize_synthetic.py ......                        [ 31%]
+tests/contract/test_synthetic_contracts.py ..................            [ 39%]
+tests/reproducibility/test_replay_levels.py ..........................   [ 50%]
+tests/reproducibility/test_run_twice.py ....                             [ 52%]
+tests/reproducibility/test_threads_tz.py ...                             [ 53%]
+tests/unit/test_fixtures_and_network.py ...                              [ 55%]
+tests/unit/test_hashing.py .............                                 [ 60%]
+tests/unit/test_manifest_and_cli.py .............                        [ 66%]
+tests/unit/test_object_store.py ........................................ [ 84%]
+.........                                                                [ 88%]
+tests/unit/test_sealed.py ...                                            [ 89%]
+tests/unit/test_snapshots.py ............                                [ 94%]
+tests/unit/test_synthetic_sum.py ............                            [100%]
+
+- generated xml file: /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/ev-r1-lf/junit.xml -
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                     Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------
+src/nexus/__init__.py                        1      0      0      0   100%
+src/nexus/cli.py                           106      4      8      0    96%   175-176, 178-179
+src/nexus/connectors/__init__.py             8      0      0      0   100%
+src/nexus/connectors/base.py                11      0      0      0   100%
+src/nexus/connectors/synthetic_file.py       9      0      0      0   100%
+src/nexus/contracts/__init__.py              2      0      0      0   100%
+src/nexus/contracts/model.py                80      1     30      1    98%   90
+src/nexus/contracts/registry.py             40      1     12      1    96%   23
+src/nexus/contracts/synthetic.py             7      0      0      0   100%
+src/nexus/engines/__init__.py                0      0      0      0   100%
+src/nexus/engines/base.py                    9      0      0      0   100%
+src/nexus/engines/synthetic_sum.py          61      0     14      0   100%
+src/nexus/errors.py                         10      0      0      0   100%
+src/nexus/hashing.py                        67      0     18      0   100%
+src/nexus/normalize/__init__.py              0      0      0      0   100%
+src/nexus/normalize/synthetic_v1.py         93      0     26      0   100%
+src/nexus/pipeline/__init__.py               0      0      0      0   100%
+src/nexus/pipeline/compare.py               75      0     30      0   100%
+src/nexus/pipeline/compute.py               64      0      8      0   100%
+src/nexus/pipeline/manifest.py              57      0     10      1    99%   84->93
+src/nexus/pipeline/replay.py                68      0     12      0   100%
+src/nexus/pipeline/run.py                   41      0      4      0   100%
+src/nexus/pipeline/verify.py                67      0     10      0   100%
+src/nexus/sealed.py                         28      0      6      0   100%
+src/nexus/snapshots/__init__.py              2      0      0      0   100%
+src/nexus/snapshots/capture.py              63      0      6      0   100%
+src/nexus/storage/__init__.py                2      0      0      0   100%
+src/nexus/storage/_fs.py                    96      0     14      0   100%
+src/nexus/storage/object_store.py          139      0     36      0   100%
+------------------------------------------------------------------------------------
+TOTAL                                     1206      6    244      3    99%
+Required test coverage of 90% reached. Total coverage: 99.38%
+============================= 227 passed in 55.38s =============================
+# exit_code: 0

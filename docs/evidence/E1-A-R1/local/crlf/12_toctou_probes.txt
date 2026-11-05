@@ -1,0 +1,25 @@
+$ uv run pytest -p no:cacheprovider tests/adversarial/test_toctou.py -v -s
+# commit: e401cf650488cbd3ea784dca603f31db42fa383e  core.autocrlf=true  fecha_utc: 2026-11-05T17:20:41Z
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1-crlf/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /tmp/claude-0/-home-user-pulso-nexus/7483d36f-b70a-515b-924d-1e745d5de8d8/scratchpad/clone-r1-crlf
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 6 items
+
+tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/x.bin-a] swap={'swapped': True} outcome=ObjectRef(key='a/x.bin', sha256='1a0e01d87a1d1514b740d3cf218e7bc563eb07a2397db0033f4093630cfa6b6e', size=26)
+PASSED
+tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/b/x.bin-a] swap={'swapped': True} outcome=ObjectRef(key='a/b/x.bin', sha256='1a0e01d87a1d1514b740d3cf218e7bc563eb07a2397db0033f4093630cfa6b6e', size=26)
+PASSED
+tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/b/x.bin-a/b] swap={'swapped': True} outcome=ObjectRef(key='a/b/x.bin', sha256='1a0e01d87a1d1514b740d3cf218e7bc563eb07a2397db0033f4093630cfa6b6e', size=26)
+PASSED
+tests/adversarial/test_toctou.py::test_read_never_opens_file_outside_store swap={'swapped': True}
+PASSED
+tests/adversarial/test_toctou.py::test_concurrent_reads_during_parent_swaps swaps={'ok': 300, 'blocked': 0, 'contention': 0} outcomes={'real': 131, 'rejected': 851, 'missing': 7351, 'win_denied_5': 0, 'win_denied_32': 0} escapes=0
+PASSED
+tests/adversarial/test_toctou.py::test_final_component_swap_between_check_and_open PASSED
+
+============================== 6 passed in 0.39s ===============================
+# exit_code: 0

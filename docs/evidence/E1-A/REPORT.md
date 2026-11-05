@@ -1,5 +1,8 @@
 # PULSO NEXUS — Informe de entrega E1-A
 
+> **Nota (E1-A-R1):** este informe corresponde a la entrega original (`9cf187f`/`236187e`) y se conserva sin cambios como registro histórico. Contiene una afirmación **incorrecta**: el job de Windows sí se había ejecutado y había fallado (7 fallos ocultos por `continue-on-error`). Ver `docs/evidence/E1-A-R1/REPORT.md` para la corrección, el análisis de causa raíz y la evidencia vigente.
+
+
 | Campo | Valor |
 |---|---|
 | Alcance | **Solo E1-A** (plan E0-R2, §9.2 y §10). E1-B y E1-C **no** se iniciaron |

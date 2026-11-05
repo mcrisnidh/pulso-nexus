@@ -1,0 +1,6 @@
+$ git status --porcelain && git rev-parse HEAD && git log -1 --format=%s
+# commit: e401cf650488cbd3ea784dca603f31db42fa383e  core.autocrlf=false  fecha_utc: 2026-11-05T17:16:57Z
+
+e401cf650488cbd3ea784dca603f31db42fa383e
+R1: lectura en Windows tolerante a handles exclusivos transitorios (#8)
+# exit_code: 0

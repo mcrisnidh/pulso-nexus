@@ -1,0 +1,88 @@
+$ uv run pytest tests/adversarial/test_toctou.py -v -s   (protección ORIGINAL, solo instrumentación before_open_read)
+# base: 236187ecffb93753a45b50494642d876cb2d6fe7 + sondas sin corrección; fecha_utc: 2026-11-05T16:36:27Z
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/user/pulso-nexus/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /home/user/pulso-nexus
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 5 items
+
+tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/x.bin-a] swap={'swapped': True} outcome=ObjectRef(key='a/x.bin', sha256='1a0e01d87a1d1514b740d3cf218e7bc563eb07a2397db0033f4093630cfa6b6e', size=26)
+FAILED
+tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/b/x.bin-a] swap={'swapped': True} outcome=FileNotFoundError(2, 'No such file or directory')
+PASSED
+tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/b/x.bin-a/b] swap={'swapped': True} outcome=ObjectRef(key='a/b/x.bin', sha256='1a0e01d87a1d1514b740d3cf218e7bc563eb07a2397db0033f4093630cfa6b6e', size=26)
+FAILED
+tests/adversarial/test_toctou.py::test_read_never_opens_file_outside_store FAILED
+tests/adversarial/test_toctou.py::test_concurrent_reads_during_parent_swaps swaps={'ok': 300, 'blocked': 0} outcomes={'real': 185, 'rejected': 9104, 'missing': 7218} escapes=100
+FAILED
+
+=================================== FAILURES ===================================
+___________ test_publish_never_creates_file_outside_store[a/x.bin-a] ___________
+tests/adversarial/test_toctou.py:98: in test_publish_never_creates_file_outside_store
+    assert files_under(outside) == [], f"archivo creado FUERA del almacén: {files_under(outside)}"
+E   AssertionError: archivo creado FUERA del almacén: ['x.bin']
+E   assert ['x.bin'] == []
+E     
+E     Left contains one more item: 'x.bin'
+E     
+E     Full diff: (-: missing in left side, +: extra in left side)
+E     - []
+E     + [
+E     +     'x.bin',
+E     + ]
+_________ test_publish_never_creates_file_outside_store[a/b/x.bin-a/b] _________
+tests/adversarial/test_toctou.py:98: in test_publish_never_creates_file_outside_store
+    assert files_under(outside) == [], f"archivo creado FUERA del almacén: {files_under(outside)}"
+E   AssertionError: archivo creado FUERA del almacén: ['x.bin']
+E   assert ['x.bin'] == []
+E     
+E     Left contains one more item: 'x.bin'
+E     
+E     Full diff: (-: missing in left side, +: extra in left side)
+E     - []
+E     + [
+E     +     'x.bin',
+E     + ]
+___________________ test_read_never_opens_file_outside_store ___________________
+tests/adversarial/test_toctou.py:116: in test_read_never_opens_file_outside_store
+    data = store.get("a/x.bin", sha256_bytes(REAL))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/nexus/storage/object_store.py:165: in get
+    return self._read_verified(self._path(key), key, expected_sha256)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/nexus/storage/object_store.py:113: in _read_verified
+    raise IntegrityError(
+E   nexus.errors.IntegrityError: a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)
+
+During handling of the above exception, another exception occurred:
+tests/adversarial/test_toctou.py:118: in test_read_never_opens_file_outside_store
+    assert "hash no coincide" not in str(exc), f"se leyó un archivo FUERA del almacén: {exc}"
+E   AssertionError: se leyó un archivo FUERA del almacén: a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)
+E   assert 'hash no coincide' not in 'a/x.bin: ha...7b8938de11…)'
+E     
+E     'hash no coincide' is contained here:
+E       a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)
+E     ?          ++++++++++++++++
+__________________ test_concurrent_reads_during_parent_swaps ___________________
+tests/adversarial/test_toctou.py:186: in test_concurrent_reads_during_parent_swaps
+    assert escapes == [], f"{len(escapes)} lecturas abrieron un archivo externo: {escapes[:2]}"
+E   AssertionError: 100 lecturas abrieron un archivo externo: ['a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)', 'a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)']
+E   assert ['a/x.bin: ha...8de11…)', ...] == []
+E     
+E     Left contains 100 more items, first extra item: 'a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)'
+E     
+E     Full diff: (-: missing in left side, +: extra in left side)
+E     - []
+E     + [
+E     +     'a/x.bin: hash no coincide (esperado=1a0e01d87a1d…, actual=e37b8938de11…)',...
+E     
+E     ...Full output truncated, use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/x.bin-a]
+FAILED tests/adversarial/test_toctou.py::test_publish_never_creates_file_outside_store[a/b/x.bin-a/b]
+FAILED tests/adversarial/test_toctou.py::test_read_never_opens_file_outside_store
+FAILED tests/adversarial/test_toctou.py::test_concurrent_reads_during_parent_swaps
+========================= 4 failed, 1 passed in 0.88s ==========================
+# exit_code: 1

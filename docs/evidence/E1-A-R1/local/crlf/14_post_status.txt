@@ -1,0 +1,5 @@
+$ git status --porcelain --untracked-files=no && echo 'arbol limpio tras las pruebas'
+# commit: e401cf650488cbd3ea784dca603f31db42fa383e  core.autocrlf=true  fecha_utc: 2026-11-05T17:20:54Z
+
+arbol limpio tras las pruebas
+# exit_code: 0

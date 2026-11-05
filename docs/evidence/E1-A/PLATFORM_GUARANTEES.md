@@ -20,6 +20,7 @@ Entornos:
 | No usar `os.replace` ni `shutil.move`; ningún acceso por ruta completa en el ObjectStore | **Demostrada** (prueba AST) | Igual |
 | FS sin enlaces duros | **Demostrada:** falla cerrado (`UnsupportedFilesystemError`) | No aplica |
 | Temporales de solo lectura en staging | Se eliminan; el modo de un objeto publicado no se toca (`test_remove_own_temp_never_touches_published_object`) | **Ejecutada en CI.** Se quita el atributo solo si `st_nlink == 1`. Esta era la causa del `WinError 5` en R0 |
+| Objeto recién publicado abierto por otro proceso sin compartir lectura (#8) | No aplica (POSIX no tiene modos de compartición) | **Ejecutada en CI.** Reintento acotado de lectura (5 × 50 ms) con un handle exclusivo real en la prueba. Bajo contención sostenida, falla cerrado |
 | `fsync` del archivo | Se ejecuta (`os.fsync`) | Se ejecuta (`FlushFileBuffers`) |
 | `fsync` del directorio | Se ejecuta (`test_fsync_dir_by_platform`) | **No disponible.** La durabilidad del rename en NTFS queda **pendiente de certificar** |
 | **Resistencia a cortes eléctricos** | **No demostrada** (requiere pruebas de pérdida de energía real o VM con corte) | **No demostrada** |

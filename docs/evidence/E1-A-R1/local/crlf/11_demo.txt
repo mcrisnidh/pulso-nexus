@@ -1,0 +1,77 @@
+$ bash scripts/e1a_demo.sh
+# commit: e401cf650488cbd3ea784dca603f31db42fa383e  core.autocrlf=true  fecha_utc: 2026-11-05T17:20:38Z
+
+
+== 1. Regenerar fixtures sintéticos y verificar SHA256SUMS
+0b7e48ec2ab7455ead6624a381b88ac2c12fff799be3f2a4b394d8bcc5ac513a  input_v1.csv
+b06a240c9214fecde0b667a744351852b155d36bf600fe802fa50197af153f49  input_v1_invalid.csv
+input_v1.csv: OK
+input_v1_invalid.csv: OK
+
+== 2. nexus snapshot
+{
+  "content_sha256": "0b7e48ec2ab7455ead6624a381b88ac2c12fff799be3f2a4b394d8bcc5ac513a",
+  "size": 257466,
+  "snapshot_id": "snap-3b0f0b7d788e48ab9cf4b3e914bacf53"
+}
+
+== 3. nexus run (dos veces, mismo input_manifest, hilos/TZ distintos)
+run A: run-0783312d47374569ae016da5fdbc48c2  result_digest=19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694  input_digest=ead88325c654b8830e13c1a7b9de1f9a30a63a93660c43cfda57e35113ae987c
+run B: run-562e8bc3a9574b24b69667446743dcd6  result_digest=19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694  input_digest=ead88325c654b8830e13c1a7b9de1f9a30a63a93660c43cfda57e35113ae987c
+
+== 4. Comprobación: run_id distintos; result_digest e input_digest iguales
+OK
+
+== 5. nexus replay --level L3 y nexus verify --all
+{
+  "code_match": true,
+  "discrepancy": null,
+  "environment_differences": {},
+  "environment_match": true,
+  "level": "L3",
+  "meets_required_level": true,
+  "per_artifact": {
+    "synthetic_input@1.0.0": "L3",
+    "synthetic_output@1.0.0": "L3",
+    "synthetic_rejection@1.0.0": "L3"
+  },
+  "recorded_result_digest": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694",
+  "replayed_result_digest": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694",
+  "required_level": "L3",
+  "run_id": "run-0783312d47374569ae016da5fdbc48c2"
+}
+{
+  "failures": [],
+  "incomplete_runs": [],
+  "objects_verified": 12,
+  "ok": true,
+  "runs_ok": 2,
+  "snapshots_ok": 1,
+  "staging_leftovers": [],
+  "unreferenced_objects": []
+}
+
+== 6. Alterar 1 byte de un artefacto: verify y replay deben fallar cerrado
+{
+  "failures": [
+    "run run-0783312d47374569ae016da5fdbc48c2: IntegrityError: runs/run-0783312d47374569ae016da5fdbc48c2/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet: hash no coincide (esperado=af736eb8a31b…, actual=c6d6f651b029…)"
+  ],
+  "incomplete_runs": [],
+  "objects_verified": 9,
+  "ok": false,
+  "runs_ok": 1,
+  "snapshots_ok": 1,
+  "staging_leftovers": [],
+  "unreferenced_objects": []
+}
+{
+  "detail": "runs/run-0783312d47374569ae016da5fdbc48c2/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet: hash no coincide (esperado=af736eb8a31b…, actual=c6d6f651b029…)",
+  "error": "integrity"
+}
+verify exit=5 (esperado 5) · replay exit=3 (esperado 3)
+
+== 7. La corrida B no fue afectada y sigue reproduciendo en L3
+OK
+
+DEMO E1-A: COMPLETADA SIN DESVIACIONES
+# exit_code: 0
