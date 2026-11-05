@@ -1,0 +1,22 @@
+# Perfil E1-B: SQL Server efímero y aislado (contenedor de CI), solo datos sintéticos.
+# Las prohibiciones viven en el PERFIL, no en el código: un futuro perfil expresamente
+# autorizado (p. ej., certificación E4) tendrá su propio archivo, sentinel y aprobación.
+name = "e1b-ephemeral"
+kind = "EPHEMERAL"
+schema_version = 3
+
+host_allowlist = ["localhost"]
+# Cualquier host que contenga alguno de estos fragmentos se rechaza (insensible a mayúsculas).
+host_denylist = ["asusmsrv0004", "sqlexpress"]
+database_pattern = "^nexus_e1b_[a-z0-9]{8,32}$"
+database_denylist = ["PULSO_MAGNUM_STAGE", "master", "model", "msdb", "tempdb"]
+server_name_pattern = "^nexus-sql$"
+allowed_editions = ["Developer Edition (64-bit)"]
+
+# Tiempos SOLO de prueba (aceptados provisionalmente); los productivos están pendientes (P8).
+lease_ms = 5000
+heartbeat_ms = 1000
+claim_ms = 5000
+backoff_ms = 200
+max_attempts = 3
+query_timeout_s = 30

@@ -29,7 +29,7 @@ from nexus.pipeline.compare import LEVELS, level_rank
 from nexus.pipeline.replay import replay
 from nexus.pipeline.run import execute
 from nexus.pipeline.verify import verify_store
-from nexus.snapshots.capture import create_snapshot
+from nexus.snapshots.capture import create_snapshot, read_manifest
 from nexus.storage.object_store import LocalObjectStore
 
 EXIT_OK = 0
@@ -133,6 +133,76 @@ def _cmd_verify(args: argparse.Namespace) -> int:
     return EXIT_OK if report.ok else EXIT_VERIFY
 
 
+# --------------------------------------------------------------------------- E1-B (SQL Server)
+def _sql_repo(actor: str) -> Any:
+    """Repositorio SQL con credenciales efímeras del entorno; el guard de runtime se aplica al
+    abrir la conexión, antes de cualquier escritura."""
+    from nexus.metadata.connection import settings_from_env  # noqa: PLC0415
+    from nexus.metadata.profile import load_profile  # noqa: PLC0415
+    from nexus.metadata.sqlserver import SqlServerMetadata  # noqa: PLC0415
+
+    profile = load_profile(os.environ.get("NEXUS_PROFILE", "e1b-ephemeral"))
+    settings = settings_from_env("NEXUS_SQL_PRODUCER_USER", "NEXUS_SQL_PRODUCER_PASSWORD")
+    nonce = os.environ.get("NEXUS_SQL_NONCE", "")
+    return profile, lambda: SqlServerMetadata(settings, profile, nonce, actor=actor)
+
+
+def _cmd_enqueue(args: argparse.Namespace) -> int:
+    store = LocalObjectStore(args.store)
+    snap = read_manifest(store, args.snapshot)
+    profile, factory = _sql_repo("cli-enqueue")
+    repo = factory()
+    try:
+        payload = {
+            "snapshot_id": args.snapshot,
+            "snapshot_sha256": snap["content_sha256"],
+            "as_of": args.as_of,
+            "params": _params(args.param),
+            "trigger": args.trigger,
+        }
+        request_id, created = repo.enqueue(
+            args.key, args.scope, args.trigger, payload, profile.max_attempts
+        )
+    finally:
+        repo.close()
+    _emit({"request_id": request_id, "created": created})
+    return EXIT_OK
+
+
+def _cmd_work(args: argparse.Namespace) -> int:
+    from nexus.pipeline.worker import work_once  # noqa: PLC0415
+
+    store = LocalObjectStore(args.store)
+    profile, factory = _sql_repo(args.worker)
+    repo, beat = factory(), factory()
+    outcomes = []
+    try:
+        for _ in range(args.max_iterations):
+            outcome = work_once(store, repo, beat, profile, args.worker)
+            outcomes.append(outcome.__dict__)
+            if outcome.status == "IDLE":
+                break
+    finally:
+        repo.close()
+        beat.close()
+    _emit({"outcomes": outcomes})
+    return EXIT_OK
+
+
+def _cmd_reconcile(args: argparse.Namespace) -> int:
+    from nexus.pipeline.reconcile import reconcile  # noqa: PLC0415
+
+    store = LocalObjectStore(args.store)
+    _, factory = _sql_repo("cli-reconcile")
+    repo = factory()
+    try:
+        report = reconcile(store, repo)
+    finally:
+        repo.close()
+    _emit(report.__dict__)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="PULSO NEXUS — núcleo E1-A")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -163,6 +233,25 @@ def build_parser() -> argparse.ArgumentParser:
     p_ver.add_argument("--store", required=True)
     p_ver.add_argument("--all", action="store_true", required=True)
     p_ver.set_defaults(func=_cmd_verify)
+    p_enq = sub.add_parser("enqueue", help="E1-B: encola una solicitud (idempotente por --key)")
+    p_enq.add_argument("--store", required=True)
+    p_enq.add_argument("--snapshot", required=True)
+    p_enq.add_argument("--as-of", required=True)
+    p_enq.add_argument("--scope", required=True)
+    p_enq.add_argument("--key", required=True)
+    p_enq.add_argument("--param", action="append", default=[])
+    p_enq.add_argument("--trigger", choices=["manual", "scheduled"], default="manual")
+    p_enq.set_defaults(func=_cmd_enqueue)
+
+    p_work = sub.add_parser("work", help="E1-B: procesa la cola (mismo camino manual/programado)")
+    p_work.add_argument("--store", required=True)
+    p_work.add_argument("--worker", default="cli-worker")
+    p_work.add_argument("--max-iterations", type=int, default=1)
+    p_work.set_defaults(func=_cmd_work)
+
+    p_rec = sub.add_parser("reconcile", help="E1-B: reconcilia SQL y almacén (solo informe)")
+    p_rec.add_argument("--store", required=True)
+    p_rec.set_defaults(func=_cmd_reconcile)
     return parser
 
 

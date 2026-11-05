@@ -1,12 +1,14 @@
 [project]
 name = "pulso-nexus"
 version = "0.1.0a1"
-description = "PULSO NEXUS — núcleo reproducible E1-A (sin SQL, datos sintéticos)"
+description = "PULSO NEXUS — núcleo reproducible E1-A + metadatos SQL Server E1-B (datos sintéticos)"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "Proprietary" }
 dependencies = [
     "pyarrow>=18",
+    # E1-B: driver ODBC solo para nexus.metadata (import-linter + prueba AST lo imponen).
+    "pyodbc>=5.1",
 ]
 
 [project.scripts]
@@ -43,6 +45,7 @@ src = ["src", "tests", "scripts"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "PL", "N"]
 ignore = [
     "PLR0913",  # funciones con muchos parámetros explícitos son intencionales en el CLI
+    "PLR0917",  # el contrato del repositorio de metadatos usa parámetros posicionales explícitos
     "PLR2004",  # constantes mágicas en tests y validaciones
     "PLR0911",
     "PLR0912",
@@ -56,6 +59,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S108", "PLC0415", "S311", "S103"]  # S103: árboles permisivos intencionados en sondas
 "scripts/**" = ["S311"]
+"tests/sql/**" = ["E501", "RUF043", "F401", "F811", "S101", "S108", "PLC0415", "S603", "S608"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
@@ -65,7 +69,7 @@ files = ["src"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*"]
+module = ["pyarrow", "pyarrow.*", "pyodbc"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest
@@ -78,6 +82,7 @@ filterwarnings = [
     "error::pytest.PytestUnhandledThreadExceptionWarning",
 ]
 markers = [
+    "sql: requiere SQL Server efímero real (job SQL de CI); se deselecciona con -m 'not sql'",
     "posix_only: garantía demostrada solo en POSIX; en Windows queda pendiente de certificar",
 ]
 
@@ -97,6 +102,27 @@ exclude_also = [
 # ---------------------------------------------------------------- import-linter
 [tool.importlinter]
 root_package = "nexus"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "E1-B: solo nexus.metadata importa pyodbc"
+type = "forbidden"
+source_modules = [
+    "nexus.cli", "nexus.connectors", "nexus.contracts", "nexus.engines", "nexus.errors",
+    "nexus.hashing", "nexus.normalize", "nexus.pipeline", "nexus.sealed", "nexus.snapshots",
+    "nexus.storage",
+]
+forbidden_modules = ["pyodbc"]
+allow_indirect_imports = true  # la regla es sobre imports DIRECTOS; el CLI usa metadata
+
+[[tool.importlinter.contracts]]
+name = "E1-B: metadata no depende de capas de datos ni del pipeline"
+type = "forbidden"
+source_modules = ["nexus.metadata"]
+forbidden_modules = [
+    "nexus.pipeline", "nexus.storage", "nexus.snapshots", "nexus.normalize", "nexus.engines",
+    "nexus.connectors", "nexus.cli",
+]
 
 [[tool.importlinter.contracts]]
 name = "engines: sin dependencias de E/S internas"

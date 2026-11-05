@@ -1,4 +1,4 @@
-name: ci-e1a
+name: ci-e1
 
 on:
   push:
@@ -23,7 +23,12 @@ jobs:
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy --strict src
       - run: uv run lint-imports
-      - run: uv run pytest -ra --tb=short --cov=nexus --cov-branch --cov-fail-under=90
+      # Las pruebas 'sql' se DESELECCIONAN aquí (no se omiten): se ejecutan en el job sql-ephemeral.
+      - run: uv run pytest -m "not sql" -ra --tb=short --cov=nexus --cov-branch --cov-report=term
+      - name: A13 por paquete (>= 90 % de ramas en los paquetes del criterio, sin SQL)
+        run: >-
+          uv run coverage report --fail-under=90
+          --include="*/nexus/hashing.py,*/nexus/storage/*,*/nexus/snapshots/*,*/nexus/pipeline/*,*/nexus/engines/*"
       - name: Sondas TOCTOU con estadísticas de ataque
         run: uv run pytest tests/adversarial/test_toctou.py -v -s -p no:cacheprovider
       - run: NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest tests/reproducibility -v
@@ -49,7 +54,148 @@ jobs:
         working-directory: tests/fixtures/synthetic
       - name: Pruebas (resumen completo de fallos, sin truncar)
         if: ${{ !cancelled() }}
-        run: uv run pytest -ra --tb=line -p no:cacheprovider --cov=nexus --cov-branch --cov-report=term
+        run: uv run pytest -m "not sql" -ra --tb=line -p no:cacheprovider --cov=nexus --cov-branch --cov-report=term
       - name: Sondas TOCTOU con estadísticas de ataque
         if: ${{ !cancelled() }}
         run: uv run pytest tests/adversarial/test_toctou.py -v -s -p no:cacheprovider
+
+  sql-ephemeral:
+    # E1-B: SQL Server 2022 Developer Edition EFÍMERO (contenedor oficial de Microsoft, solo datos
+    # sintéticos, credenciales y CA generadas en este job). Ninguna conexión corporativa.
+    # Job BLOQUEANTE. Matriz: RCSI ON/OFF x aislamiento de sesión READ COMMITTED/SNAPSHOT.
+    name: E1-B SQL (rcsi=${{ matrix.rcsi }}, sesión=${{ matrix.session }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        rcsi: ["on", "off"]
+        session: ["READ COMMITTED", "SNAPSHOT"]
+    env:
+      SQL_IMAGE: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+      NEXUS_SQL_HOST: localhost
+      NEXUS_SQL_PORT: "1433"
+      NEXUS_SQL_ADMIN_USER: sa
+      NEXUS_TEST_SESSION_ISOLATION: ${{ matrix.session }}
+      NEXUS_SQL_REPETITIONS: "20"
+      NEXUS_EVIDENCE_DIR: ${{ github.workspace }}/e1b-evidence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - name: Microsoft ODBC Driver 18 (instalación solo si falta; acepta su EULA)
+        run: |
+          if odbcinst -q -d -n "ODBC Driver 18 for SQL Server" >/dev/null 2>&1; then
+            echo "msodbcsql18 ya presente en el runner"
+          else
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+            sudo apt-get update
+            sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc
+          fi
+          odbcinst -q -d -n "ODBC Driver 18 for SQL Server"
+          mkdir -p "$NEXUS_EVIDENCE_DIR"
+          dpkg -s msodbcsql18 | grep -E "^(Package|Version)" > "$NEXUS_EVIDENCE_DIR/odbc_driver.txt" || true
+      - name: Credenciales y nonce efímeros (enmascarados; nunca se imprimen)
+        run: |
+          gen() { python3 -c "import secrets; print(secrets.token_urlsafe(24) + 'Aa1-')"; }
+          for v in NEXUS_SQL_ADMIN_PASSWORD NEXUS_SQL_MIGRATOR_PASSWORD NEXUS_SQL_PRODUCER_PASSWORD; do
+            value="$(gen)"; echo "::add-mask::$value"; echo "$v=$value" >> "$GITHUB_ENV"
+          done
+          nonce="$(python3 -c 'import secrets; print(secrets.token_hex(8))')"
+          echo "NEXUS_SQL_NONCE=$nonce" >> "$GITHUB_ENV"
+          echo "NEXUS_SQL_DATABASE=nexus_e1b_$nonce" >> "$GITHUB_ENV"
+      - name: CA y certificado de servidor efímeros (SAN localhost, nexus-sql)
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/tls"; mkdir -p "$d"; cd "$d"
+          openssl req -x509 -newkey rsa:3072 -nodes -keyout ca.key -out ca.crt -days 2 \
+            -subj "/CN=pulso-nexus-e1b-ephemeral-ca" \
+            -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
+          openssl req -newkey rsa:3072 -nodes -keyout server.key -out server.csr -subj "/CN=localhost"
+          printf '%s\n' "subjectAltName=DNS:localhost,DNS:nexus-sql" "extendedKeyUsage=serverAuth" \
+            "keyUsage=critical,digitalSignature,keyEncipherment" "basicConstraints=CA:FALSE" > ext.cnf
+          openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt \
+            -days 2 -extfile ext.cnf
+          rm -f ca.key server.csr
+          printf '%s\n' "[network]" "tlscert = /var/opt/mssql/secrets/server.crt" \
+            "tlskey = /var/opt/mssql/secrets/server.key" "tlsprotocols = 1.2" "forceencryption = 1" > mssql.conf
+          mkdir secrets && mv server.crt server.key secrets/
+          sudo chown -R 10001:0 secrets && sudo chmod 500 secrets && sudo chmod 400 secrets/*
+          openssl x509 -in ca.crt -noout -fingerprint -sha256 > "$NEXUS_EVIDENCE_DIR/ephemeral_ca_fingerprint.txt"
+      - name: SQL Server 2022 Developer efímero (solo 127.0.0.1)
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/tls"
+          docker pull "$SQL_IMAGE"
+          docker run -d --name nexus-sql --hostname nexus-sql -p 127.0.0.1:1433:1433 \
+            -e ACCEPT_EULA=Y -e MSSQL_PID=Developer -e MSSQL_SA_PASSWORD="$NEXUS_SQL_ADMIN_PASSWORD" \
+            -v "$d/mssql.conf:/var/opt/mssql/mssql.conf:ro" -v "$d/secrets:/var/opt/mssql/secrets:ro" \
+            "$SQL_IMAGE"
+          for i in $(seq 1 90); do
+            if docker logs nexus-sql 2>&1 | grep -q "SQL Server is now ready for client connections"; then
+              echo "listo tras ${i}x2 s"; break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' nexus-sql)" != "true" ]; then
+              docker logs nexus-sql | tail -50; exit 1
+            fi
+            sleep 2
+          done
+          docker logs nexus-sql 2>&1 | grep -q "SQL Server is now ready for client connections"
+          docker inspect --format '{{index .RepoDigests 0}}' "$SQL_IMAGE" > "$NEXUS_EVIDENCE_DIR/sql_image_digest.txt"
+          cat "$NEXUS_EVIDENCE_DIR/sql_image_digest.txt"
+      - name: TLS negativo (CA efímera AÚN no confiable -> debe fallar)
+        run: uv run python scripts/e1b_tls_probe.py --expect untrusted-fails | tee "$NEXUS_EVIDENCE_DIR/tls_1_untrusted.json"
+      - name: Confiar en la CA efímera (almacén del runner, fuera del código)
+        run: |
+          sudo cp "$RUNNER_TEMP/tls/ca.crt" /usr/local/share/ca-certificates/pulso-nexus-e1b-ephemeral.crt
+          sudo update-ca-certificates
+      - name: TLS positivo y negativo por nombre de host
+        run: |
+          uv run python scripts/e1b_tls_probe.py --expect ok | tee "$NEXUS_EVIDENCE_DIR/tls_2_trusted.json"
+          uv run python scripts/e1b_tls_probe.py --expect hostname-fails --host 127.0.0.1 | tee "$NEXUS_EVIDENCE_DIR/tls_3_hostname.json"
+      - name: Bootstrap (guard de bootstrap, base nexus_e1b_<nonce>, RCSI=${{ matrix.rcsi }})
+        env:
+          NEXUS_BOOTSTRAP_PROFILE: e1b-ephemeral
+        run: |
+          created="$(uv run python -m nexus.metadata.bootstrap --rcsi ${{ matrix.rcsi }})"
+          echo "$created"
+          test "$created" = "$NEXUS_SQL_DATABASE"
+      - name: B3–B16 contra SQL Server real + suite completa (cobertura total >= 90 %)
+        run: >-
+          uv run pytest -ra --tb=short -s -p no:cacheprovider --durations=25
+          --junitxml="$NEXUS_EVIDENCE_DIR/junit.xml"
+          --cov=nexus --cov-branch --cov-report=term --cov-fail-under=90
+          2>&1 | tee "$NEXUS_EVIDENCE_DIR/pytest.log"; exit "${PIPESTATUS[0]}"
+        shell: bash
+      - name: Registro del servidor (versión, edición, opciones de aislamiento)
+        if: ${{ !cancelled() }}
+        run: |
+          uv run python - <<'PY' | tee "$NEXUS_EVIDENCE_DIR/server_info.json"
+          import json, os
+          from nexus.metadata.connection import connect, settings_from_env
+          s = settings_from_env("NEXUS_SQL_ADMIN_USER", "NEXUS_SQL_ADMIN_PASSWORD")
+          c = connect(s, 30)
+          r = c.cursor().execute(
+              "SELECT @@VERSION, SERVERPROPERTY('Edition'), SERVERPROPERTY('ProductVersion'),"
+              " SERVERPROPERTY('ProductUpdateLevel'), @@SERVERNAME, DB_NAME(),"
+              " is_read_committed_snapshot_on, snapshot_isolation_state_desc, collation_name,"
+              " SYSUTCDATETIME() FROM sys.databases WHERE name = DB_NAME()").fetchone()
+          keys = ["version", "edition", "product_version", "cu", "server_name", "database", "rcsi",
+                  "snapshot_isolation", "collation", "server_ts"]
+          print(json.dumps(dict(zip(keys, [str(x) for x in r])), indent=1))
+          PY
+      - name: Evidencias de la celda de la matriz
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e1b-evidence-rcsi-${{ matrix.rcsi }}-${{ matrix.session == 'SNAPSHOT' && 'snapshot' || 'read-committed' }}
+          path: e1b-evidence/
+          retention-days: 30
+      - name: Destrucción del entorno efímero
+        if: always()
+        run: |
+          docker rm -f nexus-sql || true
+          sudo rm -f /usr/local/share/ca-certificates/pulso-nexus-e1b-ephemeral.crt
+          sudo update-ca-certificates --fresh >/dev/null || true
