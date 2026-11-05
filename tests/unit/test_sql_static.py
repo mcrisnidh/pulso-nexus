@@ -88,3 +88,13 @@ def test_permissions_never_deny_control() -> None:
 def test_concurrency_indexes_present(index: str) -> None:
     """Regresión: sin estos índices, UPDLOCK/HOLDLOCK por attempt_id/request_id recorría tablas."""
     assert f"CREATE INDEX {index} ON" in SQL["0001_schema.sql"]
+
+
+def test_fence_blocks_lock_only_by_primary_key() -> None:
+    """Regresión: un JOIN con UPDLOCK/HOLDLOCK permitía recorrer y bloquear todos los leases."""
+    blocks = re.findall(r"-- FENCE:BEGIN(.*?)-- FENCE:END", SQL["0002_procedures.sql"], re.DOTALL)
+    assert len(blocks) == 7
+    for block in blocks:
+        code = _code(block).upper()
+        assert " JOIN " not in code
+        assert "WHERE SCOPE = @FENCE_SCOPE" in code

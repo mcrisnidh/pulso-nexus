@@ -199,12 +199,15 @@ BEGIN
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
     BEGIN TRANSACTION;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
@@ -231,12 +234,15 @@ BEGIN
     DECLARE @created bit = 0;
     BEGIN TRANSACTION;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
@@ -273,12 +279,15 @@ BEGIN
     DECLARE @created bit = 0;
     BEGIN TRANSACTION;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
@@ -329,12 +338,15 @@ BEGIN
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
     BEGIN TRANSACTION;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
@@ -371,12 +383,15 @@ BEGIN
         RETURN;
     END;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
@@ -430,12 +445,15 @@ BEGIN
         RETURN;
     END;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
@@ -476,12 +494,15 @@ BEGIN
     DECLARE @request_id bigint;
     BEGIN TRANSACTION;
     -- FENCE:BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
-        JOIN nexus.attempt AS a ON a.scope = l.scope
-        WHERE a.attempt_id = @attempt_id AND l.attempt_id = @attempt_id AND a.state = N'RUNNING'
-          AND l.fencing_token = @fencing_token AND a.fencing_token = @fencing_token
-          AND l.expires_at > SYSUTCDATETIME())
+    -- Búsqueda por clave primaria en dos pasos (sin JOIN): el bloqueo UPDLOCK/HOLDLOCK cae SOLO
+    -- sobre la fila del ámbito del intento, nunca sobre filas de otros workers.
+    DECLARE @fence_scope nvarchar(128) = (
+        SELECT scope FROM nexus.attempt
+        WHERE attempt_id = @attempt_id AND state = N'RUNNING' AND fencing_token = @fencing_token);
+    IF @fence_scope IS NULL OR NOT EXISTS (
+        SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK)
+        WHERE scope = @fence_scope AND attempt_id = @attempt_id
+          AND fencing_token = @fencing_token AND expires_at > SYSUTCDATETIME())
     BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
