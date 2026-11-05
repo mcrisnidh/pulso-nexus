@@ -167,6 +167,26 @@ if sys.platform == "win32":
             os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
             os.unlink(path)
 
+    _READ_ATTEMPTS = 5
+
+    def _win_open_shared_read(path: Path, flags: int) -> int:
+        """Abre un objeto para lectura en Windows (NX-E1A-01 #8).
+
+        Un archivo recién publicado puede estar abierto de forma transitoria sin compartir
+        lectura (antivirus, indexador o el cierre del ``MoveFileEx`` de otro proceso), y
+        la CRT lo devuelve como ``PermissionError`` (errno 13). Se reintenta de forma
+        acotada (5 × 50 ms). Si persiste, se propaga: falla cerrado, nunca devuelve datos
+        sin verificar.
+        """
+        for attempt in range(_READ_ATTEMPTS):
+            try:
+                return os.open(path, flags)
+            except PermissionError:
+                if attempt == _READ_ATTEMPTS - 1:
+                    raise
+                time.sleep(_LOCK_RETRY_SECONDS)
+        raise AssertionError("inalcanzable")  # pragma: no cover
+
     @contextmanager
     def _win_dir_chain(base: Path, segments: Sequence[str], create: bool) -> Iterator[DirHandle]:
         handles: list[int] = []
@@ -265,7 +285,7 @@ def read_entry(parent: DirHandle, name: str, expected: os.stat_result) -> bytes:
     """Lee una entrada regular verificando que es el MISMO objeto que ``expected``."""
     flags = os.O_RDONLY | _O_BINARY | _O_NOFOLLOW
     if sys.platform == "win32":
-        fd = os.open(parent.path / name, flags)
+        fd = _win_open_shared_read(parent.path / name, flags)
     else:
         fd = os.open(name, flags, dir_fd=parent.fd)
     with os.fdopen(fd, "rb") as fh:

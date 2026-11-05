@@ -332,3 +332,53 @@ def test_dir_open_error_mapping(
     monkeypatch.setattr(os, "open", failing_open)
     with pytest.raises(expected):
         _fs._open_dir_nofollow("victim", None, Path("victim"))
+
+
+def test_read_tolerates_transient_exclusive_handle(store: LocalObjectStore) -> None:
+    """NX-E1A-01 #8: otro proceso mantiene un instante el objeto recién publicado abierto
+    SIN compartir lectura (en Windows: CreateFileW con share=0, como un antivirus). La
+    lectura reintenta de forma acotada y verifica el contenido; no falla en falso.
+    En POSIX no existen los modos de compartición: la lectura simultánea siempre funciona."""
+    import threading
+    import time
+
+    store.put("busy/x.bin", b"contenido")
+    path = object_path(store, "busy/x.bin")
+    released = threading.Event()
+
+    if _fs.IS_WINDOWS:
+        import ctypes
+        from ctypes import wintypes
+
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+        k32.CreateFileW.restype = wintypes.HANDLE
+        k32.CreateFileW.argtypes = (
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        )
+        handle = k32.CreateFileW(
+            str(path), 0x80000000, 0, None, 3, 0, None
+        )  # GENERIC_READ, share=0
+        assert handle not in (None, ctypes.c_void_p(-1).value), ctypes.get_last_error()
+
+        def release() -> None:
+            time.sleep(0.12)
+            k32.CloseHandle(wintypes.HANDLE(handle))
+            released.set()
+    else:
+        holder = open(path, "rb")  # noqa: SIM115
+
+        def release() -> None:
+            time.sleep(0.12)
+            holder.close()
+            released.set()
+
+    threading.Thread(target=release, daemon=True).start()
+    assert store.get("busy/x.bin", sha256_bytes(b"contenido")) == b"contenido"
+    released.wait(5)
+    assert released.is_set()
