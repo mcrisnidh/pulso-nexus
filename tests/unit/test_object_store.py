@@ -177,76 +177,80 @@ def test_iter_keys_deterministic(store: LocalObjectStore) -> None:
     assert list(store.iter_keys("b/")) == ["b/1.bin", "b/2.bin"]
 
 
-def test_unsupported_filesystem_fails_closed(
+def _break_publication_primitive(monkeypatch: pytest.MonkeyPatch, exc: OSError) -> None:
+    """Hace fallar la primitiva REAL de publicación de la plataforma en curso
+    (``os.link`` en POSIX, ``os.rename`` en Windows). No simula otra plataforma."""
+
+    def boom(*_a: Any, **_k: Any) -> None:
+        raise exc
+
+    monkeypatch.setattr(os, "rename" if _fs.IS_WINDOWS else "link", boom)
+
+
+def test_publication_failure_fails_closed_and_cleans_staging(
     store: LocalObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(_fs, "IS_WINDOWS", False)
-
-    def no_links(*_a: Any, **_k: Any) -> None:
-        raise OSError(errno.EPERM, "Operation not permitted")
-
-    monkeypatch.setattr(os, "link", no_links)
-    with pytest.raises(UnsupportedFilesystemError):
+    """POSIX: un FS sin enlaces duros (EPERM) da UnsupportedFilesystemError, sin degradar a
+    un rename que podría reemplazar. Windows: el error de MoveFileExW se propaga. En
+    ambos casos no se publica nada y el temporal (marcado como solo lectura) se elimina.
+    Este es el escenario que en Windows producía ``WinError 5``."""
+    _break_publication_primitive(monkeypatch, OSError(errno.EPERM, "Operation not permitted"))
+    expected = OSError if _fs.IS_WINDOWS else UnsupportedFilesystemError
+    with pytest.raises(expected):
         store.put("x.bin", b"data")
     assert not store.exists("x.bin")
     assert store.staging_entries() == []
 
 
-def test_other_link_errors_propagate(
+def test_other_publication_errors_propagate(
     store: LocalObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(_fs, "IS_WINDOWS", False)
-
-    def no_space(*_a: Any, **_k: Any) -> None:
-        raise OSError(errno.ENOSPC, "No space left on device")
-
-    monkeypatch.setattr(os, "link", no_space)
+    _break_publication_primitive(monkeypatch, OSError(errno.ENOSPC, "No space left on device"))
     with pytest.raises(OSError) as info:
         store.put("x.bin", b"data")
-    assert info.value.errno == errno.ENOSPC
+    assert info.value.errno == errno.ENOSPC  # el error original no queda oculto
+    assert not store.exists("x.bin")
     assert store.staging_entries() == []
 
 
-def test_windows_code_path_uses_non_replacing_rename(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Simulación de la RUTA DE CÓDIGO de Windows en Linux. No certifica NTFS: solo
-    comprueba que en Windows se usa ``os.rename`` (MoveFileExW sin REPLACE_EXISTING)
-    y nunca ``os.replace``, y que no se fsincroniza el directorio."""
-    calls: list[str] = []
-    real_rename = os.rename
-
-    def spy_rename(src: Any, dst: Any) -> None:
-        calls.append("rename")
-        if os.path.lexists(dst):  # emula la semántica de Windows: no reemplaza
-            raise FileExistsError(errno.EEXIST, "exists", str(dst))
-        real_rename(src, dst)
-
-    def forbidden(*_a: Any, **_k: Any) -> None:
-        raise AssertionError("os.replace no debe usarse")
-
-    monkeypatch.setattr(_fs, "IS_WINDOWS", True)
-    monkeypatch.setattr(os, "rename", spy_rename)
-    monkeypatch.setattr(os, "replace", forbidden)
-    store = LocalObjectStore(tmp_path / "winstore")
+def test_publication_primitive_never_replaces(store: LocalObjectStore) -> None:
+    """Primitiva real de la plataforma: con el destino existente falla y no lo toca."""
     store.put("a.bin", b"one")
-    with pytest.raises(ImmutableConflictError):
-        store.put("a.bin", b"two")
-    assert calls == ["rename"]  # el segundo put se rechaza antes de escribir
-    # Carrera: el destino aparece entre la comprobación y la publicación.
-    src = tmp_path / "loser.tmp"
-    src.write_bytes(b"two")
-    with pytest.raises(FileExistsError):
-        _fs.publish_no_replace(src, store.root / "objects" / "a.bin")
-    assert calls == ["rename", "rename"]
+    with (
+        _fs.open_dir_chain(store.root / "staging", (), create=False) as staging,
+        _fs.open_dir_chain(store.root / "objects", (), create=False) as objects,
+    ):
+        fd = _fs.create_exclusive(staging, "loser.tmp")
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(b"two")
+        with pytest.raises(FileExistsError):
+            _fs.publish_no_replace(staging, "loser.tmp", objects, "a.bin")
+        _fs.remove_own_temp(staging, "loser.tmp")
     assert store.get("a.bin", sha256_bytes(b"one")) == b"one"
-    assert _fs.fsync_dir(tmp_path) is False
     assert store.staging_entries() == []
 
 
-def test_reparse_point_detected_via_file_attributes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_remove_own_temp_never_touches_published_object(store: LocalObjectStore) -> None:
+    """Un temporal que comparte inodo con un objeto publicado no se desprotege nunca.
+    POSIX: se elimina el nombre temporal y el objeto conserva modo y contenido.
+    Windows: el atributo de solo lectura es del archivo (compartido), así que se rechaza
+    la eliminación antes que quitarle la protección al objeto publicado."""
+    store.put("pub.bin", b"publicado")
+    published = object_path(store, "pub.bin")
+    shared = store.root / "staging" / "shared.tmp"
+    os.link(published, shared)
+    with _fs.open_dir_chain(store.root / "staging", (), create=False) as staging:
+        if _fs.IS_WINDOWS:
+            with pytest.raises(PermissionError):
+                _fs.remove_own_temp(staging, "shared.tmp")
+        else:
+            _fs.remove_own_temp(staging, "shared.tmp")
+            assert not shared.exists()
+    assert stat.S_IMODE(os.stat(published).st_mode) & stat.S_IWUSR == 0
+    assert store.get("pub.bin", sha256_bytes(b"publicado")) == b"publicado"
+
+
+def test_reparse_point_detected_via_file_attributes(tmp_path: Path) -> None:
     path = tmp_path / "f"
     path.write_bytes(b"x")
     real = os.lstat(path)
@@ -255,18 +259,76 @@ def test_reparse_point_detected_via_file_attributes(
         st_mode = real.st_mode
         st_file_attributes = 0x400
 
-    monkeypatch.setattr(os, "lstat", lambda _p: FakeStat())
-    assert _fs.is_link_like(path) is True
-    assert _fs.is_regular_file(path) is False
+    fake = FakeStat()
+    assert _fs.stat_is_link(fake) is True  # type: ignore[arg-type]
+    assert _fs.stat_is_regular(fake) is False  # type: ignore[arg-type]
+    assert _fs.stat_is_regular(real) is True
 
 
 def test_fs_helpers_on_missing_paths(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
     assert _fs.is_link_like(missing) is False
-    assert _fs.is_regular_file(missing) is False
-    _fs.remove_file(missing)  # tolera inexistente
+    with _fs.open_dir_chain(tmp_path, (), create=False) as parent:
+        assert _fs.entry_stat(parent, "missing") is None
+        _fs.remove_own_temp(parent, "missing")  # tolera inexistente
+    with pytest.raises(FileNotFoundError):
+        _fs.open_dir_chain(tmp_path, ("no-existe",), create=False).__enter__()
 
 
-@posix_only
-def test_fsync_dir_posix(tmp_path: Path) -> None:
-    assert _fs.fsync_dir(tmp_path) is True
+def test_fsync_dir_by_platform(tmp_path: Path) -> None:
+    """POSIX sincroniza el directorio; Windows no puede (pendiente de certificar)."""
+    with _fs.open_dir_chain(tmp_path, (), create=False) as parent:
+        assert _fs.fsync_dir(parent) is (not _fs.IS_WINDOWS)
+
+
+def test_chain_rejects_non_directory_component(store: LocalObjectStore) -> None:
+    store.put("plain.bin", b"x")
+    with pytest.raises(IntegrityError, match="no es"):
+        store.get("plain.bin/child.bin", sha256_bytes(b"x"))
+
+
+@pytest.mark.parametrize(("rival", "expected"), [(b"mismo", None), (b"rival", "conflict")])
+def test_deterministic_publish_race(tmp_path: Path, rival: bytes, expected: str | None) -> None:
+    """Otro escritor publica la misma clave justo antes de nuestra publicación."""
+    root = tmp_path / "store"
+    other = LocalObjectStore(root)
+
+    def hook(point: str) -> None:
+        if point == "before_publish":
+            other.put("k/race.bin", rival)
+
+    store = LocalObjectStore(root, fault_hook=hook)
+    if expected is None:
+        assert store.put("k/race.bin", b"mismo").sha256 == sha256_bytes(b"mismo")
+    else:
+        with pytest.raises(ImmutableConflictError):
+            store.put("k/race.bin", b"mio")
+    assert store.get("k/race.bin", sha256_bytes(rival)) == rival
+    assert store.staging_entries() == []
+
+
+def test_directory_key_and_missing_parent(store: LocalObjectStore) -> None:
+    store.put("d/x.bin", b"x")
+    with pytest.raises(FileNotFoundError):
+        store.get("d", sha256_bytes(b"x"))
+    assert store.exists("nope/x.bin") is False
+    assert store.exists("d/x.bin") is True
+
+
+@pytest.mark.parametrize(
+    ("err", "expected"),
+    [(errno.ELOOP, IntegrityError), (errno.EACCES, PermissionError)],
+)
+def test_dir_open_error_mapping(
+    monkeypatch: pytest.MonkeyPatch, err: int, expected: type[Exception]
+) -> None:
+    """Traducción de errores al abrir un componente sin seguir enlaces: ELOOP (enlace en
+    BSD/macOS) → IntegrityError; cualquier otro error se propaga sin ocultarse."""
+
+    def failing_open(*_a: Any, **_k: Any) -> int:
+        exc_type = PermissionError if err == errno.EACCES else OSError
+        raise exc_type(err, os.strerror(err))
+
+    monkeypatch.setattr(os, "open", failing_open)
+    with pytest.raises(expected):
+        _fs._open_dir_nofollow("victim", None, Path("victim"))

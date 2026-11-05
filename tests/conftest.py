@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
+import stat
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -90,6 +92,17 @@ def run_cli(*args: str, env: dict[str, str] | None = None) -> tuple[int, dict[st
 
 def object_path(store: LocalObjectStore, key: str) -> Path:
     return store.root / "objects" / key
+
+
+def force_rmtree(path: Path) -> None:
+    """Borrado de operador (simula una purga externa). En Windows los objetos de solo
+    lectura no se pueden borrar sin quitar antes el atributo (``WinError 5``)."""
+
+    def _retry(func: Any, target: str, _exc: BaseException) -> None:
+        os.chmod(target, stat.S_IWUSR | stat.S_IRUSR)
+        func(target)
+
+    shutil.rmtree(path, onexc=_retry)
 
 
 def tamper(path: Path, data: bytes | None = None) -> None:

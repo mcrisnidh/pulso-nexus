@@ -21,6 +21,7 @@ from nexus.pipeline.replay import replay
 from nexus.pipeline.run import execute
 from nexus.pipeline.verify import verify_store
 from nexus.snapshots.capture import create_snapshot
+from nexus.storage import _fs
 from nexus.storage.object_store import LocalObjectStore
 
 CRASH_EXIT = 77
@@ -28,6 +29,7 @@ POINTS = ("before_fsync", "before_publish", "before_verify")
 
 PUT_CHILD = r"""
 import os, sys
+from nexus.storage import _fs
 from nexus.storage.object_store import LocalObjectStore
 root, key, point = sys.argv[1], sys.argv[2], sys.argv[3]
 def hook(name):
@@ -38,6 +40,7 @@ LocalObjectStore(root, fault_hook=hook).put(key, b"payload-" * 1000)
 
 RUN_CHILD = r"""
 import os, sys
+from nexus.storage import _fs
 from nexus.storage.object_store import LocalObjectStore
 from nexus.pipeline.run import execute
 root, snapshot_id, as_of, point, nth = sys.argv[1:6]
@@ -76,7 +79,12 @@ def test_object_put_crash_leaves_absent_or_valid(tmp_path: Path, point: str) -> 
     else:
         assert store.get("obj/x.bin", expected) == b"payload-" * 1000
     leftovers = store.staging_entries()
-    assert len(leftovers) == 1 and leftovers[0].endswith(".tmp")
+    # POSIX publica con os.link: el temporal sigue existiendo hasta que se elimina.
+    # Windows publica con os.rename (se MUEVE): tras publicar ya no queda temporal.
+    moved_by_rename = _fs.IS_WINDOWS and point == "before_verify"
+    expected_leftovers = 0 if moved_by_rename else 1
+    assert len(leftovers) == expected_leftovers, leftovers
+    assert all(name.endswith(".tmp") for name in leftovers)
     # Recuperación: reintentar la misma escritura funciona y es idempotente.
     ref = store.put("obj/x.bin", b"payload-" * 1000)
     assert ref.sha256 == expected

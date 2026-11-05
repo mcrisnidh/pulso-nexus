@@ -14,6 +14,12 @@ Protocolo de ``put``:
 8. Se elimina el temporal.
 
 Cualquier lectura exige el hash esperado y falla cerrado (``IntegrityError``).
+
+Resistencia TOCTOU (NX-E1A-02): ninguna operación resuelve la ruta completa por nombre.
+Los directorios se abren componente a componente sin seguir enlaces y las operaciones
+se realizan relativas al directorio abierto (ver ``_fs``). Así, sustituir un directorio
+intermedio por un enlace después de la validación no puede llevar una escritura ni una
+lectura fuera del almacén.
 """
 
 from __future__ import annotations
@@ -22,6 +28,7 @@ import os
 import re
 import uuid
 from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -90,24 +97,27 @@ class LocalObjectStore:
         if self._fault is not None:
             self._fault(name)
 
-    def _path(self, key: str) -> Path:
+    def _parent(
+        self, key: str, *, create: bool
+    ) -> tuple[AbstractContextManager[_fs.DirHandle], str]:
         segments = validate_key(key)
-        current = self._objects
-        for seg in segments[:-1]:
-            current = current / seg
-            if _fs.is_link_like(current):
-                raise IntegrityError(f"componente de ruta es un enlace: {key!r}")
-        return self._objects.joinpath(*segments)
+        return _fs.open_dir_chain(self._objects, segments[:-1], create=create), segments[-1]
 
-    def _read_verified(self, path: Path, key: str, expected_sha256: str) -> bytes:
-        if not _fs.is_regular_file(path):
-            if _fs.is_link_like(path):
-                raise IntegrityError(f"{key}: el objeto es un enlace, no un archivo regular")
+    def _read_in(self, parent: _fs.DirHandle, name: str, key: str) -> bytes:
+        st = _fs.entry_stat(parent, name)
+        if st is None:
+            raise FileNotFoundError(key)
+        if _fs.stat_is_link(st):
+            raise IntegrityError(f"{key}: el objeto es un enlace, no un archivo regular")
+        if not _fs.stat_is_regular(st):
             raise FileNotFoundError(key)
         self._checkpoint("before_open_read")
-        fd = _fs.open_read_nofollow(path)
-        with os.fdopen(fd, "rb") as fh:
-            data = fh.read()
+        return _fs.read_entry(parent, name, st)
+
+    def _read_verified_in(
+        self, parent: _fs.DirHandle, name: str, key: str, expected_sha256: str
+    ) -> bytes:
+        data = self._read_in(parent, name, key)
         actual = sha256_bytes(data)
         if actual != expected_sha256:
             raise IntegrityError(
@@ -115,68 +125,72 @@ class LocalObjectStore:
             )
         return data
 
-    def _existing_matches(self, path: Path, key: str, sha: str) -> bool:
-        """True si el destino existente es idéntico. Lanza conflicto si difiere."""
-        if _fs.is_link_like(path):
+    def _existing_matches(self, parent: _fs.DirHandle, name: str, key: str, sha: str) -> None:
+        """Vuelve sin error si el destino existente es idéntico; si no, conflicto."""
+        st = _fs.entry_stat(parent, name)
+        if st is None:  # pragma: no cover - carrera imposible: nunca se borra un objeto
+            raise ImmutableConflictError(f"{key}: el destino desapareció durante la operación")
+        if _fs.stat_is_link(st):
             raise ImmutableConflictError(f"{key}: el destino es un enlace; no se toca")
-        if not _fs.is_regular_file(path):
+        if not _fs.stat_is_regular(st):
             raise ImmutableConflictError(f"{key}: el destino existe y no es un archivo regular")
         try:
-            self._read_verified(path, key, sha)
+            self._read_verified_in(parent, name, key, sha)
         except IntegrityError as exc:
             raise ImmutableConflictError(
                 f"{key}: ya existe con contenido distinto; inmutable, no se sobrescribe"
             ) from exc
-        return True
 
     # ------------------------------------------------------------------ API
     def put(self, key: str, data: bytes) -> ObjectRef:
         sha = sha256_bytes(data)
-        path = self._path(key)
         ref = ObjectRef(key=key, sha256=sha, size=len(data))
-        if os.path.lexists(path) and self._existing_matches(path, key, sha):
-            return ref
-
-        tmp = self._staging / f"{uuid.uuid4().hex}.tmp"
-        fd = _fs.open_exclusive(tmp)
-        try:
-            with os.fdopen(fd, "wb") as fh:
-                fh.write(data)
-                fh.flush()
-                self._checkpoint("before_fsync")
-                _fs.fsync_fd(fh.fileno())
-            _fs.make_readonly(tmp)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            self._path(key)  # revalida que ningún componente se volvió enlace
-            self._checkpoint("before_publish")
-            try:
-                _fs.publish_no_replace(tmp, path)
-            except FileExistsError:
-                self._existing_matches(path, key, sha)
+        chain, name = self._parent(key, create=True)
+        with chain as parent, _fs.open_dir_chain(self._staging, (), create=False) as staging:
+            if _fs.entry_stat(parent, name) is not None:
+                self._existing_matches(parent, name, key, sha)
                 return ref
-            _fs.fsync_dir(path.parent)
-            self._checkpoint("before_verify")
-            self._read_verified(path, key, sha)
-            return ref
-        finally:
-            _fs.remove_file(tmp)
+            tmp_name = f"{uuid.uuid4().hex}.tmp"
+            fd = _fs.create_exclusive(staging, tmp_name)
+            try:
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(data)
+                    fh.flush()
+                    self._checkpoint("before_fsync")
+                    _fs.fsync_fd(fh.fileno())
+                    _fs.make_readonly_open(fh.fileno(), staging, tmp_name)
+                self._checkpoint("before_publish")
+                try:
+                    _fs.publish_no_replace(staging, tmp_name, parent, name)
+                except FileExistsError:
+                    self._existing_matches(parent, name, key, sha)
+                    return ref
+                _fs.fsync_dir(parent)
+                self._checkpoint("before_verify")
+                self._read_verified_in(parent, name, key, sha)
+                return ref
+            finally:
+                _fs.remove_own_temp(staging, tmp_name)
 
     def get(self, key: str, expected_sha256: str) -> bytes:
-        return self._read_verified(self._path(key), key, expected_sha256)
+        chain, name = self._parent(key, create=False)
+        try:
+            with chain as parent:
+                return self._read_verified_in(parent, name, key, expected_sha256)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(key) from exc
 
     def get_self_verifying(self, key: str, verifier: Callable[[bytes], None]) -> bytes:
         """Lee un documento autosellado (manifiesto). ``verifier`` debe lanzar
         ``IntegrityError`` si el sello interno no coincide. Detecta corrupción
         accidental; la protección frente a manipulación deliberada corresponde a E1-C.
         """
-        path = self._path(key)
-        if not _fs.is_regular_file(path):
-            if _fs.is_link_like(path):
-                raise IntegrityError(f"{key}: el objeto es un enlace, no un archivo regular")
-            raise FileNotFoundError(key)
-        fd = _fs.open_read_nofollow(path)
-        with os.fdopen(fd, "rb") as fh:
-            data = fh.read()
+        chain, name = self._parent(key, create=False)
+        try:
+            with chain as parent:
+                data = self._read_in(parent, name, key)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(key) from exc
         verifier(data)
         return data
 
@@ -184,10 +198,15 @@ class LocalObjectStore:
         self.get(key, expected_sha256)
 
     def exists(self, key: str) -> bool:
-        return os.path.lexists(self._path(key))
+        chain, name = self._parent(key, create=False)
+        try:
+            with chain as parent:
+                return _fs.entry_stat(parent, name) is not None
+        except FileNotFoundError:
+            return False
 
     def iter_keys(self, prefix: str = "") -> Iterator[str]:
-        """Enumera claves de objetos (orden determinista)."""
+        """Enumera claves de objetos (orden determinista; no sigue enlaces)."""
         base = self._objects
         for dirpath, dirnames, filenames in os.walk(base):
             dirnames.sort()

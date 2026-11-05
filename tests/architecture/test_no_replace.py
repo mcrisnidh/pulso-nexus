@@ -1,7 +1,7 @@
 """§10.2 — ningún código de NEXUS usa operaciones que puedan sustituir un destino.
 
 - ``os.replace`` y ``shutil.move``: prohibidos en todo ``src/``.
-- ``os.rename``: solo en ``storage/_fs.py``, dentro de la rama de Windows.
+- ``os.rename``: solo en ``storage/_fs.py``, dentro de la rama de Windows (``sys.platform``).
 - ``Path.replace(target)`` y ``Path.rename(target)`` (un argumento): prohibidos
   (heurística AST: ``str.replace`` siempre recibe dos argumentos).
 - Solo ``storage/_fs.py`` usa ``os.link``.
@@ -50,7 +50,9 @@ def test_os_rename_only_in_windows_branch() -> None:
         if isinstance(n, ast.FunctionDef) and n.name == "publish_no_replace"
     )
     windows_branch = next(
-        n for n in func.body if isinstance(n, ast.If) and ast.unparse(n.test) == "IS_WINDOWS"
+        n
+        for n in func.body
+        if isinstance(n, ast.If) and ast.unparse(n.test) == "sys.platform == 'win32'"
     )
     renames_in_branch = [
         n
@@ -63,3 +65,20 @@ def test_os_rename_only_in_windows_branch() -> None:
     assert len(renames_in_branch) == 1
     assert len(renames_total) == 1
     assert "os.replace(" not in source
+
+
+def test_object_store_never_resolves_full_paths_for_io() -> None:
+    """NX-E1A-02: el ObjectStore no abre, enlaza ni renombra rutas completas por nombre;
+    toda la E/S de objetos pasa por las primitivas relativas a directorio de ``_fs``."""
+    store_module = SRC / "storage" / "object_store.py"
+    tree = ast.parse(store_module.read_text("utf-8"))
+    direct = sorted(
+        {
+            ast.unparse(n.func)
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Call)
+            and ast.unparse(n.func)
+            in {"os.open", "os.link", "os.rename", "os.unlink", "open", "os.lstat", "os.stat"}
+        }
+    )
+    assert direct == []

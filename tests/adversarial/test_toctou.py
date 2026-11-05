@@ -96,6 +96,13 @@ def test_publish_never_creates_file_outside_store(tmp_path: Path, key: str, rel_
     print(f"swap={log} outcome={outcome!r}")
     assert "swapped" in log, "la sonda debe haber intentado el ataque"
     assert files_under(outside) == [], f"archivo creado FUERA del almacén: {files_under(outside)}"
+    if log["swapped"] and not isinstance(outcome, Exception):
+        # El objeto quedó DENTRO del almacén, en el directorio original (ahora renombrado),
+        # y la clave ya no es legible a través del enlace.
+        inside = files_under(root / "objects")
+        assert any(p.endswith(key.rsplit("/", 1)[-1]) and "-moved" in p for p in inside), inside
+        with pytest.raises(IntegrityError, match="enlace"):
+            store.get(key, sha256_bytes(REAL))
 
 
 def test_read_never_opens_file_outside_store(tmp_path: Path) -> None:
@@ -202,3 +209,28 @@ def test_concurrent_reads_during_parent_swaps(tmp_path: Path) -> None:
     print(f"swaps={attacker.swaps} outcomes={outcomes} escapes={len(escapes)}")
     assert escapes == [], f"{len(escapes)} lecturas abrieron un archivo externo: {escapes[:2]}"
     assert attacker.swaps["ok"] + attacker.swaps["blocked"] > 0
+
+
+def test_final_component_swap_between_check_and_open(tmp_path: Path) -> None:
+    """El propio objeto se sustituye (otro inodo, mismo contenido) entre la comprobación y
+    la apertura: la identidad (st_dev, st_ino) no coincide y la lectura falla cerrada."""
+    root = tmp_path / "store"
+    LocalObjectStore(root).put("a/x.bin", REAL)
+    target = root / "objects" / "a" / "x.bin"
+    done: dict[str, bool] = {}
+
+    def hook(point: str) -> None:
+        if point == "before_open_read" and not done:
+            # El sustituto se crea ANTES de retirar el original para que tenga otro inodo
+            # (tras un unlink, el sistema de archivos puede reutilizar el número de inodo).
+            replacement = target.with_name("replacement.tmp")
+            replacement.write_bytes(REAL)  # mismo contenido: el hash por sí solo no lo vería
+            os.chmod(target, 0o600)
+            target.unlink()
+            os.rename(replacement, target)
+            done["swapped"] = True
+
+    store = LocalObjectStore(root, fault_hook=hook)
+    with pytest.raises(IntegrityError, match="cambió"):
+        store.get("a/x.bin", sha256_bytes(REAL))
+    assert done == {"swapped": True}

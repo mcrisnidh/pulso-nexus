@@ -83,6 +83,11 @@ source = ["nexus"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+# El código exclusivo de Windows no puede ejecutarse en Linux. Se excluye del umbral de
+# Linux (A13) de forma explícita y declarada, y se ejecuta en el job de Windows de CI.
+exclude_also = [
+    'if sys\.platform == "win32":',
+]
 
 # ---------------------------------------------------------------- import-linter
 [tool.importlinter]

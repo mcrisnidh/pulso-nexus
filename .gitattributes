@@ -1,0 +1,17 @@
+# Política de bytes de PULSO NEXUS (NX-E1A-01).
+#
+# Los SHA-256 de fixtures, manifiestos y evidencias deben ser idénticos en cualquier
+# plataforma. Git en Windows convierte por defecto LF→CRLF al hacer checkout
+# (core.autocrlf=true en los runners), lo que alteraba los bytes de los fixtures.
+#
+# 1) Todo archivo de texto se guarda y se extrae con LF en TODAS las plataformas,
+#    sin importar core.autocrlf del usuario o del runner.
+* text=auto eol=lf
+
+# 2) Los datos de prueba se tratan como bytes exactos: nunca se normalizan finales de
+#    línea ni codificación, ni siquiera si contuvieran CR.
+tests/fixtures/** -text
+
+# 3) Binarios explícitos.
+*.parquet binary
+*.zip binary

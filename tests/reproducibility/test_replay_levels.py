@@ -5,7 +5,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
-import shutil
 from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
@@ -13,7 +12,7 @@ from typing import Any
 import pyarrow as pa
 import pytest
 
-from conftest import AS_OF, object_path, run_cli, tamper
+from conftest import AS_OF, force_rmtree, object_path, run_cli, tamper
 from nexus.contracts.synthetic import SYNTHETIC_INPUT, SYNTHETIC_OUTPUT
 from nexus.engines import synthetic_sum
 from nexus.errors import IntegrityError, NotReproducibleError
@@ -136,7 +135,7 @@ def test_missing_artifact_fails_integrity(store: LocalObjectStore, record: dict[
 def test_missing_snapshot_is_not_reproducible_without_partial_result(
     store: LocalObjectStore, record: dict[str, Any], snapshot_id: str
 ) -> None:
-    shutil.rmtree(object_path(store, f"snapshots/{snapshot_id}"))
+    force_rmtree(object_path(store, f"snapshots/{snapshot_id}"))
     with pytest.raises(NotReproducibleError):
         replay(store, record["run_id"])
     code, out = run_cli("replay", "--store", str(store.root), "--run-id", record["run_id"])

@@ -5,11 +5,10 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
-import shutil
 
 import pytest
 
-from conftest import VALID_CSV, object_path, tamper
+from conftest import VALID_CSV, force_rmtree, object_path, tamper
 from nexus.connectors import synthetic_file
 from nexus.errors import IntegrityError, NotReproducibleError
 from nexus.sealed import seal, unseal
@@ -82,7 +81,7 @@ def test_missing_snapshot_not_reproducible(store: LocalObjectStore, snapshot_id:
     content.unlink()
     with pytest.raises(NotReproducibleError):
         load_snapshot(store, snapshot_id, manifest["content_sha256"])
-    shutil.rmtree(object_path(store, f"snapshots/{snapshot_id}"))
+    force_rmtree(object_path(store, f"snapshots/{snapshot_id}"))
     with pytest.raises(NotReproducibleError):
         load_snapshot(store, snapshot_id, manifest["content_sha256"])
     with pytest.raises(NotReproducibleError):
