@@ -382,3 +382,51 @@ def test_read_tolerates_transient_exclusive_handle(store: LocalObjectStore) -> N
     assert store.get("busy/x.bin", sha256_bytes(b"contenido")) == b"contenido"
     released.wait(5)
     assert released.is_set()
+
+
+def test_store_tree_is_private_and_insecure_roots_are_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """NX-E1A-03: el almacén crea su árbol privado y se niega a operar sobre una raíz que
+    otros principales podrían relocalizar. Windows: no aplica (ACL pendientes, P13)."""
+    store = LocalObjectStore(tmp_path / "private")
+    store.put("a/b/x.bin", b"x")
+    if _fs.IS_WINDOWS:
+        return
+    for rel in ("", "objects", "staging", "objects/a", "objects/a/b"):
+        mode = stat.S_IMODE(os.stat(store.root / rel).st_mode)
+        assert mode & 0o077 == 0, (rel, oct(mode))
+
+    loose = tmp_path / "loose"
+    loose.mkdir()
+    os.chmod(loose, 0o777)
+    with pytest.raises(IntegrityError, match="escribible por grupo u otros"):
+        LocalObjectStore(loose)
+
+    foreign = tmp_path / "foreign"
+    foreign.mkdir(mode=0o700)
+    real_euid = os.geteuid()  # type: ignore[attr-defined]
+    monkeypatch.setattr(os, "geteuid", lambda: real_euid + 1)
+    with pytest.raises(IntegrityError, match="no al uid efectivo"):
+        LocalObjectStore(foreign)
+
+
+def test_ensure_private_dir_rejects_non_directory(tmp_path: Path) -> None:
+    target = tmp_path / "file"
+    target.write_bytes(b"x")
+    with pytest.raises(IntegrityError, match="directorio real"):
+        _fs.ensure_private_dir(target)
+
+
+def test_rollback_never_removes_foreign_entry(tmp_path: Path) -> None:
+    """La retirada del enlace propio (NX-E1A-03) solo borra si la identidad coincide con el
+    objeto que creó el almacén; un archivo ajeno con el mismo nombre no se toca."""
+    (tmp_path / "foreign.bin").write_bytes(b"ajeno")
+    (tmp_path / "own.bin").write_bytes(b"propio")
+    own = os.stat(tmp_path / "own.bin")
+    with _fs.open_dir_chain(tmp_path, (), create=False) as parent:
+        assert _fs.remove_entry_if_same(parent, "foreign.bin", (own.st_dev, own.st_ino)) is False
+        assert _fs.remove_entry_if_same(parent, "missing.bin", (own.st_dev, own.st_ino)) is False
+        assert _fs.remove_entry_if_same(parent, "own.bin", (own.st_dev, own.st_ino)) is True
+    assert (tmp_path / "foreign.bin").read_bytes() == b"ajeno"
+    assert not (tmp_path / "own.bin").exists()

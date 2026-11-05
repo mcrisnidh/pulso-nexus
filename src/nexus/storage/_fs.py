@@ -56,6 +56,8 @@ _O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
 _O_DIRECTORY = getattr(os, "O_DIRECTORY", 0)
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 _READ_ONLY = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+_PRIVATE_DIR_MODE = 0o700
+_GROUP_OTHER_WRITE = stat.S_IWGRP | stat.S_IWOTH
 
 
 @dataclass(frozen=True)
@@ -236,7 +238,7 @@ def open_dir_chain(base: Path, segments: Sequence[str], *, create: bool) -> Iter
             path = path / seg
             if create:
                 with suppress(FileExistsError):
-                    os.mkdir(seg, 0o755, dir_fd=fd)
+                    os.mkdir(seg, _PRIVATE_DIR_MODE, dir_fd=fd)
             child = _open_dir_nofollow(seg, fd, path)
             os.close(fd)
             fd = child
@@ -355,3 +357,84 @@ def is_link_like(path: Path) -> bool:
         return stat_is_link(os.lstat(path))
     except FileNotFoundError:
         return False
+
+
+# --------------------------------------------------------------------------- NX-E1A-03
+# Contención física frente a relocalización adversarial de directorios.
+#
+# En POSIX un descriptor de directorio identifica un INODO, no una posición en el árbol:
+# si otro proceso mueve el directorio fuera del almacén, ``linkat(dst_dir_fd)`` escribe
+# fuera. Ningún mecanismo POSIX en espacio de usuario impide ese movimiento a quien
+# tenga permiso de escritura sobre el árbol, y cualquier comprobación de ruta conserva
+# una carrera equivalente. Por tanto:
+#   * Prevención = aislamiento por permisos del SO (``ensure_private_dir``): árbol
+#     propiedad del uid efectivo del almacén y no escribible por grupo/otros. Solo ese
+#     uid o root pueden relocalizar, y ambos son el dominio de confianza del almacén.
+#   * Complemento (no prevención) = ``same_directory`` y ``remove_entry_if_same``: no
+#     declarar éxito si se detecta pérdida de contención y retirar el enlace propio.
+#     Conserva una carrera residual (relocalización posterior a la comprobación).
+# En Windows los directorios de la ruta están bloqueados sin FILE_SHARE_DELETE durante
+# la operación: el renombrado se rechaza (demostrado en CI).
+
+
+def ensure_private_dir(path: Path) -> None:
+    """Crea (si falta) y valida un directorio raíz del almacén.
+
+    POSIX: debe ser un directorio real (no enlace), propiedad del uid efectivo y no
+    escribible por grupo ni otros. Si se crea, se crea con modo 0700 (independiente
+    de la umask). Si no cumple, ``IntegrityError``: el almacén no opera sobre un árbol
+    que otros principales podrían relocalizar.
+    Windows: se valida que no sea un punto de reanálisis; las ACL quedan pendientes (P13).
+    """
+    if is_link_like(path):
+        raise IntegrityError(f"directorio del almacén es un enlace: {path}")
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with suppress(FileExistsError):
+            os.mkdir(path, _PRIVATE_DIR_MODE)
+        if sys.platform != "win32":
+            os.chmod(path, _PRIVATE_DIR_MODE)
+    st = os.lstat(path)
+    if stat_is_link(st) or not stat.S_ISDIR(st.st_mode):
+        raise IntegrityError(f"el almacén requiere un directorio real: {path}")
+    if sys.platform == "win32":
+        return
+    if st.st_uid != os.geteuid():
+        raise IntegrityError(
+            f"permisos inseguros: {path} pertenece al uid {st.st_uid}, no al uid efectivo "
+            f"del almacén ({os.geteuid()})"
+        )
+    if st.st_mode & _GROUP_OTHER_WRITE:
+        raise IntegrityError(
+            f"permisos inseguros: {path} es escribible por grupo u otros "
+            f"(modo {stat.S_IMODE(st.st_mode):o}); otro principal podría relocalizar el árbol"
+        )
+
+
+def same_directory(parent: DirHandle, base: Path, segments: Sequence[str]) -> bool:
+    """True si ``base/segments`` (recorrido de nuevo por nombre, sin seguir enlaces) es
+    el MISMO directorio que ``parent``. Detecta relocalización; no la impide."""
+    if sys.platform == "win32":
+        # La cadena está bloqueada sin FILE_SHARE_DELETE mientras dura la operación.
+        return True
+    try:
+        with open_dir_chain(base, segments, create=False) as again:
+            now = os.fstat(again.fd)
+            held = os.fstat(parent.fd)
+    except (OSError, IntegrityError):
+        return False
+    return (now.st_dev, now.st_ino) == (held.st_dev, held.st_ino)
+
+
+def remove_entry_if_same(parent: DirHandle, name: str, identity: tuple[int, int]) -> bool:
+    """Retira ``parent/name`` solo si sigue siendo el objeto ``identity`` que creó el
+    propio almacén (nunca borra un archivo ajeno con el mismo nombre)."""
+    st = entry_stat(parent, name)
+    if st is None or (st.st_dev, st.st_ino) != identity:
+        return False
+    if sys.platform == "win32":
+        os.chmod(parent.path / name, stat.S_IRUSR | stat.S_IWUSR)
+        os.unlink(parent.path / name)
+    else:
+        os.unlink(name, dir_fd=parent.fd)
+    return True

@@ -88,9 +88,7 @@ class LocalObjectStore:
         self._staging = self.root / "staging"
         self._fault = fault_hook
         for directory in (self.root, self._objects, self._staging):
-            if _fs.is_link_like(directory):
-                raise IntegrityError(f"directorio del almacén es un enlace: {directory}")
-            directory.mkdir(parents=True, exist_ok=True)
+            _fs.ensure_private_dir(directory)
 
     # ------------------------------------------------------------------ internos
     def _checkpoint(self, name: str) -> None:
@@ -141,6 +139,30 @@ class LocalObjectStore:
                 f"{key}: ya existe con contenido distinto; inmutable, no se sobrescribe"
             ) from exc
 
+    def _ensure_contained(
+        self,
+        parent: _fs.DirHandle,
+        key: str,
+        name: str,
+        created: tuple[int, int] | None,
+    ) -> None:
+        """NX-E1A-03: no declarar éxito si el directorio fue relocalizado fuera del almacén.
+
+        Es un control de DETECCIÓN con carrera residual (relocalización posterior a esta
+        comprobación). La prevención es el aislamiento por permisos (``ensure_private_dir``).
+        Si se perdió la frontera, se retira el enlace que creó este ``put`` (solo si su
+        identidad coincide) y se falla cerrado.
+        """
+        segments = validate_key(key)
+        if _fs.same_directory(parent, self._objects, segments[:-1]):
+            self._checkpoint("after_containment_check")
+            return
+        removed = created is not None and _fs.remove_entry_if_same(parent, name, created)
+        raise IntegrityError(
+            f"{key}: frontera de almacenamiento perdida (directorio relocalizado durante la "
+            f"operación); no se declara éxito; enlace propio retirado={removed}"
+        )
+
     # ------------------------------------------------------------------ API
     def put(self, key: str, data: bytes) -> ObjectRef:
         sha = sha256_bytes(data)
@@ -149,6 +171,7 @@ class LocalObjectStore:
         with chain as parent, _fs.open_dir_chain(self._staging, (), create=False) as staging:
             if _fs.entry_stat(parent, name) is not None:
                 self._existing_matches(parent, name, key, sha)
+                self._ensure_contained(parent, key, name, None)
                 return ref
             tmp_name = f"{uuid.uuid4().hex}.tmp"
             fd = _fs.create_exclusive(staging, tmp_name)
@@ -159,15 +182,19 @@ class LocalObjectStore:
                     self._checkpoint("before_fsync")
                     _fs.fsync_fd(fh.fileno())
                     _fs.make_readonly_open(fh.fileno(), staging, tmp_name)
+                    written = os.fstat(fh.fileno())
+                created = (written.st_dev, written.st_ino)
                 self._checkpoint("before_publish")
                 try:
                     _fs.publish_no_replace(staging, tmp_name, parent, name)
                 except FileExistsError:
                     self._existing_matches(parent, name, key, sha)
+                    self._ensure_contained(parent, key, name, None)
                     return ref
                 _fs.fsync_dir(parent)
                 self._checkpoint("before_verify")
                 self._read_verified_in(parent, name, key, sha)
+                self._ensure_contained(parent, key, name, created)
                 return ref
             finally:
                 _fs.remove_own_temp(staging, tmp_name)
