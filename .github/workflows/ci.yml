@@ -1,0 +1,39 @@
+name: ci-e1a
+
+on:
+  push:
+    branches: ["claude/**", "main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: E1-A (Linux, criterios de aceptación)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run mypy --strict src
+      - run: uv run lint-imports
+      - run: uv run pytest --cov=nexus --cov-branch --cov-fail-under=90
+      - run: NEXUS_THREADS=1 TZ=UTC LC_ALL=C uv run pytest tests/reproducibility -v
+      - run: NEXUS_THREADS=8 TZ=America/Mexico_City LC_ALL=C.UTF-8 uv run pytest tests/reproducibility -v
+      - run: bash scripts/e1a_demo.sh
+
+  windows:
+    # Evidencia INFORMATIVA de compatibilidad Windows/NTFS. No certifica garantías
+    # (ver docs/evidence/E1-A/PLATFORM_GUARANTEES.md).
+    name: E1-A (Windows, informativo)
+    runs-on: windows-2022
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - run: uv run pytest -ra

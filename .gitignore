@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# PULSO NEXUS
+.nexus-local/
+.import_linter_cache/

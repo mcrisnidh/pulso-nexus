@@ -1,0 +1,8 @@
+# Allowlist de conectores aprobados (P-ADR-07 / docs/adr/0005-allowlist-conectores.md).
+# Todo módulo de nexus/connectors/ distinto de __init__ y base debe figurar aquí.
+# SharePoint, Microsoft Graph y conectores heredados están DESCARTADOS (X1–X3).
+
+[connectors.synthetic_file]
+module = "nexus.connectors.synthetic_file"
+adr = "docs/adr/0005-allowlist-conectores.md"
+scope = "fixtures sintéticos de E1-A; sin fuentes corporativas"
