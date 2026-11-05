@@ -5,7 +5,9 @@ IF DATABASE_PRINCIPAL_ID(N'nexus_producer_role') IS NULL
 GO
 GRANT EXECUTE ON SCHEMA::nexus TO nexus_producer_role;
 GO
-DENY INSERT, UPDATE, DELETE, ALTER, REFERENCES, TAKE OWNERSHIP, CONTROL ON SCHEMA::nexus TO nexus_producer_role;
+-- Nunca DENY CONTROL: CONTROL implica EXECUTE y bloquearía los propios procedimientos
+-- (defecto detectado en CI real, error 229 sobre usp_get_environment).
+DENY SELECT, INSERT, UPDATE, DELETE, ALTER, REFERENCES, TAKE OWNERSHIP ON SCHEMA::nexus TO nexus_producer_role;
 GO
 DENY CREATE TABLE, CREATE PROCEDURE, CREATE VIEW, CREATE FUNCTION, CREATE SCHEMA TO nexus_producer_role;
 GO

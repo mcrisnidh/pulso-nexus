@@ -59,6 +59,8 @@ def test_b03_migrations_idempotent_and_versioned(
         "UPDATE nexus.run_event SET detail = N'x'",
         "DELETE FROM nexus.run_event",
         "DROP TABLE nexus.artifact",
+        "SELECT TOP (1) * FROM nexus.run_request",
+        "ALTER PROCEDURE nexus.usp_get_request @idempotency_key nvarchar(200) AS SELECT 1",
     ],
 )
 def test_b03_producer_denied_direct_ddl_dml(
@@ -70,6 +72,29 @@ def test_b03_producer_denied_direct_ddl_dml(
             conn.cursor().execute(statement)
         text = str(info.value).lower()
         assert "permission" in text or "denied" in text or "(229)" in text or "(262)" in text
+    finally:
+        conn.close()
+
+
+def test_b03_producer_can_execute_procedures(base_settings: ConnectionSettings) -> None:
+    """Control positivo: el mínimo privilegio no debe impedir EXECUTE (regresión de DENY CONTROL)."""
+    conn = connect(base_settings, 30)
+    try:
+        row = conn.cursor().execute("EXEC nexus.usp_get_environment").fetchone()
+        assert row is not None
+        perms = {
+            r[0]
+            for r in conn.cursor()
+            .execute("SELECT permission_name FROM fn_my_permissions(N'nexus', N'SCHEMA')")
+            .fetchall()
+        }
+        assert "EXECUTE" in perms and not perms & {
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "SELECT",
+            "CONTROL",
+        }
     finally:
         conn.close()
 

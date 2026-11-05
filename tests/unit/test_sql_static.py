@@ -65,3 +65,12 @@ def test_no_client_supplied_time(proc: str) -> None:
     ), header
     if "expires_at" in _code(PROCS[proc]) or "not_before" in _code(PROCS[proc]):
         assert "GETDATE()" not in _code(PROCS[proc]).upper()
+
+
+def test_permissions_never_deny_control() -> None:
+    """DENY CONTROL implica DENY EXECUTE: rompería el modelo EXECUTE-only."""
+    code = _code(SQL["0003_permissions.sql"]).upper()
+    for stmt in code.split(";"):
+        if stmt.strip().startswith("DENY"):
+            assert "CONTROL" not in stmt, stmt
+    assert "GRANT EXECUTE ON SCHEMA::NEXUS TO NEXUS_PRODUCER_ROLE" in code
