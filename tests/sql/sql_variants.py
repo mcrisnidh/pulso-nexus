@@ -22,10 +22,15 @@ _HINTS = re.compile(r"(-- CLAIM_HINTS\n)([^)]*?)(\n\s*\))")
 Transform = Callable[[str, str], str]
 
 
-def production_procs() -> dict[str, str]:
-    text = (
-        resources.files("nexus.metadata").joinpath("sql", "0002_procedures.sql").read_text("utf-8")
-    )
+def production_procs(text: str | None = None) -> dict[str, str]:
+    """Procedimientos por nombre: los de producción o los de ``text`` (p. ej., una copia
+    congelada del candidato original para reproducir un defecto)."""
+    if text is None:
+        text = (
+            resources.files("nexus.metadata")
+            .joinpath("sql", "0002_procedures.sql")
+            .read_text("utf-8")
+        )
     procs = {}
     for batch in split_batches(text):
         match = _PROC.search(batch)
@@ -63,13 +68,15 @@ def without_fence(target: str) -> Transform:
     return transform
 
 
-def install_variant(admin: Any, schema: str, transform: Transform | None = None) -> None:
+def install_variant(
+    admin: Any, schema: str, transform: Transform | None = None, source: str | None = None
+) -> None:
     assert re.fullmatch(r"nexus_[a-z0-9_]+", schema) and schema != "nexus"
     cur = admin.cursor()
     cur.execute(
         f"IF SCHEMA_ID(N'{schema}') IS NULL EXEC(N'CREATE SCHEMA {schema} AUTHORIZATION dbo')"
     )
-    for name, text in production_procs().items():
+    for name, text in production_procs(source).items():
         body = text.replace(
             f"CREATE OR ALTER PROCEDURE nexus.{name}", f"CREATE OR ALTER PROCEDURE {schema}.{name}"
         )
