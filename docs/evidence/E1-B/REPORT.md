@@ -1,5 +1,8 @@
 # Informe de evidencia E1-B: persistencia de metadatos en SQL Server efímero
 
+> **Actualización R1 (revisión independiente):** este informe describe el candidato original `531107c`. La revisión R1 identificó dos hallazgos (NX-E1B-R1-01 y NX-E1B-R1-02), que se reprodujeron contra este candidato y se corrigieron en el candidato **E1-B-R1 `37be314`**. Ver [`R1/REPORT-R1.md`](R1/REPORT-R1.md), que prevalece sobre este documento en lo que lo modifica. El manifiesto `MANIFEST.sha256` se ha regenerado para el commit de evidencia de R1.
+
+
 > **Estado: CANDIDATO ÚNICO para revisión independiente.** No se declara GO.
 > No se crea la etiqueta `e1a-baseline`. No se inicia E1-C, E2 ni etapas posteriores.
 

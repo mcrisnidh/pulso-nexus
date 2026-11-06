@@ -1,0 +1,466 @@
+{
+ "e1a-linux": {
+  "failed": [],
+  "job_id": 127836598095,
+  "log_lines": 620,
+  "original_length": 620,
+  "results": [
+   "===================== 326 passed, 115 deselected in 50.33s =====================",
+   "============================== 6 passed in 0.23s ===============================",
+   "============================== 33 passed in 5.90s ==============================",
+   "============================== 33 passed in 5.93s =============================="
+  ]
+ },
+ "rcsi-off_read-committed": {
+  "criteria": {
+   "B1": 1,
+   "B10": 2,
+   "B11": 1,
+   "B12": 3,
+   "B13": 1,
+   "B14": 1,
+   "B15": 6,
+   "B16": 10,
+   "B5": 20,
+   "B8": 1,
+   "B9": 6,
+   "R1_01": 8,
+   "TLS": 3,
+   "server_info": 1
+  },
+  "failed": [],
+  "job_id": 127836598036,
+  "log_lines": 1464,
+  "original_length": 1464,
+  "r1_01": [
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ]
+  ],
+  "results": [
+   "============================= 18 passed in 24.62s ==============================",
+   "Required test coverage of 90% reached. Total coverage: 91.85%",
+   "======================= 441 passed in 534.57s (0:08:54) ========================"
+  ]
+ },
+ "rcsi-off_snapshot": {
+  "criteria": {
+   "B1": 1,
+   "B10": 2,
+   "B11": 1,
+   "B12": 3,
+   "B13": 1,
+   "B14": 1,
+   "B15": 6,
+   "B16": 10,
+   "B5": 20,
+   "B8": 1,
+   "B9": 6,
+   "R1_01": 8,
+   "TLS": 3,
+   "server_info": 1
+  },
+  "failed": [],
+  "job_id": 127836598398,
+  "log_lines": 1465,
+  "original_length": 1465,
+  "r1_01": [
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ]
+  ],
+  "results": [
+   "============================= 18 passed in 25.52s ==============================",
+   "Required test coverage of 90% reached. Total coverage: 91.92%",
+   "======================= 441 passed in 536.00s (0:08:56) ========================"
+  ]
+ },
+ "rcsi-on_read-committed": {
+  "criteria": {
+   "B1": 1,
+   "B10": 2,
+   "B11": 1,
+   "B12": 3,
+   "B13": 1,
+   "B14": 1,
+   "B15": 6,
+   "B16": 10,
+   "B5": 20,
+   "B8": 1,
+   "B9": 6,
+   "R1_01": 8,
+   "TLS": 3,
+   "server_info": 1
+  },
+  "failed": [],
+  "job_id": 127836598102,
+  "log_lines": 1465,
+  "original_length": 1465,
+  "r1_01": [
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim vencido durante la adquisici\u00f3n (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim vencido durante la adquisici\u00f3n (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ]
+  ],
+  "results": [
+   "============================= 18 passed in 24.75s ==============================",
+   "Required test coverage of 90% reached. Total coverage: 91.85%",
+   "======================= 441 passed in 544.72s (0:09:04) ========================"
+  ]
+ },
+ "rcsi-on_snapshot": {
+  "criteria": {
+   "B1": 1,
+   "B10": 2,
+   "B11": 1,
+   "B12": 3,
+   "B13": 1,
+   "B14": 1,
+   "B15": 6,
+   "B16": 10,
+   "B5": 20,
+   "B8": 1,
+   "B9": 6,
+   "R1_01": 8,
+   "TLS": 3,
+   "server_info": 1
+  },
+  "failed": [],
+  "job_id": 127836597854,
+  "log_lines": 1465,
+  "original_length": 1465,
+  "r1_01": [
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim vencido durante la adquisici\u00f3n (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "original_531107c",
+    "request_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "original_531107c",
+    "lease_row",
+    true,
+    {
+     "acquired": true,
+     "reason": null
+    },
+    true,
+    1
+   ],
+   [
+    "corrected",
+    "request_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ],
+   [
+    "corrected",
+    "lease_row",
+    true,
+    {
+     "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim vencido durante la adquisici\u00f3n (50011) (SQLExecDirectW)"
+    },
+    false,
+    0
+   ]
+  ],
+  "results": [
+   "============================= 18 passed in 24.50s ==============================",
+   "Required test coverage of 90% reached. Total coverage: 91.92%",
+   "======================= 441 passed in 550.30s (0:09:10) ========================"
+  ]
+ }
+}

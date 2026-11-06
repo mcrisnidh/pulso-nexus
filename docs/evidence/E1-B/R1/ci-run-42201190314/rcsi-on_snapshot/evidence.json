@@ -1,0 +1,1097 @@
+{
+ "B1": [
+  {
+   "B1": "result_digest",
+   "direct": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694",
+   "input_digest_direct": "c284ebaa223f1df555c6d7297186cc45b9e270602c47588fbbe5ba24753c5fed",
+   "input_digest_sql": "c284ebaa223f1df555c6d7297186cc45b9e270602c47588fbbe5ba24753c5fed",
+   "server_ts": "2026-11-06 10:17:03.893565",
+   "sql": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694"
+  }
+ ],
+ "B10": [
+  {
+   "B10": "client_sigkill",
+   "locks_after": 0,
+   "locks_during": 2
+  },
+  {
+   "B10": "server_kill_session",
+   "locks_after": 0,
+   "locks_during": 2
+  }
+ ],
+ "B11": [
+  {
+   "B11": {
+    "artifacts": 1,
+    "completed_events": 1,
+    "enqueued_events": 1,
+    "released_events": 1,
+    "requests": 1,
+    "sealed_events": 1,
+    "snapshots": 1
+   }
+  }
+ ],
+ "B12": [
+  {
+   "B12": "A",
+   "claimed": 4566,
+   "compiled": true,
+   "conforms": true,
+   "elapsed_ms": 5,
+   "error": null,
+   "exclusivity_runs": 3,
+   "exclusivity_violations": [],
+   "expected": 4566,
+   "hints": "UPDLOCK, READPAST, ROWLOCK",
+   "locked_by_competitor": 4565,
+   "production": true,
+   "rcsi": "ON",
+   "server_ts": "2026-11-06 10:19:14.703895",
+   "session_isolation": "SNAPSHOT",
+   "skip_locked_ok": true
+  },
+  {
+   "B12": "B",
+   "claimed": 4868,
+   "compiled": true,
+   "conforms": true,
+   "elapsed_ms": 8,
+   "error": null,
+   "exclusivity_runs": 3,
+   "exclusivity_violations": [],
+   "expected": 4868,
+   "hints": "UPDLOCK, READPAST, READCOMMITTEDLOCK",
+   "locked_by_competitor": 4867,
+   "production": false,
+   "rcsi": "ON",
+   "server_ts": "2026-11-06 10:19:17.730962",
+   "session_isolation": "SNAPSHOT",
+   "skip_locked_ok": true
+  },
+  {
+   "B12": "C",
+   "claimed": 5170,
+   "compiled": true,
+   "conforms": true,
+   "elapsed_ms": 2,
+   "error": null,
+   "exclusivity_runs": 3,
+   "exclusivity_violations": [],
+   "expected": 5170,
+   "hints": "UPDLOCK, READPAST",
+   "locked_by_competitor": 5169,
+   "production": false,
+   "rcsi": "ON",
+   "server_ts": "2026-11-06 10:19:21.940677",
+   "session_isolation": "SNAPSHOT",
+   "skip_locked_ok": true
+  }
+ ],
+ "B13": [
+  {
+   "B13": "LEASE_LOST_BY_LATENCY",
+   "lease_ms": 5000,
+   "server_gap_ms": 5518
+  }
+ ],
+ "B14": [
+  {
+   "B14": {
+    "deadlock_retries": 1,
+    "effects": [
+     "ab",
+     "ba"
+    ],
+    "values": {
+     "A": 2,
+     "B": 2
+    }
+   }
+  }
+ ],
+ "B15": [
+  {
+   "B15": "R-A",
+   "labels": [
+    "COMPLETE_STORE_RUN",
+    "SNAPSHOT_VALID"
+   ],
+   "marked_corrupt": [],
+   "marked_missing": [],
+   "object_types": [
+    "ARTIFACT",
+    "INPUT_MANIFEST",
+    "RUN_RECORD",
+    "SNAPSHOT_CONTENT",
+    "SNAPSHOT_MANIFEST"
+   ],
+   "objects": 14,
+   "run_labels": [
+    "COMPLETE_STORE_RUN"
+   ],
+   "sql_reference_issues": [],
+   "unregistered": [
+    "runs/run-ebb334920317404d8dcdf862f7c85873/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-ebb334920317404d8dcdf862f7c85873/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-ebb334920317404d8dcdf862f7c85873/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet",
+    "runs/run-ebb334920317404d8dcdf862f7c85873/input_manifest.json",
+    "runs/run-ebb334920317404d8dcdf862f7c85873/run_record.json",
+    "snapshots/snap-77016d2c329b42a9a0b0a22c0f9881e8/content.bin",
+    "snapshots/snap-77016d2c329b42a9a0b0a22c0f9881e8/manifest.json"
+   ],
+   "violations": []
+  },
+  {
+   "B15": "R-B",
+   "artifact_states": {
+    "runs/run-03ef47c30a0f49db990988a8fcacb398/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet": "MISSING",
+    "runs/run-03ef47c30a0f49db990988a8fcacb398/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet": "CORRUPT",
+    "runs/run-03ef47c30a0f49db990988a8fcacb398/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet": "PRESENT"
+   },
+   "audit_events": 2,
+   "corrupt": [
+    "runs/run-03ef47c30a0f49db990988a8fcacb398/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet"
+   ],
+   "generation_states": [
+    "INELIGIBLE"
+   ],
+   "missing": [
+    "runs/run-03ef47c30a0f49db990988a8fcacb398/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet"
+   ],
+   "server_ts": "2026-11-06 10:16:22.962390"
+  },
+  {
+   "B15": "R-C",
+   "labels": [
+    "COMPLETE_STORE_RUN",
+    "SNAPSHOT_VALID"
+   ],
+   "marked_corrupt": [],
+   "marked_missing": [],
+   "object_types": [
+    "ARTIFACT",
+    "INPUT_MANIFEST",
+    "RUN_RECORD",
+    "SNAPSHOT_CONTENT",
+    "SNAPSHOT_MANIFEST"
+   ],
+   "objects": 7,
+   "run_labels": [
+    "COMPLETE_STORE_RUN"
+   ],
+   "server_ts": "2026-11-06 10:16:23.312171",
+   "sql_reference_issues": [],
+   "unregistered": [
+    "runs/run-7552c8377c0c432c98f04e101cef745f/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-7552c8377c0c432c98f04e101cef745f/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-7552c8377c0c432c98f04e101cef745f/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet",
+    "runs/run-7552c8377c0c432c98f04e101cef745f/input_manifest.json",
+    "runs/run-7552c8377c0c432c98f04e101cef745f/run_record.json",
+    "snapshots/snap-7fefec779c7b4b01aa99a65d678c8ec4/content.bin",
+    "snapshots/snap-7fefec779c7b4b01aa99a65d678c8ec4/manifest.json"
+   ],
+   "violations": []
+  },
+  {
+   "B15": "R-A",
+   "labels": [
+    "COMPLETE_STORE_RUN",
+    "SNAPSHOT_VALID"
+   ],
+   "marked_corrupt": [],
+   "marked_missing": [],
+   "object_types": [
+    "ARTIFACT",
+    "INPUT_MANIFEST",
+    "RUN_RECORD",
+    "SNAPSHOT_CONTENT",
+    "SNAPSHOT_MANIFEST"
+   ],
+   "objects": 14,
+   "run_labels": [
+    "COMPLETE_STORE_RUN"
+   ],
+   "sql_reference_issues": [],
+   "unregistered": [
+    "runs/run-dbb07fbc773a42da8ee8e1f8de7b3f0d/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-dbb07fbc773a42da8ee8e1f8de7b3f0d/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-dbb07fbc773a42da8ee8e1f8de7b3f0d/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet",
+    "runs/run-dbb07fbc773a42da8ee8e1f8de7b3f0d/input_manifest.json",
+    "runs/run-dbb07fbc773a42da8ee8e1f8de7b3f0d/run_record.json",
+    "snapshots/snap-be723c459cb44b3d90f7061002c40f51/content.bin",
+    "snapshots/snap-be723c459cb44b3d90f7061002c40f51/manifest.json"
+   ],
+   "violations": []
+  },
+  {
+   "B15": "R-B",
+   "artifact_states": {
+    "runs/run-22f76a4f52de402692c2da5f9b0ab9e3/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet": "MISSING",
+    "runs/run-22f76a4f52de402692c2da5f9b0ab9e3/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet": "CORRUPT",
+    "runs/run-22f76a4f52de402692c2da5f9b0ab9e3/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet": "PRESENT"
+   },
+   "audit_events": 2,
+   "corrupt": [
+    "runs/run-22f76a4f52de402692c2da5f9b0ab9e3/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet"
+   ],
+   "generation_states": [
+    "INELIGIBLE"
+   ],
+   "missing": [
+    "runs/run-22f76a4f52de402692c2da5f9b0ab9e3/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet"
+   ],
+   "server_ts": "2026-11-06 10:19:32.632572"
+  },
+  {
+   "B15": "R-C",
+   "labels": [
+    "COMPLETE_STORE_RUN",
+    "SNAPSHOT_VALID"
+   ],
+   "marked_corrupt": [],
+   "marked_missing": [],
+   "object_types": [
+    "ARTIFACT",
+    "INPUT_MANIFEST",
+    "RUN_RECORD",
+    "SNAPSHOT_CONTENT",
+    "SNAPSHOT_MANIFEST"
+   ],
+   "objects": 7,
+   "run_labels": [
+    "COMPLETE_STORE_RUN"
+   ],
+   "server_ts": "2026-11-06 10:19:33.117167",
+   "sql_reference_issues": [],
+   "unregistered": [
+    "runs/run-17a21f43395f46e0991d6136baae6b0e/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-17a21f43395f46e0991d6136baae6b0e/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-17a21f43395f46e0991d6136baae6b0e/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet",
+    "runs/run-17a21f43395f46e0991d6136baae6b0e/input_manifest.json",
+    "runs/run-17a21f43395f46e0991d6136baae6b0e/run_record.json",
+    "snapshots/snap-de49bf5c4bdd4b2f93c160120d069f89/content.bin",
+    "snapshots/snap-de49bf5c4bdd4b2f93c160120d069f89/manifest.json"
+   ],
+   "violations": []
+  }
+ ],
+ "B16": [
+  {
+   "B16": "M1_two_step_claim",
+   "claims": 6119,
+   "detected": true,
+   "duplicate_claims": 96,
+   "execute_s_max": 6.963,
+   "execute_s_p50": 0.021,
+   "requests": 100,
+   "run_event_duplicate_claims": 96,
+   "states": {
+    "COMPLETED": 22,
+    "PENDING": 39,
+    "RUNNING": 39
+   },
+   "violations": [
+    "run_event: solicitudes con m\u00e1s de un CLAIMED: 96",
+    "solicitudes reclamadas m\u00e1s de una vez: 96",
+    "estados finales: {'COMPLETED': 22, 'PENDING': 39, 'RUNNING': 39}",
+    "errores: ['w0: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)', 'w1: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)', 'w9: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)']"
+   ],
+   "workers": 16
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_append_run_event",
+   "results": {
+    "usp_append_run_event": "ACEPTADO"
+   },
+   "violations": [
+    "usp_append_run_event: ACEPTADO",
+    "usp_append_run_event: modific\u00f3 filas"
+   ]
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_complete_run",
+   "results": {
+    "usp_complete_run": "NotSealedError"
+   },
+   "violations": [
+    "usp_complete_run: NotSealedError"
+   ]
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_fail_run",
+   "results": {
+    "usp_fail_run": "ACEPTADO"
+   },
+   "violations": [
+    "usp_fail_run: ACEPTADO",
+    "usp_fail_run: modific\u00f3 filas"
+   ]
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_heartbeat",
+   "results": {
+    "usp_heartbeat": "IndexError"
+   },
+   "violations": [
+    "usp_heartbeat: IndexError"
+   ]
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_register_artifact",
+   "results": {
+    "usp_register_artifact": "InvalidOperationError"
+   },
+   "violations": [
+    "usp_register_artifact: InvalidOperationError"
+   ]
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_register_snapshot_ref",
+   "results": {
+    "usp_register_snapshot_ref": "ACEPTADO"
+   },
+   "violations": [
+    "usp_register_snapshot_ref: ACEPTADO",
+    "usp_register_snapshot_ref: modific\u00f3 filas"
+   ]
+  },
+  {
+   "B16": "M2_no_fence",
+   "detected": true,
+   "proc": "usp_seal_generation",
+   "results": {
+    "usp_seal_generation": "InvalidOperationError"
+   },
+   "violations": [
+    "usp_seal_generation: InvalidOperationError"
+   ]
+  },
+  {
+   "B16": "M3_deleting_reconcile",
+   "detected": true,
+   "labels": [
+    "COMPLETE_STORE_RUN",
+    "SNAPSHOT_VALID"
+   ],
+   "marked_corrupt": [],
+   "marked_missing": [],
+   "object_types": [
+    "ARTIFACT",
+    "INPUT_MANIFEST",
+    "RUN_RECORD",
+    "SNAPSHOT_CONTENT",
+    "SNAPSHOT_MANIFEST"
+   ],
+   "objects": 7,
+   "run_labels": [
+    "COMPLETE_STORE_RUN"
+   ],
+   "sql_reference_issues": [],
+   "unregistered": [
+    "runs/run-dd1428730d044215bbc1428e138398ae/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-dd1428730d044215bbc1428e138398ae/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-dd1428730d044215bbc1428e138398ae/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet",
+    "runs/run-dd1428730d044215bbc1428e138398ae/input_manifest.json",
+    "runs/run-dd1428730d044215bbc1428e138398ae/run_record.json",
+    "snapshots/snap-ced3a2c431ef440aa158584d966b1c42/content.bin",
+    "snapshots/snap-ced3a2c431ef440aa158584d966b1c42/manifest.json"
+   ],
+   "violations": [
+    "el almac\u00e9n cambi\u00f3: eliminados=['runs/run-dd1428730d044215bbc1428e138398ae/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet', 'runs/run-dd1428730d044215bbc1428e138398ae/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet', 'runs/run-dd1428730d044215bbc1428e138398ae/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet'] alterados=[]"
+   ]
+  },
+  {
+   "B16": "M1b_update_without_updlock_equivalent",
+   "claims": 100,
+   "detected": false,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.157,
+   "execute_s_p50": 0.041,
+   "requests": 100,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 100
+   },
+   "violations": [],
+   "workers": 16
+  }
+ ],
+ "B5": [
+  {
+   "B5": 0,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.064,
+   "execute_s_p50": 0.034,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 1,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.211,
+   "execute_s_p50": 0.035,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 2,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.481,
+   "execute_s_p50": 0.042,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 3,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.237,
+   "execute_s_p50": 0.037,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 4,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.061,
+   "execute_s_p50": 0.034,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 5,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.11,
+   "execute_s_p50": 0.033,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 6,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.253,
+   "execute_s_p50": 0.034,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 7,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.095,
+   "execute_s_p50": 0.038,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 8,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.076,
+   "execute_s_p50": 0.032,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 9,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.08,
+   "execute_s_p50": 0.034,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 10,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.096,
+   "execute_s_p50": 0.036,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 11,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.205,
+   "execute_s_p50": 0.046,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 12,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.214,
+   "execute_s_p50": 0.043,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 13,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.14,
+   "execute_s_p50": 0.04,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 14,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.064,
+   "execute_s_p50": 0.033,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 15,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.594,
+   "execute_s_p50": 0.041,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 16,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.12,
+   "execute_s_p50": 0.033,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 17,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.292,
+   "execute_s_p50": 0.05,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 18,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.159,
+   "execute_s_p50": 0.036,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  },
+  {
+   "B5": 19,
+   "claims": 200,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.175,
+   "execute_s_p50": 0.031,
+   "requests": 200,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 200
+   },
+   "violations": [],
+   "workers": 16
+  }
+ ],
+ "B8": [
+  {
+   "B8": {
+    "usp_append_run_event": "FENCED",
+    "usp_complete_run": "FENCED",
+    "usp_fail_run": "FENCED",
+    "usp_heartbeat": "FENCED",
+    "usp_register_artifact": "FENCED",
+    "usp_register_snapshot_ref": "FENCED",
+    "usp_seal_generation": "FENCED"
+   }
+  }
+ ],
+ "B9": [
+  {
+   "B9": "after_claim",
+   "attempt_states": [
+    "COMPLETED"
+   ],
+   "outcomes": [
+    "IDLE",
+    "COMPLETED"
+   ]
+  },
+  {
+   "B9": "after_lease",
+   "attempt_states": [
+    "FAILED",
+    "COMPLETED"
+   ],
+   "outcomes": [
+    "IDLE",
+    "COMPLETED"
+   ]
+  },
+  {
+   "B9": "after_execute",
+   "attempt_states": [
+    "FAILED",
+    "COMPLETED"
+   ],
+   "outcomes": [
+    "IDLE",
+    "COMPLETED"
+   ]
+  },
+  {
+   "B9": "after_register",
+   "attempt_states": [
+    "FAILED",
+    "COMPLETED"
+   ],
+   "outcomes": [
+    "IDLE",
+    "COMPLETED"
+   ]
+  },
+  {
+   "B9": "after_seal",
+   "attempt_states": [
+    "FAILED",
+    "COMPLETED"
+   ],
+   "outcomes": [
+    "IDLE",
+    "COMPLETED"
+   ]
+  },
+  {
+   "B9": "after_complete",
+   "attempt_states": [
+    "COMPLETED"
+   ],
+   "outcomes": [
+    "IDLE"
+   ]
+  }
+ ],
+ "R1_01": [
+  {
+   "R1_01": "original_531107c",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 1,
+   "blocker": "request_row",
+   "claim_expires_at": "2026-11-06 10:16:09.100888",
+   "generation_rows": 1,
+   "granted_after_claim_expiry": true,
+   "lease_acquired_events": [
+    "2026-11-06 10:16:09.658076"
+   ],
+   "lease_holder": "('lento',)",
+   "outcome": {
+    "acquired": true,
+    "reason": null
+   },
+   "released_at_server": "2026-11-06 10:16:09.649930",
+   "request": {
+    "attempts": 1,
+    "claim_token": "0F967FCB-63F9-425B-9317-376AAD3F3BA5",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 201,
+    "state": "RUNNING"
+   },
+   "request_id": 201,
+   "schema": "nexus_r1_original"
+  },
+  {
+   "R1_01": "original_531107c",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 1,
+   "blocker": "lease_row",
+   "claim_expires_at": "2026-11-06 10:16:11.821063",
+   "generation_rows": 1,
+   "granted_after_claim_expiry": true,
+   "lease_acquired_events": [
+    "2026-11-06 10:16:12.367655"
+   ],
+   "lease_holder": "('lento',)",
+   "outcome": {
+    "acquired": true,
+    "reason": null
+   },
+   "released_at_server": "2026-11-06 10:16:12.367655",
+   "request": {
+    "attempts": 1,
+    "claim_token": "5CBD8962-90B4-431E-B696-BFCD8C5C796F",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 202,
+    "state": "RUNNING"
+   },
+   "request_id": 202,
+   "schema": "nexus_r1_original"
+  },
+  {
+   "R1_01": "corrected",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 0,
+   "blocker": "request_row",
+   "claim_expires_at": "2026-11-06 10:16:14.673018",
+   "generation_rows": 0,
+   "granted_after_claim_expiry": false,
+   "lease_acquired_events": [],
+   "lease_holder": "(None,)",
+   "outcome": {
+    "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+   },
+   "recovered": [
+    0,
+    1
+   ],
+   "released_at_server": "2026-11-06 10:16:15.214691",
+   "request": {
+    "attempts": 0,
+    "claim_token": "EC5F3A51-2F98-4021-8758-987945D1362C",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 203,
+    "state": "CLAIMED"
+   },
+   "request_after_recover": {
+    "attempts": 0,
+    "claim_token": null,
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 203,
+    "state": "PENDING"
+   },
+   "schema": "nexus"
+  },
+  {
+   "R1_01": "corrected",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 0,
+   "blocker": "lease_row",
+   "claim_expires_at": "2026-11-06 10:16:17.381899",
+   "generation_rows": 0,
+   "granted_after_claim_expiry": false,
+   "lease_acquired_events": [],
+   "lease_holder": "(None,)",
+   "outcome": {
+    "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim vencido durante la adquisici\u00f3n (50011) (SQLExecDirectW)"
+   },
+   "recovered": [
+    0,
+    1
+   ],
+   "released_at_server": "2026-11-06 10:16:17.964913",
+   "request": {
+    "attempts": 0,
+    "claim_token": "806D8066-B3EA-4D96-8764-EAEEE40A6BF1",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 204,
+    "state": "CLAIMED"
+   },
+   "request_after_recover": {
+    "attempts": 0,
+    "claim_token": null,
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 204,
+    "state": "PENDING"
+   },
+   "schema": "nexus"
+  },
+  {
+   "R1_01": "original_531107c",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 1,
+   "blocker": "request_row",
+   "claim_expires_at": "2026-11-06 10:25:24.272667",
+   "generation_rows": 1,
+   "granted_after_claim_expiry": true,
+   "lease_acquired_events": [
+    "2026-11-06 10:25:24.824972"
+   ],
+   "lease_holder": "('lento',)",
+   "outcome": {
+    "acquired": true,
+    "reason": null
+   },
+   "released_at_server": "2026-11-06 10:25:24.820898",
+   "request": {
+    "attempts": 1,
+    "claim_token": "AD226537-A307-46ED-9625-EDE7A5A1E3E6",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 5682,
+    "state": "RUNNING"
+   },
+   "request_id": 5682,
+   "schema": "nexus_r1_original"
+  },
+  {
+   "R1_01": "original_531107c",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 1,
+   "blocker": "lease_row",
+   "claim_expires_at": "2026-11-06 10:25:27.106558",
+   "generation_rows": 1,
+   "granted_after_claim_expiry": true,
+   "lease_acquired_events": [
+    "2026-11-06 10:25:27.648180"
+   ],
+   "lease_holder": "('lento',)",
+   "outcome": {
+    "acquired": true,
+    "reason": null
+   },
+   "released_at_server": "2026-11-06 10:25:27.648180",
+   "request": {
+    "attempts": 1,
+    "claim_token": "E5961881-4B36-46CF-8A08-EF65E35F404E",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 5683,
+    "state": "RUNNING"
+   },
+   "request_id": 5683,
+   "schema": "nexus_r1_original"
+  },
+  {
+   "R1_01": "corrected",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 0,
+   "blocker": "request_row",
+   "claim_expires_at": "2026-11-06 10:25:29.779932",
+   "generation_rows": 0,
+   "granted_after_claim_expiry": false,
+   "lease_acquired_events": [],
+   "lease_holder": "(None,)",
+   "outcome": {
+    "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)"
+   },
+   "recovered": [
+    0,
+    1
+   ],
+   "released_at_server": "2026-11-06 10:25:30.318596",
+   "request": {
+    "attempts": 0,
+    "claim_token": "D175B8C1-9618-4035-853D-CFA55B698E95",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 5684,
+    "state": "CLAIMED"
+   },
+   "request_after_recover": {
+    "attempts": 0,
+    "claim_token": null,
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 5684,
+    "state": "PENDING"
+   },
+   "schema": "nexus"
+  },
+  {
+   "R1_01": "corrected",
+   "acquisition_was_blocked": true,
+   "attempts_rows": 0,
+   "blocker": "lease_row",
+   "claim_expires_at": "2026-11-06 10:25:32.477410",
+   "generation_rows": 0,
+   "granted_after_claim_expiry": false,
+   "lease_acquired_events": [],
+   "lease_holder": "(None,)",
+   "outcome": {
+    "claim_invalid": "42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim vencido durante la adquisici\u00f3n (50011) (SQLExecDirectW)"
+   },
+   "recovered": [
+    0,
+    1
+   ],
+   "released_at_server": "2026-11-06 10:25:33.059854",
+   "request": {
+    "attempts": 0,
+    "claim_token": "4FC81EA9-7D06-4823-A598-96792DAD2F97",
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 5685,
+    "state": "CLAIMED"
+   },
+   "request_after_recover": {
+    "attempts": 0,
+    "claim_token": null,
+    "completed_attempt_id": null,
+    "max_attempts": 3,
+    "request_id": 5685,
+    "state": "PENDING"
+   },
+   "schema": "nexus"
+  }
+ ],
+ "TLS": [
+  {
+   "certificate_error": true,
+   "connected": false,
+   "encrypt": "yes",
+   "error": "('08001', '[08001] [Microsoft][ODBC Driver 18 for SQL Server]SSL Provider: [error:0A000086:SSL routines::certificate verify failed:unable to get local issuer certificate] (-1) (SQLDriverConnect)')",
+   "expect": "untrusted-fails",
+   "host": "nexus-sql",
+   "passed": true,
+   "trust_server_certificate": "no"
+  },
+  {
+   "auth_scheme": "SQL",
+   "connected": true,
+   "encrypt": "yes",
+   "encrypt_option": "TRUE",
+   "expect": "ok",
+   "host": "nexus-sql",
+   "passed": true,
+   "server_ts": "2026-11-06 10:16:02.178869",
+   "trust_server_certificate": "no"
+  },
+  {
+   "certificate_error": true,
+   "connected": false,
+   "encrypt": "yes",
+   "error": "('08001', '[08001] [Microsoft][ODBC Driver 18 for SQL Server]SSL Provider: [error:0A000086:SSL routines::certificate verify failed:subject name does not match host name] (-1) (SQLDriverConnect)')",
+   "expect": "hostname-fails",
+   "host": "127.0.0.1",
+   "passed": true,
+   "trust_server_certificate": "no"
+  }
+ ],
+ "server_info": {
+  "collation": "SQL_Latin1_General_CP1_CI_AS",
+  "cu": "CU14",
+  "database": "nexus_e1b_a7488a2c267a9de2",
+  "edition": "Developer Edition (64-bit)",
+  "product_version": "16.0.4135.4",
+  "rcsi": "True",
+  "server_name": "nexus-sql",
+  "server_ts": "2026-11-06 10:25:41.561402",
+  "snapshot_isolation": "ON",
+  "version": "Microsoft SQL Server 2022 (RTM-CU14) (KB5038325) - 16.0.4135.4 (X64) \n\tJul 10 2024 14:09:09 \n\tCopyright (C) 2022 Microsoft Corporation\n\tDeveloper Edition (64-bit) on Linux (Ubuntu 22.04.4 LTS) <X64>"
+ }
+}
