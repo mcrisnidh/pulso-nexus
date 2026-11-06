@@ -30,6 +30,24 @@ def fake_execute(repo: SqlServerMetadata, attempt_id: str, token: int, tag: str)
     repo.complete(attempt_id, token)
 
 
+HEARTBEAT_S = 1.0
+
+
+def _heartbeat(
+    repo: SqlServerMetadata,
+    att: str,
+    tok: int,
+    lease_ms: int,
+    stop: threading.Event,
+    latencies: list[float],
+) -> None:
+    while not stop.wait(HEARTBEAT_S):
+        try:
+            repo.heartbeat(att, tok, lease_ms)
+        except Exception:  # lease perdido: el trabajo principal recibirá FENCED
+            return
+
+
 def drain(
     factory: Factory,
     worker: str,
@@ -38,8 +56,12 @@ def drain(
     errors: list[str],
     proc_schema: str = "nexus",
     lease_ms: int = 5000,
+    latencies: list[float] | None = None,
 ) -> None:
+    latencies = latencies if latencies is not None else []
     repo = factory(proc_schema=proc_schema, actor=worker)
+    # Como el worker de producción: heartbeat cada HEARTBEAT_S por una conexión propia.
+    hb_repo = factory(proc_schema=proc_schema, actor=f"{worker}-hb")
     idle = 0
     failures = 0
     deadline = time.monotonic() + DRAIN_DEADLINE_S
@@ -58,9 +80,21 @@ def drain(
             if not lease.acquired:
                 repo.release_claim(claim, 0)
                 continue
-            fake_execute(
-                repo, str(lease.attempt_id), int(lease.fencing_token or 0), uuid.uuid4().hex
+            att, tok = str(lease.attempt_id), int(lease.fencing_token or 0)
+            beat_stop = threading.Event()
+            beat = threading.Thread(
+                target=_heartbeat,
+                args=(hb_repo, att, tok, lease_ms, beat_stop, latencies),
+                daemon=True,
             )
+            beat.start()
+            try:
+                started = time.monotonic()
+                fake_execute(repo, att, tok, uuid.uuid4().hex)
+                latencies.append(time.monotonic() - started)
+            finally:
+                beat_stop.set()
+                beat.join(timeout=30)
             failures = 0
         except Exception as exc:  # cualquier error se registra como evidencia
             failures += 1
@@ -78,8 +112,12 @@ def probe_claim_exclusivity(
     stop = threading.Event()
     claims: list[tuple[int, str]] = []
     errors: list[str] = []
+    latencies: list[float] = []
     threads = [
-        threading.Thread(target=drain, args=(factory, f"w{n}", stop, claims, errors, proc_schema))
+        threading.Thread(
+            target=drain,
+            args=(factory, f"w{n}", stop, claims, errors, proc_schema, 5000, latencies),
+        )
         for n in range(workers)
     ]
     for t in threads:
@@ -106,7 +144,10 @@ def probe_claim_exclusivity(
         violations.append(f"más de una generación sellada por solicitud: {sealed}")
     if errors:
         violations.append(f"errores: {errors[:3]}")
+    ordered = sorted(latencies)
     return {
+        "execute_s_p50": round(ordered[len(ordered) // 2], 3) if ordered else None,
+        "execute_s_max": round(ordered[-1], 3) if ordered else None,
         "claims": len(claims),
         "requests": requests,
         "workers": workers,

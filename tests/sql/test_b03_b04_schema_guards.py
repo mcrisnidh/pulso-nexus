@@ -191,7 +191,9 @@ def test_b04c_tls_settings_enforced(base_settings: ConnectionSettings) -> None:
     conn = connect(base_settings, 30)
     try:
         encrypted = (
-            conn.cursor().execute("SELECT CONNECTIONPROPERTY('encrypt_option')").fetchone()[0]
+            conn.cursor()
+            .execute("SELECT CAST(CONNECTIONPROPERTY('encrypt_option') AS nvarchar(10))")
+            .fetchone()[0]
         )
         assert str(encrypted).upper() == "TRUE"
     finally:
