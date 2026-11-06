@@ -36,19 +36,17 @@ pytestmark = pytest.mark.sql
 def test_b01_result_digest_identical_with_and_without_sql(
     tmp_path: Path, repo_factory: Any, admin: Any, profile: Any
 ) -> None:
-    direct_store = LocalObjectStore(tmp_path / "direct")
-    snap_direct = create_snapshot(direct_store, synthetic_file.capture(VALID_CSV))
+    # Un solo almacén y un solo snapshot (los ids de snapshot son por captura): la corrida
+    # directa (sin SQL) y la del worker (con SQL) escriben en directorios de corrida distintos.
+    store = LocalObjectStore(tmp_path / "store")
+    snap = create_snapshot(store, synthetic_file.capture(VALID_CSV))
     direct = execute(
-        direct_store,
-        snapshot_id=str(snap_direct["snapshot_id"]),
+        store,
+        snapshot_id=str(snap["snapshot_id"]),
         as_of=AS_OF,
         params={},
         trigger="manual",
     )
-
-    sql_store = LocalObjectStore(tmp_path / "sql")
-    snap = create_snapshot(sql_store, synthetic_file.capture(VALID_CSV))
-    assert snap["snapshot_id"] == snap_direct["snapshot_id"]
     payload = {
         "snapshot_id": snap["snapshot_id"],
         "snapshot_sha256": snap["content_sha256"],
@@ -57,7 +55,7 @@ def test_b01_result_digest_identical_with_and_without_sql(
         "trigger": "manual",
     }
     repo_factory().enqueue("b01", "scope-b01", "manual", payload, profile.max_attempts)
-    out = work_once(sql_store, repo_factory(actor="w"), repo_factory(actor="w-hb"), profile, "w")
+    out = work_once(store, repo_factory(actor="w"), repo_factory(actor="w-hb"), profile, "w")
     assert out.status == "COMPLETED", out
     sealed = (
         admin.cursor()
