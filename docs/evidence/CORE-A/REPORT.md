@@ -64,7 +64,7 @@ El CORE técnico funciona localmente de punta a punta y cumple todas las puertas
 
 ## 3. Demostración de dos meses (`demo/`, `screenshots/`)
 
-`bash scripts/core_a_demo.sh <dir>` ejecutado **tres veces seguidas sin fallos**. En cada ejecución, los 11 pasos verificados del driver (`demo.log`, `demo_log.json`) son:
+`bash scripts/core_a_demo.sh <dir>` ejecutado **tres veces seguidas sin fallos**. En cada ejecución, los 11 pasos verificados del driver (`demo.txt`, `demo_log.json`) son:
 
 1. Frozen del mes 1 y primer corte publicado.
 2. El lector no ve el botón Refresh.
@@ -80,8 +80,8 @@ El CORE técnico funciona localmente de punta a punta y cumple todas las puertas
 
 Después:
 - servidor en `127.0.0.1` (`listen.txt`);
-- `--host 0.0.0.0` rechazado (`reject.log`);
-- **8/8 comprobaciones en Chromium headless** (`browser.log`): login, Refresh, nota CS, permisos, CSP sin violaciones, vista móvil a 390 px sin scroll horizontal.
+- `--host 0.0.0.0` rechazado (`reject.txt`);
+- **8/8 comprobaciones en Chromium headless** (`browser.txt`): login, Refresh, nota CS, permisos, CSP sin violaciones, vista móvil a 390 px sin scroll horizontal.
 
 La verificación en navegador detectó y permitió corregir un defecto real: un estilo inline bloqueado por la propia CSP. Ahora hay una prueba que lo impide.
 

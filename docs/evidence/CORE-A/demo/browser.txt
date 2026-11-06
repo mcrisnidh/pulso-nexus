@@ -1,0 +1,9 @@
+{"name":"lector: junta visible con banner sintético","ok":true}
+{"name":"lector: sin botón Refresh","ok":true}
+{"name":"refresher: Refresh → página de estado","ok":true}
+{"name":"refresher: solicitud completada (recargando el estado)","ok":true}
+{"name":"editorcs: nota creada y visible","ok":true}
+{"name":"móvil 390px: sin scroll horizontal de página","ok":true}
+{"name":"CSP sin unsafe-inline","ok":true}
+{"name":"sin errores de consola/JS","ok":true}
+{"browser_checks":8,"failed":0}

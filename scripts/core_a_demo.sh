@@ -7,7 +7,7 @@ mkdir -p "$OUT"
 DATA="$OUT/data"; SHOTS="$OUT/screenshots"; mkdir -p "$SHOTS"
 export NEXUS_WEB_SECRET="${NEXUS_WEB_SECRET:-$(python3 -c 'import secrets;print(secrets.token_hex(32))')}"
 echo "== 1. Demostración de dos meses (driver web, sin red)"
-uv run --frozen python scripts/core_a_demo.py "$DATA" | tee "$OUT/demo.log"
+uv run --frozen python scripts/core_a_demo.py "$DATA" | tee "$OUT/demo.txt"
 echo "== 2. Servidor web solo en loopback + navegador headless"
 PORT="${PORT:-8765}"
 uv run --frozen nexus web --data "$DATA" --channel sintetico --host 127.0.0.1 --port "$PORT" \
@@ -36,8 +36,8 @@ print(" ".join(found) or "ninguno")
 sys.exit(0 if found and all(a in ("127.0.0.1", "::1") for a in found) else 1)
 PY
 echo "== 3. Rechazo de host no loopback"
-if uv run --frozen nexus web --data "$DATA" --host 0.0.0.0 --port $((PORT+1)) > "$OUT/reject.log" 2>&1; then
+if uv run --frozen nexus web --data "$DATA" --host 0.0.0.0 --port $((PORT+1)) > "$OUT/reject.txt" 2>&1; then
   echo "NO-GO: aceptó 0.0.0.0"; exit 1; fi
-cat "$OUT/reject.log"
-node scripts/core_a_browser.js "http://127.0.0.1:$PORT" "$SHOTS" | tee "$OUT/browser.log"
+cat "$OUT/reject.txt"
+node scripts/core_a_browser.js "http://127.0.0.1:$PORT" "$SHOTS" | tee "$OUT/browser.txt"
 echo "== OK"
