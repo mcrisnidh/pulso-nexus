@@ -175,6 +175,12 @@ jobs:
           created="$(uv run python -m nexus.metadata.bootstrap --rcsi ${{ matrix.rcsi }})"
           echo "$created"
           test "$created" = "$NEXUS_SQL_DATABASE"
+      - name: Diagnóstico rápido de concurrencia (B5, 1 repetición) e interbloqueos
+        continue-on-error: true
+        run: |
+          NEXUS_SQL_REPETITIONS=1 uv run pytest -p no:cacheprovider -q --tb=line \
+            "tests/sql/test_b05_b09_queue_lease_fencing.py::test_b05_claim_exclusivity_16x200" || true
+          uv run python scripts/e1b_deadlocks.py 4 | tee "$NEXUS_EVIDENCE_DIR/deadlocks_diagnostic.json"
       - name: B3–B16 contra SQL Server real + suite completa (cobertura total >= 90 %)
         run: >-
           timeout --signal=INT 70m
@@ -201,6 +207,9 @@ jobs:
                   "snapshot_isolation", "collation", "server_ts"]
           print(json.dumps(dict(zip(keys, [str(x) for x in r])), indent=1))
           PY
+      - name: Interbloqueos registrados durante la suite (system_health)
+        if: ${{ !cancelled() && steps.bootstrap.outcome == 'success' }}
+        run: uv run python scripts/e1b_deadlocks.py 10 > "$NEXUS_EVIDENCE_DIR/deadlocks_suite.json" || true
       - name: Registro del contenedor SQL (diagnóstico)
         if: ${{ failure() }}
         run: docker logs nexus-sql 2>&1 | tail -80 || true

@@ -186,16 +186,26 @@ def test_b04b_profile_rejects_simulated_pulso_magnum_stage(
         master.close()
 
 
-def test_b04c_tls_settings_enforced(base_settings: ConnectionSettings) -> None:
-    """El cliente real usa Encrypt=yes/TrustServerCertificate=no; el validador impide degradar."""
+def test_b04c_tls_settings_enforced(base_settings: ConnectionSettings, admin: Any) -> None:
+    """El cliente real usa Encrypt=yes/TrustServerCertificate=no; el validador impide degradar.
+
+    El login productor (mínimo privilegio) no puede leer sys.dm_exec_connections y
+    CONNECTIONPROPERTY('encrypt_option') le devuelve NULL; la verificación del cifrado de SU
+    sesión se hace desde la conexión de administración, por su session_id."""
     conn = connect(base_settings, 30)
     try:
-        encrypted = (
-            conn.cursor()
-            .execute("SELECT CAST(CONNECTIONPROPERTY('encrypt_option') AS nvarchar(10))")
-            .fetchone()[0]
+        spid = int(conn.cursor().execute("SELECT @@SPID").fetchone()[0])
+        row = (
+            admin.cursor()
+            .execute(
+                "SELECT encrypt_option, protocol_type, auth_scheme FROM sys.dm_exec_connections "
+                "WHERE session_id = ?",
+                spid,
+            )
+            .fetchone()
         )
-        assert str(encrypted).upper() == "TRUE"
+        assert row is not None
+        assert str(row[0]).upper() == "TRUE", row
     finally:
         conn.close()
     for bad in ({"trust_server_certificate": "yes"}, {"encrypt": "no"}, {"encrypt": "optional"}):
