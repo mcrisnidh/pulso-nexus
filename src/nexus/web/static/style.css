@@ -18,3 +18,4 @@ form.inline{display:inline}input,select,textarea,button{font:inherit}input,selec
 button{padding:6px 12px;border-radius:6px;border:1px solid var(--acc);background:var(--acc);color:#fff;cursor:pointer}button.sec{background:transparent;color:var(--acc)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.muted{color:var(--mut)}.note{white-space:pre-wrap}
 @media (max-width:640px){header{padding:10px}main{padding:10px}.kpi .v{font-size:19px}}
+.narrow{max-width:360px}

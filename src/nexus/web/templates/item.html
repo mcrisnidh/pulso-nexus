@@ -3,8 +3,9 @@
 {% if error %}<p class="banner err">Integridad: {{ error }}. No se muestran cifras de este ITEM.</p>{% endif %}
 {% if detail %}{% set cv = detail.coverage %}
 <section class="scroll"><table><thead><tr><th>Cifra</th><th>Valor</th><th>Estado</th><th>KPI</th><th>Limitaciones</th><th>Origen</th></tr></thead><tbody>
+{% set labels = {'demand':'Debe entregar (demanda del mes)','attended':'Entregado (embarques físicos)','pending':'Pendiente','fg_assignable':'FG disponible asignable','covered':'Cubierto con FG','uncovered':'Sin cubrir'} %}
 {% for k in ['demand','attended','pending','fg_assignable','covered','uncovered'] %}{% set f = cv.facts[k] %}
-<tr><td>{{ k }}</td><td class="n">{{ fmt(f.value) }}</td><td><span class="st {{ f.status }}">{{ f.status }}</span></td><td>{{ cv.kpi[k] }}</td>
+<tr><td>{{ labels[k] }}</td><td class="n">{{ fmt(f.value) }}</td><td><span class="st {{ f.status }}">{{ f.status }}</span></td><td>{{ cv.kpi[k] }}</td>
 <td>{% for l in f.limitations %}{{ l }}<br>{% endfor %}</td><td>{% for p in f.provenance %}{{ p.source_id }} · {{ p.file }} · líneas {{ p.lines|join(',') }}<br>{% endfor %}</td></tr>{% endfor %}
 </tbody></table></section>
 <section><h2>Demanda congelada del mes (unidades)</h2><div class="scroll"><table><thead><tr><th>Tipo</th><th>Clase</th><th>Cliente</th><th>Pedido</th><th>Línea</th><th>Entrega</th><th>Demanda</th><th>Atendida exacta</th><th>Atendida agregada</th><th>Pendiente</th><th>Notas</th></tr></thead><tbody>
@@ -18,7 +19,7 @@
 {% endif %}
 <section><h2>Customer Service</h2><p class="meta">Notas y seguimiento manual (MANUAL_CS), independientes de las generaciones: Refresh y rollback no las modifican.</p>
 {% for t in threads %}<div class="card"><strong>Asociación:</strong> ITEM {{ t.item }}{% if t.customer_key %} · cliente <code>{{ t.customer_key }}</code>{% endif %}{% if t.order %} · pedido {{ t.order }}{% endif %}{% if t.line %} · línea {{ t.line }}{% endif %}
-· {{ t.versions|length }} versiones · <a href="{{ url_for('cs_history', t=t.thread_id) }}">historial</a>
+· {{ t.versions|length }} versión(es) · <a href="{{ url_for('cs_history', t=t.thread_id) }}">historial</a>
 <div class="grid2">{% for k in ['CS_STATUS','DELIVERY_DATE','ADVANCE'] %}<div><span class="muted">{{ k }} ({{ month }}):</span> {% if t.state.current[k] %}<strong>{{ fmt(t.state.current[k].value) }}</strong> <span class="st">{{ t.state.current[k].author }} · {{ t.state.current[k].server_ts }}</span>{% else %}—{% endif %}
 {% if t.state.reference[k] %}<span class="st">Ref. {{ t.state.reference[k].valid_month }}: {{ fmt(t.state.reference[k].value) }} — requiere reconfirmar</span>{% endif %}</div>{% endfor %}</div>
 {% if t.state.last_note %}<p class="note">{{ t.state.last_note.value }}</p><span class="st">{{ t.state.last_note.author }} · {{ t.state.last_note.server_ts }}</span>{% endif %}

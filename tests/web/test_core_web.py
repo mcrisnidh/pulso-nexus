@@ -230,3 +230,11 @@ def test_notes_survive_app_restart(env: dict[str, Any], tmp_path: Path) -> None:
     app2 = create_app(env["root"], "sintetico", SECRET, clock=env["clock"], background=False)
     reader, _ = login(app2, "lector")
     assert "persistente" in reader.get("/item?i=SYN-B").get_data(as_text=True)
+
+
+def test_templates_have_no_inline_styles_or_scripts() -> None:
+    """La CSP no admite 'unsafe-inline': ninguna plantilla puede usar style= ni <script>."""
+    root = Path(__file__).resolve().parents[2] / "src/nexus/web/templates"
+    for path in sorted(root.glob("*.html")):
+        text = path.read_text("utf-8")
+        assert "style=" not in text and "<script" not in text, path.name

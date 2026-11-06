@@ -1,0 +1,31 @@
+== 1. Demostración de dos meses (driver web, sin red)
+{"step": "M1 Frozen registrado y primer corte publicado", "ok": true, "frozen": "R_20310101_0600.csv", "gen": "68200aba843ae2df34dbed6e04f0b562"}
+{"step": "Lector ve la junta sin botón Refresh", "ok": true}
+{"step": "Dos editores sobre la misma versión: uno gana, otro conflicto 409", "ok": true}
+{"step": "Frozen intacto; extracto tardío anterior → alerta sin reemplazo", "ok": true}
+{"step": "Nuevo corte publicado: SYN-A entregado 490, sin cubrir 70", "ok": true, "seq": 3}
+{"step": "Refresh fallido no publica: se conserva el último corte válido", "ok": true}
+{"step": "Rollback atómico a la primera generación; notas CS intactas", "ok": true}
+{"step": "Tras reinicio: notas, estatus y publicación presentes", "ok": true}
+{"step": "Mes 2: Frozen nuevo publicado; Frozen M1 intacto", "ok": true}
+{"step": "Mes 2: estatus CS reiniciado; valor de enero solo como referencia", "ok": true}
+{"step": "Cadena de publicaciones íntegra", "ok": true, "publications": 6}
+{"result": "PASS", "steps": 11}
+== 2. Servidor web solo en loopback + navegador headless
+sockets en escucha en el puerto 8765 (desde /proc/net/tcp*):
+127.0.0.1
+== 3. Rechazo de host no loopback
+{
+  "detail": "--host '0.0.0.0' rechazado: el prototipo solo escucha en loopback (127.0.0.1/::1)",
+  "error": "ConfigurationError"
+}
+{"name":"lector: junta visible con banner sintético","ok":true}
+{"name":"lector: sin botón Refresh","ok":true}
+{"name":"refresher: Refresh → página de estado","ok":true}
+{"name":"refresher: solicitud completada (recargando el estado)","ok":true}
+{"name":"editorcs: nota creada y visible","ok":true}
+{"name":"móvil 390px: sin scroll horizontal de página","ok":true}
+{"name":"CSP sin unsafe-inline","ok":true}
+{"name":"sin errores de consola/JS","ok":true}
+{"browser_checks":8,"failed":0}
+== OK

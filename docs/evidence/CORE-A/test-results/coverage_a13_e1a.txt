@@ -1,0 +1,22 @@
+Name                                 Stmts   Miss Branch BrPart  Cover   Missing
+--------------------------------------------------------------------------------
+src/nexus/engines/__init__.py            0      0      0      0   100%
+src/nexus/engines/base.py                9      0      0      0   100%
+src/nexus/engines/synthetic_sum.py      61      0     14      0   100%
+src/nexus/hashing.py                    67      0     18      0   100%
+src/nexus/pipeline/__init__.py           0      0      0      0   100%
+src/nexus/pipeline/compare.py           75      0     30      0   100%
+src/nexus/pipeline/compute.py           64      0      8      0   100%
+src/nexus/pipeline/manifest.py          57      0     10      1    99%   84->93
+src/nexus/pipeline/reconcile.py        191     11     80     10    92%   89-90, 95, 115->106, 120->106, 155, 169, 187, 200, 256, 303-304, 351
+src/nexus/pipeline/replay.py            68      0     12      0   100%
+src/nexus/pipeline/run.py               41      0      4      0   100%
+src/nexus/pipeline/verify.py            67      0     10      0   100%
+src/nexus/pipeline/worker.py            88      9     20      3    89%   59-63, 86->88, 101, 124, 128-129
+src/nexus/snapshots/__init__.py          2      0      0      0   100%
+src/nexus/snapshots/capture.py          63      0      6      0   100%
+src/nexus/storage/__init__.py            2      0      0      0   100%
+src/nexus/storage/_fs.py               128      0     24      1    99%   395->397
+src/nexus/storage/object_store.py      149      0     36      0   100%
+--------------------------------------------------------------------------------
+TOTAL                                 1132     20    272     15    98%

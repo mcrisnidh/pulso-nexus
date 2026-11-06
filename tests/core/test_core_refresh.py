@@ -350,3 +350,20 @@ def test_g6_determinism_same_bytes(tmp_path: Path) -> None:
         assert (a.state.store.root / "objects" / k).read_bytes() == (
             b.state.store.root / "objects" / k
         ).read_bytes()
+
+
+def test_at16_billing_never_substitutes_physical_shipments(tmp_path: Path) -> None:
+    root, _clock, svc = make(tmp_path)
+    for p in (root / "inbox" / "shipments").glob("*.csv"):
+        p.unlink()
+    billing = root / "inbox" / "billing"
+    billing.mkdir()
+    (billing / "facturas.csv").write_text(
+        "cut_ts,item,qty\n2031-01-10T18:00:00Z,SYN-A,999\n", "utf-8"
+    )
+    out = svc.refresh("t")
+    assert out["head"] is None and out["outcomes"][0]["published"] is False
+    failures = " ".join(out["outcomes"][0]["validation"]["failures"])
+    assert "embarques físicos" in failures
+    m = svc.state.get_manifest("sintetico", out["outcomes"][0]["gen_id"])
+    assert "billing" not in str(m["sources"]) and "facturas.csv" not in str(m)
