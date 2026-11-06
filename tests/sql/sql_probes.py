@@ -135,7 +135,14 @@ def probe_claim_exclusivity(
         "SELECT MAX(c) FROM (SELECT COUNT(*) AS c FROM nexus.generation WHERE sealed_at IS NOT NULL "
         "GROUP BY request_id) AS x"
     ).fetchone()[0]
+    # Auditoría independiente del cliente (B5): eventos CLAIMED por solicitud en run_event.
+    audited_dup = cur.execute(
+        "SELECT COUNT(*) FROM (SELECT request_id FROM nexus.run_event WHERE kind = N'CLAIMED' "
+        "GROUP BY request_id HAVING COUNT(*) > 1) AS x"
+    ).fetchone()[0]
     violations = []
+    if audited_dup:
+        violations.append(f"run_event: solicitudes con más de un CLAIMED: {audited_dup}")
     if dup:
         violations.append(f"solicitudes reclamadas más de una vez: {len(dup)}")
     if states.get("COMPLETED", 0) != requests:
@@ -149,6 +156,7 @@ def probe_claim_exclusivity(
         "execute_s_p50": round(ordered[len(ordered) // 2], 3) if ordered else None,
         "execute_s_max": round(ordered[-1], 3) if ordered else None,
         "claims": len(claims),
+        "run_event_duplicate_claims": audited_dup,
         "requests": requests,
         "workers": workers,
         "states": states,

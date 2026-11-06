@@ -31,7 +31,7 @@ from sql_probes import (
     probe_fencing,
     probe_reconcile,
 )
-from sql_variants import install_variant, record_evidence, without_fence
+from sql_variants import install_variant, record_evidence, with_claim_hints, without_fence
 
 from conftest import AS_OF, ROOT, VALID_CSV
 from nexus.connectors import synthetic_file
@@ -150,3 +150,25 @@ def test_b16_m3_deleting_reconcile_is_detected(
         {"B16": "M3_deleting_reconcile", "detected": bool(evidence["violations"]), **evidence},
     )
     assert evidence["violations"], "la sonda B15 NO detectó la reconciliación que borra"
+
+
+def test_b16_m1b_update_without_updlock_is_recorded_as_equivalent(
+    admin: Any, repo_factory: Any
+) -> None:
+    """Registro (sin aserción de detección): quitar UPDLOCK de la reclamación de UNA sentencia
+    (UPDATE sobre CTE con READPAST, ROWLOCK) es un mutante equivalente, porque el propio UPDATE
+    toma bloqueos U/X. La variante peligrosa "sin UPDLOCK" es la de dos pasos (M1, detectada).
+    Se exige, eso sí, que la variante equivalente NO viole la exclusividad."""
+    install_variant(admin, "nexus_mut_noupd", with_claim_hints("READPAST, ROWLOCK"))
+    evidence = probe_claim_exclusivity(
+        repo_factory, admin, workers=16, requests=100, proc_schema="nexus_mut_noupd"
+    )
+    record_evidence(
+        "b16_mutation",
+        {
+            "B16": "M1b_update_without_updlock_equivalent",
+            "detected": bool(evidence["violations"]),
+            **evidence,
+        },
+    )
+    assert evidence["violations"] == [], "la variante equivalente no debe violar C1"
