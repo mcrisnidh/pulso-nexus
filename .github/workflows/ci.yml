@@ -181,6 +181,13 @@ jobs:
           NEXUS_SQL_REPETITIONS=1 uv run pytest -p no:cacheprovider -q --tb=line \
             "tests/sql/test_b05_b09_queue_lease_fencing.py::test_b05_claim_exclusivity_16x200" || true
           uv run python scripts/e1b_deadlocks.py 4 | tee "$NEXUS_EVIDENCE_DIR/deadlocks_diagnostic.json"
+      - name: Pruebas dirigidas R1 (NX-E1B-R1-01 y R1-02) contra SQL Server real, antes de la suite
+        run: >-
+          uv run pytest -p no:cacheprovider -ra --tb=short -s -v
+          tests/sql/test_r1_01_claim_validity.py tests/sql/test_b15_reconcile.py
+          tests/unit/test_r1_02_reconcile_original_gaps.py tests/unit/test_r1_02_reconcile_complete.py
+          2>&1 | tee "$NEXUS_EVIDENCE_DIR/r1_targeted.log"; exit "${PIPESTATUS[0]}"
+        shell: bash
       - name: B3–B16 contra SQL Server real + suite completa (cobertura total >= 90 %)
         run: >-
           timeout --signal=INT 70m

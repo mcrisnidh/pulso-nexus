@@ -123,3 +123,13 @@ def test_scope_lease_written_only_by_primary_key() -> None:
     code = _code(SQL["0002_procedures.sql"])
     for stmt in re.findall(r"UPDATE nexus\.scope_lease.*?;", code, flags=re.DOTALL):
         assert re.search(r"WHERE\s+scope\s*=", stmt), stmt
+
+
+def test_acquire_lease_checks_claim_validity_after_lock_waits() -> None:
+    """NX-E1B-R1-01: sin @now capturado al inicio; vigencia comprobada bajo bloqueo y de nuevo
+    tras el último punto de espera (UPDATE de la fila de lease)."""
+    code = _code(PROCS["usp_acquire_lease"])
+    assert "@now" not in code
+    assert code.count("@claim_until <= SYSUTCDATETIME()") == 2
+    lease_update = code.index("UPDATE nexus.scope_lease")
+    assert code.rindex("@claim_until <= SYSUTCDATETIME()") > lease_update

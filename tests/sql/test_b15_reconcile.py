@@ -112,7 +112,16 @@ def test_b15_r_a_sql_restored_to_earlier_point(
     record_evidence("b15_reconcile", {"B15": "R-A", **evidence})
     assert evidence["violations"] == []
     assert evidence["marked_missing"] == [] and evidence["marked_corrupt"] == []
-    assert evidence["labels"] == ["COMPLETE_STORE_RUN"]
+    assert evidence["run_labels"] == ["COMPLETE_STORE_RUN"]
+    # R1-02: además de los artefactos, el run_record, el input_manifest y el snapshot de la
+    # corrida posterior al backup quedan sin fila y se informan con su identidad.
+    assert {
+        "ARTIFACT",
+        "RUN_RECORD",
+        "INPUT_MANIFEST",
+        "SNAPSHOT_MANIFEST",
+        "SNAPSHOT_CONTENT",
+    } <= set(evidence["object_types"])
     # Segunda pasada: idéntica (solo informe, sin efectos acumulados).
     again = probe_reconcile(store, fresh, reconcile, expected_unregistered=lost)
     assert again["unregistered"] == evidence["unregistered"] and again["violations"] == []
@@ -138,6 +147,9 @@ def test_b15_r_b_files_missing_or_corrupt(
     before = store_hashes(store.root)
     report = reconcile(store, repo)
     assert store_hashes(store.root) == before
+    # R1-02: la generación sellada cuyo almacén ya no casa se informa con su procedencia.
+    issue_kinds = {i["kind"] for i in report.sql_reference_issues}
+    assert "GENERATION_RUN_INCONSISTENT" in issue_kinds, report.sql_reference_issues
     states = dict(admin.cursor().execute("SELECT object_key, state FROM nexus.artifact").fetchall())
     gen = [
         r[0]
@@ -189,8 +201,10 @@ def test_b15_r_c_crash_between_file_and_row(
     assert proc.returncode == -signal.SIGKILL, proc.stderr[-2000:]
     repo = repo_factory(actor="reconciler")
     assert _artifact_keys(repo) == set()  # archivos durables, ninguna fila
-    orphans = {k for k in store.iter_keys("runs/") if k.endswith(".parquet")}
-    assert orphans
+    # R1-02: TODOS los objetos de la corrida caída (artefactos, input_manifest, run_record).
+    orphans = set(store.iter_keys("runs/"))
+    assert any(k.endswith(".parquet") for k in orphans)
+    assert any(k.endswith("/input_manifest.json") for k in orphans)
     evidence = probe_reconcile(store, repo, reconcile, expected_unregistered=orphans)
     record_evidence(
         "b15_reconcile", {"B15": "R-C", **evidence, "server_ts": str(server_now(admin))}

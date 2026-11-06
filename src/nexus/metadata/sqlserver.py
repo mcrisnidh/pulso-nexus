@@ -335,6 +335,12 @@ class SqlServerMetadata:
     def list_artifacts(self) -> list[dict[str, Any]]:
         return self._call("usp_list_artifacts")
 
+    def list_snapshot_refs(self) -> list[dict[str, Any]]:
+        return self._call("usp_list_snapshot_refs")
+
+    def list_generations(self) -> list[dict[str, Any]]:
+        return self._call("usp_list_generations")
+
     def get_request(self, key: str) -> dict[str, Any] | None:
         rows = self._call("usp_get_request", idempotency_key=key)
         return rows[0] if rows else None

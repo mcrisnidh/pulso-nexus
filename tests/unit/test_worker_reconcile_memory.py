@@ -104,8 +104,12 @@ def test_reconcile_directions_never_touch_files(tmp_path: Path) -> None:
     before = _files(store)
     rep = reconcile(store, repo)
     assert rep.marked_missing == [] and rep.marked_corrupt == []
-    assert len(rep.unregistered_files) == 3
+    # NX-E1B-R1-02: 3 artefactos + run_record + input_manifest, cada uno con identidad SHA-256.
+    types = sorted(u["object_type"] for u in rep.unregistered_files)
+    assert types == ["ARTIFACT", "ARTIFACT", "ARTIFACT", "INPUT_MANIFEST", "RUN_RECORD"]
     assert {u["label"] for u in rep.unregistered_files} == {"COMPLETE_STORE_RUN"}
+    assert all(u["sha256"] == before[u["key"]] for u in rep.unregistered_files)
+    assert all(u["integrity"] == "VALID" for u in rep.unregistered_files)
     assert _files(store) == before  # no borra ni mueve
     # R-B: filas sin archivo / con otro hash
     rows = repo.list_artifacts()

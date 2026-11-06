@@ -252,8 +252,18 @@ def probe_reconcile(
 ) -> dict[str, Any]:
     """B15/R-A, R-C: la reconciliación informa archivos sin fila y NO borra, mueve ni altera."""
     before = store_hashes(store.root)
+    sql_before = (
+        sorted(r["object_key"] for r in repo.list_artifacts()),
+        repo.list_snapshot_refs(),
+        sorted(g["attempt_id"] for g in repo.list_generations()),
+    )
     report = reconcile_fn(store, repo)
     after = store_hashes(store.root)
+    sql_after = (
+        sorted(r["object_key"] for r in repo.list_artifacts()),
+        repo.list_snapshot_refs(),
+        sorted(g["attempt_id"] for g in repo.list_generations()),
+    )
     reported = {u["key"] for u in report.unregistered_files}
     violations = []
     if before != after:
@@ -264,10 +274,23 @@ def probe_reconcile(
         violations.append(f"no informados: {sorted(expected_unregistered - reported)[:3]}")
     if any(u["kind"] != "UNREGISTERED_FILE" for u in report.unregistered_files):
         violations.append("clasificación distinta de UNREGISTERED_FILE")
+    # NX-E1B-R1-02: identidad criptográfica exacta de cada archivo informado.
+    wrong_identity = [
+        u["key"] for u in report.unregistered_files if u.get("sha256") != before.get(u["key"])
+    ]
+    if wrong_identity:
+        violations.append(f"SHA-256 ausente o distinto de los bytes en disco: {wrong_identity[:3]}")
+    if sql_before != sql_after:
+        violations.append("la reconciliación registró o eliminó filas por su cuenta")
     return {
         "objects": len(before),
         "unregistered": sorted(reported),
         "labels": sorted({u["label"] for u in report.unregistered_files}),
+        "run_labels": sorted(
+            {u["label"] for u in report.unregistered_files if "store_run_id" in u}
+        ),
+        "object_types": sorted({u.get("object_type", "?") for u in report.unregistered_files}),
+        "sql_reference_issues": [i["kind"] for i in getattr(report, "sql_reference_issues", [])],
         "marked_missing": report.marked_missing,
         "marked_corrupt": report.marked_corrupt,
         "violations": violations,

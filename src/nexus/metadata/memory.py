@@ -451,6 +451,28 @@ class InMemoryMetadata:
                 )
             return rows
 
+    def list_snapshot_refs(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [
+                {"snapshot_id": sid, "content_sha256": sha}
+                for sid, sha in sorted(self.snapshots.items())
+            ]
+
+    def list_generations(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [
+                {
+                    "attempt_id": attempt_id,
+                    "request_id": gen.request_id,
+                    "generation_state": gen.state,
+                    "store_run_id": gen.store_run_id,
+                    "input_digest": gen.input_digest,
+                    "result_digest": gen.result_digest,
+                    "sealed_at": "sealed" if gen.sealed else None,
+                }
+                for attempt_id, gen in sorted(self.generations.items())
+            ]
+
     def get_request(self, key: str) -> dict[str, Any] | None:
         with self._lock:
             for r in self.requests.values():

@@ -121,11 +121,11 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
-    DECLARE @now datetime2(7) = SYSUTCDATETIME();
     DECLARE @scope nvarchar(128);
     DECLARE @attempts int;
     DECLARE @max int;
     DECLARE @sealed nvarchar(64);
+    DECLARE @claim_until datetime2(7);
     DECLARE @lease TABLE (fencing_token bigint, expires_at datetime2(7));
     -- La fila de lease del ámbito se crea FUERA de la transacción principal e insertando
     -- directamente (duplicado = ya existe). Un IF NOT EXISTS ... WITH (UPDLOCK, HOLDLOCK) sobre una
@@ -142,11 +142,14 @@ BEGIN
         END CATCH;
     END;
     BEGIN TRANSACTION;
-    SELECT @scope = scope, @attempts = attempts, @max = max_attempts
+    -- NX-E1B-R1-01: la vigencia del claim NUNCA se compara con una hora tomada antes de esperar
+    -- bloqueos. Se lee claim_expires_at bajo UPDLOCK y se compara con SYSUTCDATETIME() en una
+    -- sentencia posterior (evaluada tras obtener el bloqueo); se vuelve a comprobar tras el
+    -- último punto de espera (UPDATE de la fila de lease), justo antes de conceder.
+    SELECT @scope = scope, @attempts = attempts, @max = max_attempts, @claim_until = claim_expires_at
     FROM nexus.run_request WITH (UPDLOCK, HOLDLOCK)
-    WHERE request_id = @request_id AND state = N'CLAIMED' AND claim_token = @claim_token
-      AND claim_expires_at > @now;
-    IF @scope IS NULL
+    WHERE request_id = @request_id AND state = N'CLAIMED' AND claim_token = @claim_token;
+    IF @scope IS NULL OR @claim_until IS NULL OR @claim_until <= SYSUTCDATETIME()
     BEGIN
         THROW 50011, N'NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido', 1;
     END;
@@ -182,6 +185,12 @@ BEGIN
                CAST(NULL AS datetime2(7)) AS expires_at, CAST(NULL AS nvarchar(64)) AS sealed_attempt_id,
                SYSUTCDATETIME() AS server_ts;
         RETURN;
+    END;
+    -- Segunda comprobación tras el último punto de espera: si el claim venció mientras se
+    -- esperaba la fila de lease, THROW revierte TODO (incluido el UPDATE del lease).
+    IF @claim_until <= SYSUTCDATETIME()
+    BEGIN
+        THROW 50011, N'NEXUS:CLAIM_INVALID claim vencido durante la adquisición', 1;
     END;
     DECLARE @token bigint = (SELECT fencing_token FROM @lease);
     UPDATE nexus.run_request
@@ -656,6 +665,27 @@ BEGIN
            g.state AS generation_state, g.store_run_id, g.request_id
     FROM nexus.artifact AS a JOIN nexus.generation AS g ON g.attempt_id = a.attempt_id
     ORDER BY a.attempt_id, a.contract;
+END;
+GO
+
+-- NX-E1B-R1-02: listados de solo lectura para la reconciliación completa (procedencia).
+CREATE OR ALTER PROCEDURE nexus.usp_list_snapshot_refs
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+    SELECT snapshot_id, content_sha256, registered_at FROM nexus.snapshot_ref ORDER BY snapshot_id;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE nexus.usp_list_generations
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+    SELECT attempt_id, request_id, state AS generation_state, store_run_id, input_digest,
+           result_digest, sealed_at
+    FROM nexus.generation ORDER BY attempt_id;
 END;
 GO
 
