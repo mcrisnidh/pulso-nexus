@@ -19,7 +19,7 @@ WHERE s.name = N'system_health' AND t.target_name = N'ring_buffer'
 
 
 def summarize(raw: str, limit: int) -> list[dict[str, object]]:
-    root = ET.fromstring(f"<r>{raw}</r>")
+    root = ET.fromstring(f"<r>{raw}</r>")  # noqa: S314 - XML del servidor efímero propio
     out = []
     for event in root.findall("event")[-limit:]:
         graph = event.find(".//deadlock")
