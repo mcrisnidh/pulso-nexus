@@ -6,8 +6,8 @@
 | Dato | Valor |
 |---|---|
 | Rama | `claude/blissful-feynman-obiif0` |
-| Commit del candidato (código y pruebas) | `{{CANDIDATE_SHA}}` |
-| Ejecución CI del candidato | `{{RUN_URL}}` (run `{{RUN_ID}}`) |
+| Commit del candidato (código y pruebas) | `531107cff65631c971187af151cecda02cda67ff` |
+| Ejecución CI del candidato | `https://github.com/mcrisnidh/pulso-nexus/actions/runs/42159129132` (run `42159129132`) |
 | Propuesta implementada | `docs/proposals/E1-B.md` revisada en `4e46eaf` (criterios B1–B16 sin cambios) |
 | Línea base E1-A | congelada: código `62c5600`, evidencia `1721bdc` (no modificadas) |
 | Motor | SQL Server 2022 Developer Edition (64-bit), RTM-CU14 16.0.4135.4, contenedor oficial `mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04` |
@@ -20,22 +20,45 @@
 
 | Job (CI bloqueante) | Resultado |
 |---|---|
-| E1-A Linux (A1–A14, `-m "not sql"`, A13 por paquete) | {{E1A_LINUX}} |
-| E1-A Windows (`-m "not sql"`) | {{E1A_WINDOWS}} |
-| E1-B SQL · RCSI OFF · sesión READ COMMITTED | {{CELL_OFF_RC}} |
-| E1-B SQL · RCSI OFF · sesión SNAPSHOT | {{CELL_OFF_SN}} |
-| E1-B SQL · RCSI ON · sesión READ COMMITTED | {{CELL_ON_RC}} |
-| E1-B SQL · RCSI ON · sesión SNAPSHOT | {{CELL_ON_SN}} |
+| E1-A Linux (A1–A14, `-m "not sql"`, A13 por paquete) | PASS: 310 passed, 111 deselected (SQL); A13 por paquete ≥ 90 %; TOCTOU 6/6; reproducibilidad 33/33 en dos configuraciones de hilos/TZ/locale; demostración E1-A |
+| E1-A Windows (`-m "not sql"`) | PASS: 305 passed, 5 skipped (garantías POSIX declaradas de E1-A, pendientes en Windows), 111 deselected; TOCTOU 6/6 |
+| E1-B SQL · RCSI OFF · sesión READ COMMITTED | PASS: 421 passed; cobertura 91.86 % |
+| E1-B SQL · RCSI OFF · sesión SNAPSHOT | PASS: 421 passed; cobertura 91.93 % |
+| E1-B SQL · RCSI ON · sesión READ COMMITTED | PASS: 421 passed; cobertura 91.86 % |
+| E1-B SQL · RCSI ON · sesión SNAPSHOT | PASS: 421 passed; cobertura 91.93 % |
 
 Cada celda SQL ejecuta la suite completa (unitaria, contrato, reproducibilidad, adversarial, arquitectura y `tests/sql`) con cobertura de ramas total ≥ 90 %.
 
+## 1.1 Línea base E1-A congelada
+
+Verificado con `git diff` contra `62c5600` (código) y `1721bdc` (evidencia):
+
+- `docs/evidence/E1-A/` no tiene cambios después de `1721bdc`, salvo `CLOSURE.md`, que se añadió en el cierre autorizado de E1-A (`88853db`), antes de E1-B.
+- En `src/`, fuera de los módulos nuevos (`nexus/metadata/`, `pipeline/worker.py`, `pipeline/reconcile.py`), solo cambia `cli.py`. Los cambios son aditivos: comandos `enqueue`, `work` y `reconcile`, más la reubicación de un import. El núcleo E1-A (hashing, storage, snapshots, contracts, normalize, engines, `pipeline/run`, compare, replay y verify) no se modificó. Las deudas DD-1 y DD-2 no se abordaron porque no se tocó `storage/`.
+- La única prueba E1-A modificada es `tests/architecture/test_forbidden_deps.py`: `pyodbc` pasa a estar permitido **solo** en `nexus.metadata`, como fijaba la propuesta (B2).
+
 ## 2. Criterios B1–B16
 
-Las evidencias por criterio están en `ci-run-{{RUN_ID}}/<celda>/evidence.json`, extraídas de los registros completos `ci-run-{{RUN_ID}}/<celda>/job.log`. Los secretos aparecen enmascarados (`***`) por GitHub Actions.
+Las evidencias por criterio están en `ci-run-42159129132/<celda>/evidence.json`, extraídas de los registros completos `ci-run-42159129132/<celda>/job.log`. Los secretos aparecen enmascarados (`***`) por GitHub Actions.
 
 | ID | Prueba(s) | Evidencia (las 4 celdas) | Estado |
 |---|---|---|---|
-{{CRITERIA_ROWS}}
+| B1 | Suite E1-A (jobs Linux/Windows); `test_b01_result_digest_identical_with_and_without_sql` | `result_digest` sin SQL = con SQL (`19b016710d2c9ae4…`) e `input_digest` igual, en las 4 celdas | PASS |
+| B2 | ruff, `mypy --strict`, import-linter; `test_forbidden_deps.py`, `test_only_metadata_imports_pyodbc` | Job E1-A Linux en verde | PASS |
+| B3 | `test_b03_*` (8 sentencias denegadas, `SELECT`/`ALTER` incluidos), control positivo de EXECUTE, append-only también para el propietario | 4 celdas | PASS |
+| B4 | `test_b04a/b/c_*`; sondas `scripts/e1b_tls_probe.py` | Guard de bootstrap y de runtime (incluida `PULSO_MAGNUM_STAGE` simulada en local). TLS: sin CA → fallo de certificado; con CA → `encrypt_option=TRUE`; `127.0.0.1` fuera del SAN → fallo. El validador rechaza las degradaciones | PASS |
+| B5 | `test_b05_claim_exclusivity_16x200` × 20 repeticiones | 0 violaciones, 0 claims duplicados (cliente) y 0 `CLAIMED` duplicados en `run_event` (auditoría independiente); 200/200 `COMPLETED`; p50 ≤ 0,05 s por solicitud | PASS |
+| B6 | `test_b06_concurrent_enqueue_same_key` × 20 | 16 encoladores concurrentes, una sola solicitud | PASS |
+| B7 | `test_b07_single_lease_and_claim_release` × 20; claim vencido | Un lease ganador; los perdedores liberan; tokens estrictamente crecientes; el claim vencido no consume intento | PASS |
+| B8 | `test_b08_zombie_*`, `test_b08_exceptions_*` | Los 7 procedimientos con token responden `FENCED` sin modificar filas; excepciones con sus controles | PASS |
+| B9 | `test_b09_sigkill_each_stage_then_bounded_retry` × 6 etapas | SIGKILL real; intentos ≤ máximo; 1 generación sellada; 1 `COMPLETED`; intentos previos `FAILED` | PASS |
+| B10 | `test_b10a` (attention por timeout), `test_b10b` (SIGKILL del cliente, `KILL` en servidor) | 2 bloqueos activos durante la transacción y 0 después (`sys.dm_tran_locks`); datos sin cambios; conexión descartada | PASS |
+| B11 | `test_b11_ambiguous_commit_never_duplicates` | Respuesta perdida tras COMMIT en 6 procedimientos: cada efecto aparece exactamente 1 vez | PASS |
+| B12 | (a) `test_b12_hint_candidate_conformance` A/B/C; (b) B5–B11 en cada celda; (c) `test_sql_static.py` | Matriz de la §3; sin `NOLOCK`/`READUNCOMMITTED`; `READPAST` solo en el `UPDATE` de la reclamación; nunca `ROWLOCK`+`READCOMMITTEDLOCK` | PASS |
+| B13 | `test_b13_server_clock_only`, `test_b13_lease_lost_by_latency_is_classified` | Ningún parámetro de fecha/hora; reloj del cliente +1 h sin efecto; `LEASE_LOST_BY_LATENCY` con hueco de servidor de 5516–5527 ms > lease de 5000 ms | PASS |
+| B14 | `test_b14_deadlock_retried_without_duplicate_effects` | 1205 provocado; 1 reintento; efectos `['ab','ba']` sin duplicados | PASS |
+| B15 | `test_b15_r_a` (BACKUP/RESTORE real), `r_b`, `r_c` (SIGKILL entre archivo y fila) | R-A: archivos sin fila informados y hashes idénticos. R-B: `MISSING`/`CORRUPT`, generación `INELIGIBLE`, 2 eventos de auditoría, idempotente. R-C: huérfanos informados, intactos y recuperados | PASS |
+| B16 | Job SQL bloqueante (4 celdas); mutantes en esquemas aislados | Detectados: M1 (reclamación en dos pasos sin bloqueo de actualización), M2 × 7 (sin fencing en cada procedimiento con token), M3 (reconciliación que borra). M1b (UPDATE sin `UPDLOCK`) registrado como equivalente y sin violación de C1. Repeticiones de los escenarios concurrentes = 20 | PASS |
 
 ## 3. B12-a: conformidad de las pistas de bloqueo (decisión con T-SQL real)
 
@@ -50,7 +73,13 @@ Para cada candidato y celda se midió:
 2. Salto sin espera de una fila reclamada por un competidor real (el mismo procedimiento candidato en una transacción abierta) con `LOCK_TIMEOUT 3000`.
 3. Exclusividad 8 × 100 con 3 repeticiones, con tablas vacías en cada una.
 
-{{HINT_MATRIX}}
+| Candidato | RCSI OFF · RC | RCSI OFF · SNAPSHOT | RCSI ON · RC | RCSI ON · SNAPSHOT |
+|---|---|---|---|---|
+| **A** `UPDLOCK, READPAST, ROWLOCK` (producción) | conforme (8 ms) | conforme (11 ms) | conforme (1 ms) | conforme (2 ms) |
+| B `UPDLOCK, READPAST, READCOMMITTEDLOCK` | conforme (2 ms) | conforme (9 ms) | conforme (9 ms) | conforme (2 ms) |
+| C `UPDLOCK, READPAST` | conforme (16 ms) | conforme (1 ms) | conforme (2 ms) | conforme (2 ms) |
+
+"Conforme" significa que el procedimiento compila, que la fila del competidor se salta sin espera (tiempo entre paréntesis, límite 2500 ms) y que hay 0 violaciones de exclusividad en 3 × (8 workers × 100 solicitudes).
 
 **Decisión:** se mantiene **A** (`UPDLOCK, READPAST, ROWLOCK`) en `usp_claim_request`.
 
@@ -132,6 +161,28 @@ uv run pytest -m "not sql" -ra
 - `MANIFEST.sha256` (esta carpeta) contiene el SHA-256 de todos los archivos versionados en el commit de evidencia, excluido el propio manifiesto. Lo genera `scripts/make_manifest_e1b.sh`.
 - Los SHA-256 de los scripts SQL del candidato figuran en la §9.
 
-## 9. SHA-256 de los artefactos SQL del candidato
+## 9. SHA-256 de los artefactos de E1-B del candidato
 
-{{SQL_HASHES}}
+Calculados sobre el árbol del commit `531107c` (sin cambios de código posteriores):
+
+```
+36853aa7a0d241c3203916395a8e55a351867860e7069f37c180e9903bd0bc9a  .github/workflows/ci.yml
+f15b11d23345d6a04b008a7f4e1d290140361aa7bd185303e2be65ded3ec2fa7  scripts/e1b_deadlocks.py
+23b767bb08022ac213e53d4a6b9dbb67569adead213780237e32f22a963181cd  scripts/e1b_tls_probe.py
+c60564c4616757c713c8ccf16b45f402d3fea9294f092c123dc3366fd73a528d  src/nexus/metadata/__init__.py
+fc67fdf7386338f8f747a8a8193795a38d2562c9f3ac72cf055aecaedf15ddb5  src/nexus/metadata/bootstrap.py
+5643090e932fd5b45d52ee29df92af8798fcaf9c1a1743f534d5806f98627cbd  src/nexus/metadata/connection.py
+9e666e59e1f250234c56657de484b0700d949b5c37cddd3af4310a526746b9ba  src/nexus/metadata/errors.py
+bf3a8768dfb1247b6ea7d17bfb8772c75ca35cd6c35d8dd3a516599d6385a27a  src/nexus/metadata/guards.py
+69a8821eb6a7e213abcb4b3e2cfa581dfdfff700812833bfb9a5f8d3b1d7083e  src/nexus/metadata/memory.py
+c5437a186922711fc769e5bc81851aad4029a2a7c5b42d1f5e3f78b18bdc7b25  src/nexus/metadata/migrations.py
+64255e508440ece2629e3d139981025378ab9055f216d128839161f981c706fd  src/nexus/metadata/profile.py
+859245931ce3962a7d4c3a2fd09b40d36a421030eb98254f5de88763490f86f2  src/nexus/metadata/profiles/e1b-ephemeral.toml
+12956a8b172286be4ec80f59a9a1eca3e1d11b3f728acc6a149e9acee099dba6  src/nexus/metadata/repository.py
+b1f3c0df28a53b5eb5e7349aa02eea2fb5f40d41f93a769a14b88199da6cefa0  src/nexus/metadata/sql/0001_schema.sql
+aae97c35d37bcde6139cba932c2baba6fbc62bd889d36b41d04a97a2f87fc711  src/nexus/metadata/sql/0002_procedures.sql
+d444809477447bbb98f7e96c19577dbe51d3328e1c1a8bf68ff5514ebe970516  src/nexus/metadata/sql/0003_permissions.sql
+835857c5baa252c081acd79ae5d3cefde55bcf554eca01a3176a0c8a9a0ce1aa  src/nexus/metadata/sqlserver.py
+00f0c3b47f87fe8a4829930f0da10891a3e8cbba478f685838ab85c8a736243d  src/nexus/pipeline/reconcile.py
+b3863ff883c9afb0601c1348fa4fc037ad5f8e1f6cd3bb85896a933d4db9956f  src/nexus/pipeline/worker.py
+```

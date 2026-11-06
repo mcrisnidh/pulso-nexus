@@ -1,4 +1,14 @@
 {
+ "B1": [
+  {
+   "B1": "result_digest",
+   "direct": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694",
+   "input_digest_direct": "5d1ef51e41f62d7bc7b5be674d45abd6d79edd965f22048620780e950336afa6",
+   "input_digest_sql": "5d1ef51e41f62d7bc7b5be674d45abd6d79edd965f22048620780e950336afa6",
+   "server_ts": "2026-11-06 03:54:33.299780",
+   "sql": "19b016710d2c9ae420cca2972d9254a134d9336c5edbda8586fb65c53e492694"
+  }
+ ],
  "B10": [
   {
    "B10": "client_sigkill",
@@ -27,55 +37,55 @@
  "B12": [
   {
    "B12": "A",
-   "claimed": 4558,
+   "claimed": 4559,
    "compiled": true,
    "conforms": true,
-   "elapsed_ms": 2,
+   "elapsed_ms": 8,
    "error": null,
    "exclusivity_runs": 3,
    "exclusivity_violations": [],
-   "expected": 4558,
+   "expected": 4559,
    "hints": "UPDLOCK, READPAST, ROWLOCK",
-   "locked_by_competitor": 4557,
+   "locked_by_competitor": 4558,
    "production": true,
    "rcsi": "OFF",
-   "server_ts": "2026-11-06 03:24:44.518824",
+   "server_ts": "2026-11-06 03:56:51.073540",
    "session_isolation": "READ COMMITTED",
    "skip_locked_ok": true
   },
   {
    "B12": "B",
-   "claimed": 4860,
+   "claimed": 4861,
    "compiled": true,
    "conforms": true,
    "elapsed_ms": 2,
    "error": null,
    "exclusivity_runs": 3,
    "exclusivity_violations": [],
-   "expected": 4860,
+   "expected": 4861,
    "hints": "UPDLOCK, READPAST, READCOMMITTEDLOCK",
-   "locked_by_competitor": 4859,
+   "locked_by_competitor": 4860,
    "production": false,
    "rcsi": "OFF",
-   "server_ts": "2026-11-06 03:24:47.611021",
+   "server_ts": "2026-11-06 03:56:58.949005",
    "session_isolation": "READ COMMITTED",
    "skip_locked_ok": true
   },
   {
    "B12": "C",
-   "claimed": 5162,
+   "claimed": 5163,
    "compiled": true,
    "conforms": true,
-   "elapsed_ms": 3,
+   "elapsed_ms": 16,
    "error": null,
    "exclusivity_runs": 3,
    "exclusivity_violations": [],
-   "expected": 5162,
+   "expected": 5163,
    "hints": "UPDLOCK, READPAST",
-   "locked_by_competitor": 5161,
+   "locked_by_competitor": 5162,
    "production": false,
    "rcsi": "OFF",
-   "server_ts": "2026-11-06 03:24:50.744440",
+   "server_ts": "2026-11-06 03:57:06.063298",
    "session_isolation": "READ COMMITTED",
    "skip_locked_ok": true
   }
@@ -84,7 +94,7 @@
   {
    "B13": "LEASE_LOST_BY_LATENCY",
    "lease_ms": 5000,
-   "server_gap_ms": 5515
+   "server_gap_ms": 5518
   }
  ],
  "B14": [
@@ -112,30 +122,30 @@
    "marked_missing": [],
    "objects": 14,
    "unregistered": [
-    "runs/run-d53e608ad50a42058407b8effd089f7a/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
-    "runs/run-d53e608ad50a42058407b8effd089f7a/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
-    "runs/run-d53e608ad50a42058407b8effd089f7a/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet"
+    "runs/run-f0ff811b48154056aef10c02dc409270/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-f0ff811b48154056aef10c02dc409270/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-f0ff811b48154056aef10c02dc409270/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet"
    ],
    "violations": []
   },
   {
    "B15": "R-B",
    "artifact_states": {
-    "runs/run-446eec7d205747ecaf0db041eaf625ff/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet": "MISSING",
-    "runs/run-446eec7d205747ecaf0db041eaf625ff/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet": "CORRUPT",
-    "runs/run-446eec7d205747ecaf0db041eaf625ff/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet": "PRESENT"
+    "runs/run-1772c7a7d35448b9b6b3d7f439bfda0c/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet": "MISSING",
+    "runs/run-1772c7a7d35448b9b6b3d7f439bfda0c/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet": "CORRUPT",
+    "runs/run-1772c7a7d35448b9b6b3d7f439bfda0c/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet": "PRESENT"
    },
    "audit_events": 2,
    "corrupt": [
-    "runs/run-446eec7d205747ecaf0db041eaf625ff/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet"
+    "runs/run-1772c7a7d35448b9b6b3d7f439bfda0c/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet"
    ],
    "generation_states": [
     "INELIGIBLE"
    ],
    "missing": [
-    "runs/run-446eec7d205747ecaf0db041eaf625ff/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet"
+    "runs/run-1772c7a7d35448b9b6b3d7f439bfda0c/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet"
    ],
-   "server_ts": "2026-11-06 03:25:00.256146"
+   "server_ts": "2026-11-06 03:57:17.095747"
   },
   {
    "B15": "R-C",
@@ -145,11 +155,11 @@
    "marked_corrupt": [],
    "marked_missing": [],
    "objects": 7,
-   "server_ts": "2026-11-06 03:25:00.687024",
+   "server_ts": "2026-11-06 03:57:17.491963",
    "unregistered": [
-    "runs/run-7912b4967486428eb2c215edfe126c16/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
-    "runs/run-7912b4967486428eb2c215edfe126c16/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
-    "runs/run-7912b4967486428eb2c215edfe126c16/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet"
+    "runs/run-b103a6ec6e754cb9a8f53c3a044c1a8a/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-b103a6ec6e754cb9a8f53c3a044c1a8a/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-b103a6ec6e754cb9a8f53c3a044c1a8a/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet"
    ],
    "violations": []
   }
@@ -157,21 +167,23 @@
  "B16": [
   {
    "B16": "M1_two_step_claim",
-   "claims": 7917,
+   "claims": 5662,
    "detected": true,
-   "duplicate_claims": 95,
-   "execute_s_max": 2.685,
-   "execute_s_p50": 0.024,
+   "duplicate_claims": 94,
+   "execute_s_max": 0.21,
+   "execute_s_p50": 0.023,
    "requests": 100,
+   "run_event_duplicate_claims": 94,
    "states": {
-    "COMPLETED": 16,
-    "PENDING": 36,
-    "RUNNING": 48
+    "COMPLETED": 42,
+    "PENDING": 30,
+    "RUNNING": 28
    },
    "violations": [
-    "solicitudes reclamadas m\u00e1s de una vez: 95",
-    "estados finales: {'COMPLETED': 16, 'PENDING': 36, 'RUNNING': 48}",
-    "errores: ['w1: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)', 'w3: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)', 'w7: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)']"
+    "run_event: solicitudes con m\u00e1s de un CLAIMED: 94",
+    "solicitudes reclamadas m\u00e1s de una vez: 94",
+    "estados finales: {'COMPLETED': 42, 'PENDING': 30, 'RUNNING': 28}",
+    "errores: ['w4: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)', 'w0: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)', 'w2: ClaimInvalidError: 42000 [42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]NEXUS:CLAIM_INVALID claim inexistente, ajeno o vencido (50011) (SQLExecDirectW)']"
    ],
    "workers": 16
   },
@@ -265,13 +277,28 @@
    "marked_missing": [],
    "objects": 7,
    "unregistered": [
-    "runs/run-a406144be5e94e33b7d752a42b4bba19/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
-    "runs/run-a406144be5e94e33b7d752a42b4bba19/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
-    "runs/run-a406144be5e94e33b7d752a42b4bba19/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet"
+    "runs/run-03334f1964d24e0ca1248e484a07bb5f/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet",
+    "runs/run-03334f1964d24e0ca1248e484a07bb5f/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet",
+    "runs/run-03334f1964d24e0ca1248e484a07bb5f/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet"
    ],
    "violations": [
-    "el almac\u00e9n cambi\u00f3: eliminados=['runs/run-a406144be5e94e33b7d752a42b4bba19/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet', 'runs/run-a406144be5e94e33b7d752a42b4bba19/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet', 'runs/run-a406144be5e94e33b7d752a42b4bba19/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet'] alterados=[]"
+    "el almac\u00e9n cambi\u00f3: eliminados=['runs/run-03334f1964d24e0ca1248e484a07bb5f/generation/synthetic_input-2388a4e60eb91e45aa02be3e6d944bd019a23bc5aaafe8e5ebc03fb7e605ce98.parquet', 'runs/run-03334f1964d24e0ca1248e484a07bb5f/generation/synthetic_output-af736eb8a31bd466a90f8f54d124ab6f2bc031156269f7292c539eced95c40bc.parquet', 'runs/run-03334f1964d24e0ca1248e484a07bb5f/generation/synthetic_rejection-23b64bb543a4fcfcb922b9162f3b200685a6a9412e6394c8c9d6817dff264db6.parquet'] alterados=[]"
    ]
+  },
+  {
+   "B16": "M1b_update_without_updlock_equivalent",
+   "claims": 100,
+   "detected": false,
+   "duplicate_claims": 0,
+   "execute_s_max": 0.136,
+   "execute_s_p50": 0.047,
+   "requests": 100,
+   "run_event_duplicate_claims": 0,
+   "states": {
+    "COMPLETED": 100
+   },
+   "violations": [],
+   "workers": 16
   }
  ],
  "B5": [
@@ -279,9 +306,10 @@
    "B5": 0,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.094,
-   "execute_s_p50": 0.046,
+   "execute_s_max": 0.228,
+   "execute_s_p50": 0.038,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -292,9 +320,10 @@
    "B5": 1,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.103,
+   "execute_s_max": 0.125,
    "execute_s_p50": 0.041,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -305,9 +334,10 @@
    "B5": 2,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.108,
+   "execute_s_max": 0.14,
    "execute_s_p50": 0.035,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -318,9 +348,10 @@
    "B5": 3,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.107,
-   "execute_s_p50": 0.035,
+   "execute_s_max": 0.382,
+   "execute_s_p50": 0.042,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -331,9 +362,10 @@
    "B5": 4,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.089,
-   "execute_s_p50": 0.037,
+   "execute_s_max": 0.439,
+   "execute_s_p50": 0.034,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -344,9 +376,10 @@
    "B5": 5,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.109,
-   "execute_s_p50": 0.039,
+   "execute_s_max": 0.886,
+   "execute_s_p50": 0.033,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -357,9 +390,10 @@
    "B5": 6,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.099,
-   "execute_s_p50": 0.042,
+   "execute_s_max": 0.08,
+   "execute_s_p50": 0.031,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -370,9 +404,10 @@
    "B5": 7,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.084,
-   "execute_s_p50": 0.048,
+   "execute_s_max": 0.532,
+   "execute_s_p50": 0.036,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -383,9 +418,10 @@
    "B5": 8,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.072,
-   "execute_s_p50": 0.04,
+   "execute_s_max": 0.513,
+   "execute_s_p50": 0.038,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -396,9 +432,10 @@
    "B5": 9,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.086,
-   "execute_s_p50": 0.043,
+   "execute_s_max": 0.33,
+   "execute_s_p50": 0.032,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -409,9 +446,10 @@
    "B5": 10,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.066,
-   "execute_s_p50": 0.039,
+   "execute_s_max": 0.635,
+   "execute_s_p50": 0.032,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -422,9 +460,10 @@
    "B5": 11,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.095,
-   "execute_s_p50": 0.042,
+   "execute_s_max": 1.208,
+   "execute_s_p50": 0.038,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -435,9 +474,10 @@
    "B5": 12,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.076,
-   "execute_s_p50": 0.039,
+   "execute_s_max": 0.115,
+   "execute_s_p50": 0.038,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -448,9 +488,10 @@
    "B5": 13,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.087,
-   "execute_s_p50": 0.043,
+   "execute_s_max": 0.419,
+   "execute_s_p50": 0.036,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -461,9 +502,10 @@
    "B5": 14,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.078,
-   "execute_s_p50": 0.043,
+   "execute_s_max": 0.412,
+   "execute_s_p50": 0.042,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -474,9 +516,10 @@
    "B5": 15,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.072,
-   "execute_s_p50": 0.04,
+   "execute_s_max": 0.26,
+   "execute_s_p50": 0.036,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -487,9 +530,10 @@
    "B5": 16,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.08,
-   "execute_s_p50": 0.038,
+   "execute_s_max": 0.379,
+   "execute_s_p50": 0.028,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -500,9 +544,10 @@
    "B5": 17,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.078,
-   "execute_s_p50": 0.041,
+   "execute_s_max": 0.398,
+   "execute_s_p50": 0.032,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -513,9 +558,10 @@
    "B5": 18,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.094,
-   "execute_s_p50": 0.047,
+   "execute_s_max": 0.148,
+   "execute_s_p50": 0.03,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -526,9 +572,10 @@
    "B5": 19,
    "claims": 200,
    "duplicate_claims": 0,
-   "execute_s_max": 0.114,
-   "execute_s_p50": 0.043,
+   "execute_s_max": 0.084,
+   "execute_s_p50": 0.027,
    "requests": 200,
+   "run_event_duplicate_claims": 0,
    "states": {
     "COMPLETED": 200
    },
@@ -633,7 +680,7 @@
    "expect": "ok",
    "host": "nexus-sql",
    "passed": true,
-   "server_ts": "2026-11-06 03:21:54.707044",
+   "server_ts": "2026-11-06 03:53:52.804663",
    "trust_server_certificate": "no"
   },
   {
@@ -646,5 +693,17 @@
    "passed": true,
    "trust_server_certificate": "no"
   }
- ]
+ ],
+ "server_info": {
+  "collation": "SQL_Latin1_General_CP1_CI_AS",
+  "cu": "CU14",
+  "database": "nexus_e1b_ae43256ebd8c0e91",
+  "edition": "Developer Edition (64-bit)",
+  "product_version": "16.0.4135.4",
+  "rcsi": "False",
+  "server_name": "nexus-sql",
+  "server_ts": "2026-11-06 04:03:11.976580",
+  "snapshot_isolation": "ON",
+  "version": "Microsoft SQL Server 2022 (RTM-CU14) (KB5038325) - 16.0.4135.4 (X64) \n\tJul 10 2024 14:09:09 \n\tCopyright (C) 2022 Microsoft Corporation\n\tDeveloper Edition (64-bit) on Linux (Ubuntu 22.04.4 LTS) <X64>"
+ }
 }
