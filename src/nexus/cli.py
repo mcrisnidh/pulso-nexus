@@ -6,6 +6,7 @@ Comandos:
                  [--threads N] [--trigger manual|scheduled]
   nexus replay   --store DIR --run-id ID [--level L1|L2|L3] [--threads N]
   nexus verify   --store DIR --all
+  nexus planning --dataset DIR --rules FILE --out DIR [--layout FILE] [--item ITEM]...
 
 La ejecución manual y la programada usan exactamente el mismo comando ``run``.
 El planificador solo debe invocarlo con ``--trigger scheduled``.
@@ -203,6 +204,29 @@ def _cmd_reconcile(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_planning(args: argparse.Namespace) -> int:
+    from pathlib import Path  # noqa: PLC0415
+
+    from nexus.planning.runner import run as planning_run  # noqa: PLC0415
+
+    out = Path(args.out).resolve()
+    repo_root = Path(__file__).resolve().parents[2]
+    if not args.allow_out_in_repo and out.is_relative_to(repo_root):
+        raise ConfigurationError(
+            f"--out {out} está dentro del repositorio: las salidas derivadas de datos reales "
+            "deben quedar fuera (use --allow-out-in-repo solo con datos sintéticos)"
+        )
+    summary = planning_run(
+        Path(args.dataset),
+        Path(args.rules),
+        out,
+        Path(args.layout) if args.layout else None,
+        args.item or None,
+    )
+    _emit(summary)
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="PULSO NEXUS — núcleo E1-A")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -252,6 +276,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_rec = sub.add_parser("reconcile", help="E1-B: reconcilia SQL y almacén (solo informe)")
     p_rec.add_argument("--store", required=True)
     p_rec.set_defaults(func=_cmd_reconcile)
+
+    p_plan = sub.add_parser("planning", help="PILOT-20: vista integrada por ITEM (offline)")
+    p_plan.add_argument("--dataset", required=True, help="directorio del dataset extraído")
+    p_plan.add_argument("--rules", required=True, help="archivo de reglas (nexus.planning.rules/1)")
+    p_plan.add_argument("--out", required=True, help="directorio de salida (fuera del repo)")
+    p_plan.add_argument("--layout", default=None, help="layout de fuentes (por defecto pilot20_v1)")
+    p_plan.add_argument("--item", action="append", default=[], help="limitar a uno o más ITEM")
+    p_plan.add_argument("--allow-out-in-repo", action="store_true")
+    p_plan.set_defaults(func=_cmd_planning)
     return parser
 
 

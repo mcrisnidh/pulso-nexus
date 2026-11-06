@@ -1,0 +1,70 @@
+{
+  "schema": "nexus.planning.layout/1",
+  "description": "Estructura del paquete PULSO_NEXUS_PILOT20_DATASET v1 (solo rutas y columnas; sin datos).",
+  "sources": {
+    "oe965_backlog": {
+      "path": "01_comercial/backlog_oe965_20.csv", "granularity": "línea de pedido por snapshot OE965",
+      "required_columns": ["source_file", "source_sha256", "source_line", "item", "order", "line", "date_due_raw", "qty_order", "qty_open", "qty_alloc", "customer_key_exact", "customer_name_sales_raw"]
+    },
+    "oe965_fg": {
+      "path": "01_comercial/fg_oe965_by_snapshot_20.csv", "granularity": "ITEM por snapshot OE965 (físico y disponible)",
+      "required_columns": ["source_file", "source_sha256", "source_line", "item", "physical_stock", "available_stock"]
+    },
+    "portal_cat": {
+      "path": "01_comercial/portal_cat_20_provisional.csv", "granularity": "línea del Portal CAT",
+      "declared_cut": "2026-10-05T10:55 (primera captura recibida; no certificada como primera mensual)",
+      "required_columns": ["ITEM homologado", "ITEM portal original", "Line ID", "Status", "Ordered raw", "Shipped raw", "Ship date", "Delivery date", "Map status"]
+    },
+    "billing": {
+      "path": "01_comercial/facturacion_oct_20.csv", "granularity": "movimiento facturado (documento)",
+      "declared_cut": "2026-10 (facturación del mes; no embarque físico)",
+      "required_columns": ["ITEM", "Fecha factura", "Cliente exacto", "Nombre cliente", "Documento", "Serie", "UOM", "Qty firmada"]
+    },
+    "inventory_snapshot": {
+      "path": "01_comercial/inventario_20261101_20.csv", "granularity": "ITEM por stockroom en un instante",
+      "required_columns": ["ITEM", "Stockroom", "Cantidad física", "Corte de inventario"]
+    },
+    "wo_header": {
+      "path": "02_wo_routing/wo_current_universe_57.csv", "granularity": "WO (estado actual)",
+      "required_columns": ["snapshot_date", "company_cd", "order_no", "order_type", "part_number", "order_status", "order_qty", "cust_code", "act_date"]
+    },
+    "wo_blank_status": {
+      "path": "02_wo_routing/wo_current_blank_status_49.csv", "granularity": "WO (pertenencia: estado actual vacío)",
+      "required_columns": ["company_cd", "order_no"]
+    },
+    "wo_oct_activity": {
+      "path": "02_wo_routing/wo_with_oct_activity_45.csv", "granularity": "WO (pertenencia: actividad en el mes)",
+      "required_columns": ["company_cd", "order_no"]
+    },
+    "routing": {
+      "path": "02_wo_routing/routing_current_universe_57.csv", "granularity": "operación de WO (routing actual)",
+      "required_columns": ["snapshot_date", "company_cd", "order_no", "part_number", "seq_numb", "wc_id", "oper_cd", "oper_status", "pln_qty", "pln_hrs", "set_std", "mch_std", "e_or_s_std", "time_basis_cd", "act_qty", "act_hrs", "scrap_qty"]
+    },
+    "labor_groups": {
+      "path": "03_produccion/labor_oct2026_352_grupos_original.tsv", "delimiter": "\t",
+      "granularity": "agregado WO/operación/centro/tipo de registro (no transacciones)",
+      "declared_cut": "2026-10 (act_date)",
+      "required_columns": ["Item", "Company", "WorkOrder", "OperationSequence", "WorkCenter", "RecordType", "OperationStatus", "TransactionRows", "OctoberOperationQty", "OctoberScrapQty", "QtyPostedByOct31", "LatePostingRows", "FirstActivity", "LastActivity"]
+    },
+    "labor_corrections": {
+      "path": "04_correcciones_tiempos/labor_corr_27_altas_conciliadas.csv", "granularity": "alta de corrección (ya representada en producción)",
+      "required_columns": ["CorrID", "Item", "WorkOrder", "OperationSeq", "ActivityDate", "CorrectionDate", "AddedQty", "AddedScrap", "CorrectionType", "MatchedLabor", "MatchedAdjustments"]
+    },
+    "late_adjustments": {
+      "path": "04_correcciones_tiempos/jba_12_registros_oct_tarde.csv", "granularity": "ajuste tardío (dos relojes)",
+      "required_columns": ["Item", "Company", "WorkOrder", "OperationSeq", "RecordType", "ActivityDate", "AdjustmentTransactionDate", "ActivityQty", "ScrapQty", "ReversalFlag"]
+    },
+    "item_universe": {
+      "path": "05_control/cobertura_20_item_integrada.csv", "granularity": "ITEM (universo e índice de cobertura)", "role": "oracle",
+      "required_columns": ["ITEM"]
+    },
+    "route_end_diagnostic": {
+      "path": "03_produccion/route_end_45_wo_diagnostic.csv", "granularity": "WO (diagnóstico de fin de ruta del proveedor)", "role": "oracle",
+      "required_columns": ["Company", "WorkOrder", "CurrentLastSeqCandidate", "OctDQtyAtCurrentLastSeq", "Status"]
+    },
+    "selection": {
+      "path": "01_comercial/pilot20_selection.csv", "granularity": "ITEM (selección preliminar; totales posiblemente desactualizados)", "role": "oracle",
+      "required_columns": ["ITEM"]
+    }
+  }
+}

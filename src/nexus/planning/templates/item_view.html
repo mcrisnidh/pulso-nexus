@@ -1,0 +1,38 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXUS PILOT-20 local</title><style>
+:root{--bg:#fff;--fg:#1d1d1f;--mut:#666;--line:#ddd;--card:#f6f6f8;
+--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--info:#0969da}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#aaa;--line:#333;--card:#1b1b1d}}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif;margin:0;padding:16px}
+h1{font-size:18px;margin:0 0 4px}.mut{color:var(--mut)}select{font-size:15px;padding:4px}
+details{border:1px solid var(--line);border-radius:6px;margin:8px 0;background:var(--card)}
+summary{cursor:pointer;padding:8px 10px;font-weight:600}.body{padding:0 10px 10px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}td,th{border-bottom:1px solid var(--line);
+padding:4px 6px;text-align:left;vertical-align:top}.st{font-family:ui-monospace,monospace;font-size:11.5px}
+.PROVISIONAL_CALCULATED{color:var(--ok)}.DIAGNOSTIC_ONLY{color:var(--info)}
+.TEMPORAL_MISMATCH,.NOT_CERTIFIABLE,.UNKNOWN_NOT_ZERO{color:var(--warn)}
+.BLOCKED_SOURCE,.BLOCKED_CRC{color:var(--bad)}pre{white-space:pre-wrap;font-size:11.5px}
+</style></head><body>
+<h1>PULSO NEXUS — PILOT-20 (salida local, no certificada)</h1>
+<p class="mut">Run digest <code>__DIGEST__</code> · reglas __RULES__ · motor __ENGINE__.
+Datos reales: no distribuir.</p>
+<label>ITEM <select id="sel"></select></label><div id="out"></div>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D=JSON.parse(document.getElementById('data').textContent);
+const sel=document.getElementById('sel'),out=document.getElementById('out');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+Object.keys(D.items).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o)});
+function facts(fs){return '<table><tr><th>Hecho</th><th>Valor</th><th>Estado</th><th>Limitaciones</th><th>Origen</th></tr>'+
+fs.map(f=>`<tr><td>${esc(f.name)}</td><td>${esc(typeof f.value==='object'&&f.value!==null?JSON.stringify(f.value):f.value)} ${esc(f.unit||'')}</td>`+
+`<td class="st ${f.status}">${f.status}</td><td>${f.limitations.map(esc).join('<br>')}</td>`+
+`<td>${f.provenance.map(p=>esc(p.source_id+' · '+p.file+' · líneas '+(p.lines.length>8?p.lines.slice(0,8).join(',')+'…('+p.lines.length+')':p.lines.join(','))+' · corte '+(p.cut||'—'))).join('<br>')}</td></tr>`).join('')+'</table>'}
+function render(){const v=D.items[sel.value];let h='';
+for(const [k,s] of Object.entries(v.stages)){const rest=Object.assign({},s);delete rest.facts;delete rest.status;
+h+=`<details ${k<'06'?'open':''}><summary>${esc(k)} — <span class="st ${s.status}">${s.status}</span></summary><div class="body">`+
+facts(s.facts||[])+`<details><summary>Detalle (registros y procedencia)</summary><pre>${esc(JSON.stringify(rest,null,1))}</pre></details></div></details>`}
+h+=`<details><summary>Oráculos</summary><div class="body"><pre>${esc(JSON.stringify(D.oracles[sel.value],null,1))}</pre></div></details>`;
+out.innerHTML=h}
+sel.onchange=render;render();
+</script></body></html>
