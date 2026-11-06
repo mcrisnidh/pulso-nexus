@@ -1,0 +1,73 @@
+# Alcance del cambio respecto de f404f96
+ pyproject.toml             |  9 +++++
+ src/nexus/core/coverage.py |  5 ++-
+ src/nexus/core/refresh.py  | 97 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/nexus/core/state.py    | 32 +++++++++++++++
+ 4 files changed, 138 insertions(+), 5 deletions(-)
+ M pyproject.toml
+ M src/nexus/core/coverage.py
+ M src/nexus/core/refresh.py
+ M src/nexus/core/state.py
+?? docs/core/B0-7_ZONA_HORARIA.md
+?? docs/evidence/CORE-B07/compat/demo_generations_vs_f404f96.txt
+?? docs/evidence/CORE-B07/compat/git_diff_scope.txt
+?? docs/evidence/CORE-B07/compat/legacy_store_continuation.txt
+?? docs/evidence/CORE-B07/test-results/browser.txt
+?? docs/evidence/CORE-B07/test-results/demo.txt
+?? docs/evidence/CORE-B07/test-results/junit.xml
+?? docs/evidence/CORE-B07/test-results/lint-imports.txt
+?? docs/evidence/CORE-B07/test-results/mypy.txt
+?? docs/evidence/CORE-B07/test-results/pytest_full.txt
+?? docs/evidence/CORE-B07/test-results/pytest_timezone.txt
+?? docs/evidence/CORE-B07/test-results/ruff.txt
+?? src/nexus/core/timebase.py
+?? tests/core/test_core_timezone.py
+?? tests/core/tz_scenarios.py
+
+# Líneas de diff en interfaz, SQL, autenticación, reglas, fuentes y dependencias (debe ser 0):
+0
+
+# Pruebas existentes modificadas (debe estar vacío):
+
+# Cambio en coverage.py (solo el campo opcional de ventana):
+diff --git a/src/nexus/core/coverage.py b/src/nexus/core/coverage.py
+index 7bc5a70..013d6fe 100644
+--- a/src/nexus/core/coverage.py
++++ b/src/nexus/core/coverage.py
+@@ -89,6 +89,9 @@ class CoverageInput:
+     shipments: list[Shipment]
+     rules: CoreRules
+     certified: bool  # todas las fuentes usadas tienen acta de certificación (falso en el Hito A)
++    # B0-7: inicio de la ventana de embarques (medianoche local del día 1, en UTC). ``None`` =
++    # medianoche UTC, comportamiento previo idéntico.
++    window_start_utc: str | None = None
+ 
+ 
+ def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[str, list[str]]]:
+@@ -204,7 +207,7 @@ def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[s
+ def _net_shipments(inp: CoverageInput) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+     """Embarques netos de reversas dentro de la ventana; lo demás se informa."""
+     start, _ = month_bounds(inp.month)
+-    window_start = f"{start}T00:00:00Z"
++    window_start = inp.window_start_utc or f"{start}T00:00:00Z"
+     in_window = [
+         s
+         for s in inp.shipments
+# Cambio en pyproject.toml (solo contrato import-linter):
+diff --git a/pyproject.toml b/pyproject.toml
+index abc8995..f054a43 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -207,3 +207,12 @@ forbidden_modules = [
+     "nexus.normalize", "nexus.connectors", "nexus.pipeline", "nexus.metadata",
+ ]
+ allow_indirect_imports = true  # la web usa RefreshService/PublishedReader como fachada
++
++[[tool.importlinter.contracts]]
++name = "CORE B0-7: el calendario operativo es puro (sin E/S, estado, cálculo ni web)"
++type = "forbidden"
++source_modules = ["nexus.core.timebase"]
++forbidden_modules = [
++    "nexus.storage", "nexus.metadata", "nexus.pipeline", "nexus.web", "nexus.core.state",
++    "nexus.core.refresh", "nexus.core.cs", "nexus.core.coverage", "nexus.core.read", "nexus.cli",
++]

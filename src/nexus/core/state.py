@@ -172,6 +172,38 @@ class CoreState:
             prev_hash = sha256_bytes(raw)
         return problems
 
+    # -------------------------------------------------------------- B0-7 vínculo de zona horaria
+    def tz_binding_key(self, channel: str) -> str:
+        return f"calendar/{check_channel(channel)}/binding.json"
+
+    def get_tz_binding(self, channel: str) -> dict[str, Any] | None:
+        key = self.tz_binding_key(channel)
+        return self.get_sealed(key) if self.store.exists(key) else None
+
+    def has_history(self, channel: str) -> bool:
+        """¿Existe algún Frozen o publicación en el canal?"""
+        check_channel(channel)
+        return any(True for _ in self.store.iter_keys(f"frozen/{channel}/")) or any(
+            True for _ in self.store.iter_keys(f"pub/{channel}/")
+        )
+
+    def effective_tz(self, channel: str) -> str | None:
+        """Zona a la que está ligado el estado del canal: la del vínculo registrado; UTC si hay
+        historial previo a B0-7 (sin vínculo); ``None`` si el canal no tiene estado."""
+        binding = self.get_tz_binding(channel)
+        if binding is not None:
+            return str(binding["business_tz"])
+        return "UTC" if self.has_history(channel) else None
+
+    def bind_tz(self, channel: str, record: dict[str, Any]) -> dict[str, Any]:
+        """Registra el vínculo una sola vez (enlace sin reemplazo); si ya existe, devuelve el
+        registrado sin modificarlo."""
+        key = self.tz_binding_key(channel)
+        if not self.store.exists(key):
+            with contextlib.suppress(ImmutableConflictError):  # otro proceso ganó la carrera
+                self.put_sealed(key, record)
+        return self.get_sealed(key)
+
     # -------------------------------------------------------------- eventos
     def append_event(self, channel: str, server_ts: str, kind: str, detail: dict[str, Any]) -> None:
         stamp = re.sub(r"[^0-9]", "", server_ts)

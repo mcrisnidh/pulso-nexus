@@ -1,0 +1,4 @@
+gen/: f404f96=27 archivos, B0-7=27 archivos, distintos=0
+frozen/: f404f96=4 archivos, B0-7=4 archivos, distintos=0
+calendar/ en la demo B0-7: ['calendar/sintetico/binding.json']
+NOTA: frozen/ incluye registered_at (reloj simulado idéntico) y pub/ incluye marcas del navegador real, por eso pub/ no se compara aquí; el escenario determinista de tz_scenarios compara gen/, frozen/ y pub/ (huella dorada).

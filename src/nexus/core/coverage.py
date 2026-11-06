@@ -89,6 +89,9 @@ class CoverageInput:
     shipments: list[Shipment]
     rules: CoreRules
     certified: bool  # todas las fuentes usadas tienen acta de certificación (falso en el Hito A)
+    # B0-7: inicio de la ventana de embarques (medianoche local del día 1, en UTC). ``None`` =
+    # medianoche UTC, comportamiento previo idéntico.
+    window_start_utc: str | None = None
 
 
 def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[str, list[str]]]:
@@ -204,7 +207,7 @@ def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[s
 def _net_shipments(inp: CoverageInput) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Embarques netos de reversas dentro de la ventana; lo demás se informa."""
     start, _ = month_bounds(inp.month)
-    window_start = f"{start}T00:00:00Z"
+    window_start = inp.window_start_utc or f"{start}T00:00:00Z"
     in_window = [
         s
         for s in inp.shipments

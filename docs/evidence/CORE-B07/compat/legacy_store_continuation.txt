@@ -1,0 +1,7 @@
+almacén f404f96: digest de estado = 400e36ce4f48fe7a314f1f68477d86b3378581dfcd611ea9e095163e1de792d1 | dorado = 400e36ce4f48fe7a314f1f68477d86b3378581dfcd611ea9e095163e1de792d1
+archivos calendar/ antes: []
+zona America/Mexico_City sobre historial UTC -> RECHAZADA: el canal sintetico está ligado a la zona UTC (Frozen o publicaciones existentes); la configuración actual es A …
+Refresh con código B0-7 (UTC, sin operation.json): publicación # 5
+archivos previos modificados o borrados: 0
+archivos calendar/ después: []
+RESULTADO: PASS

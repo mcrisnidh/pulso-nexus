@@ -17,6 +17,7 @@ Este módulo NO conoce las notas de Customer Service (C7): ni las lee ni las esc
 from __future__ import annotations
 
 import datetime as dt
+import json
 import tempfile
 import threading
 from collections.abc import Callable
@@ -35,6 +36,8 @@ from nexus.core.state import (
     check_channel,
     item_key,
 )
+from nexus.core.timebase import SAFE_PROCEDURE, UTC_NAME, BusinessCalendar, TimezoneBindingError
+from nexus.errors import ConfigurationError
 from nexus.hashing import digest_json, sha256_bytes
 from nexus.metadata.memory import InMemoryMetadata
 from nexus.metadata.profile import Profile
@@ -96,6 +99,7 @@ class CoreJob:
         rules: CoreRules,
         clock: Clock,
         hook: StageHook | None = None,
+        calendar: BusinessCalendar | None = None,
     ) -> None:
         self.state = state
         self.inbox = inbox
@@ -103,6 +107,7 @@ class CoreJob:
         self.rules = rules
         self.clock = clock
         self.hook = hook
+        self.calendar = calendar or BusinessCalendar(UTC_NAME)
 
     def _stage(self, name: str) -> None:
         if self.hook is not None:
@@ -114,7 +119,7 @@ class CoreJob:
         out = []
         for path in sorted(folder.glob("*.csv")) if folder.is_dir() else []:
             parsed = read_source(source_id, path)
-            if parsed.instant and parsed.instant[:7] != month:
+            if parsed.instant and self.calendar.month_of(parsed.instant) != month:
                 continue  # otro mes: no participa en este corte (sigue en la bandeja)
             if parsed.valid and parsed.instant and parsed.instant > now:
                 parsed.valid = False
@@ -183,6 +188,7 @@ class CoreJob:
                         "rules_version": self.rules.version,
                         "registered_by": actor,
                         "registered_at": now,
+                        **({} if self.calendar.is_utc else {"business_tz": self.calendar.name}),
                     },
                 )
                 self.state.append_event(
@@ -200,6 +206,13 @@ class CoreJob:
                 record = self.state.get_frozen(self.channel, month, source_id)
         if record is None:
             sel.failures.append(f"BLOCKED_SOURCE: sin Frozen {source_id} válido para {month}")
+            return
+        if record.get("business_tz", UTC_NAME) != self.calendar.name:
+            sel.failures.append(
+                f"ZONA HORARIA: el Frozen {source_id} de {month} se registró con "
+                f"{record.get('business_tz', UTC_NAME)}; la configuración actual es "
+                f"{self.calendar.name}. No se reinterpreta."
+            )
             return
         for p in valid:
             if p.instant and p.instant < record["instant"] and p.sha256 != record["sha256"]:
@@ -229,6 +242,7 @@ class CoreJob:
     # ---------------------------------------------------------------- ejecución
     def __call__(self, store: LocalObjectStore, payload: dict[str, Any]) -> dict[str, Any]:
         month, actor = str(payload["month"]), str(payload["actor"])
+        ensure_tz_binding(self.state, self.channel, self.calendar, month, iso(self.clock()), actor)
         sel = self.select(month, actor)
         self._stage("after_capture")
         used = [sel.frozen[s]["parsed"] for s in FROZEN_SOURCES if s in sel.frozen]
@@ -255,6 +269,9 @@ class CoreJob:
                 shipments=sel.shipments.records,
                 rules=self.rules,
                 certified=certified,
+                window_start_utc=None
+                if self.calendar.is_utc
+                else self.calendar.window_utc(month)[0],
             )
             try:
                 result = compute(inp)
@@ -273,6 +290,8 @@ class CoreJob:
             "current": {s: p.sha256 for s, p in sorted(sel.current.items())},
             "rejected": sorted(str(r["sha256"]) for r in sel.rejected),
         }
+        if not self.calendar.is_utc:  # B0-7: zona y límites UTC efectivos entran en la identidad
+            inputs["calendar"] = self.calendar.fingerprint(month)
         gen_id = digest_json(inputs)[:32]
         validation = {
             "status": "PASS" if not failures and not violations else "FAIL",
@@ -415,6 +434,60 @@ class CoreJob:
         return artifacts
 
 
+OPERATION_SCHEMA = "nexus.core.operation/1"
+
+
+def load_operation(data_dir: Path) -> BusinessCalendar:
+    """Configuración operativa (``DATA/operation.json``). Sin archivo: UTC (comportamiento previo
+    a B0-7, idéntico byte a byte)."""
+    path = data_dir / "operation.json"
+    if not path.exists():
+        return BusinessCalendar(UTC_NAME)
+    try:
+        data = json.loads(path.read_text("utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ConfigurationError(f"operation.json ilegible: {exc}") from exc
+    if not isinstance(data, dict) or data.get("schema") != OPERATION_SCHEMA:
+        raise ConfigurationError(f"operation.json: esquema distinto de {OPERATION_SCHEMA}")
+    unknown = set(data) - {"schema", "business_tz"}
+    if unknown:
+        raise ConfigurationError(f"operation.json: claves no admitidas {sorted(unknown)}")
+    return BusinessCalendar(str(data.get("business_tz", UTC_NAME)))
+
+
+def check_tz_binding(state: CoreState, channel: str, calendar: BusinessCalendar) -> None:
+    """Rechaza una zona distinta de la que ya liga el historial del canal (fallo cerrado)."""
+    bound = state.effective_tz(channel)
+    if bound is not None and bound != calendar.name:
+        raise TimezoneBindingError(
+            f"el canal {channel} está ligado a la zona {bound} (Frozen o publicaciones "
+            f"existentes); la configuración actual es {calendar.name}. {SAFE_PROCEDURE}"
+        )
+
+
+def ensure_tz_binding(
+    state: CoreState, channel: str, calendar: BusinessCalendar, month: str, now: str, actor: str
+) -> None:
+    """Antes de crear estado: verifica el vínculo y, si el canal aún no tiene estado, registra la
+    zona (una sola vez, enlace sin reemplazo). Un almacén previo a B0-7 con historial no recibe
+    ningún archivo: queda ligado implícitamente a UTC. La verificación final es SIEMPRE: si otro
+    proceso registró otra zona en paralelo, este se detiene antes de crear estado."""
+    check_tz_binding(state, channel, calendar)
+    if state.get_tz_binding(channel) is None and not state.has_history(channel):
+        state.bind_tz(
+            channel,
+            {
+                "schema": "nexus.core.tz-binding/1",
+                "channel": channel,
+                "business_tz": calendar.name,
+                "first_month": month,
+                "bound_at": now,
+                "bound_by": actor,
+            },
+        )
+    check_tz_binding(state, channel, calendar)  # carrera: otro proceso pudo ganar
+
+
 class RefreshService:
     """Refresh de un clic. Una instancia por canal y almacén; segura para hilos."""
 
@@ -433,12 +506,19 @@ class RefreshService:
         self.hook = hook
         self.state = CoreState(LocalObjectStore(data_dir / "store"))
         self.inbox = data_dir / "inbox"
+        # B0-7: calendario operativo; una zona distinta de la que liga el historial se rechaza
+        # al iniciar (la web y la CLI no arrancan).
+        self.calendar = load_operation(data_dir)
+        check_tz_binding(self.state, self.channel, self.calendar)
         self.repo = InMemoryMetadata()
-        self.job = CoreJob(self.state, self.inbox, self.channel, self.rules, clock, hook)
+        self.job = CoreJob(
+            self.state, self.inbox, self.channel, self.rules, clock, hook, self.calendar
+        )
         self._run_lock = threading.Lock()
 
     def current_month(self) -> str:
-        return iso(self.clock())[:7]
+        """Mes operativo vigente según el calendario de la planta (UTC sin operation.json)."""
+        return self.calendar.month_of(self.clock())
 
     def inbox_digest(self) -> str:
         listing = []
@@ -452,7 +532,8 @@ class RefreshService:
         month = month or self.current_month()
         if self.channel == "operativo" and month != self.current_month():
             raise PublicationRefusedError("el canal operativo solo admite el mes vigente")
-        key = f"core:{self.channel}:{month}:{self.inbox_digest()}{':' + nonce if nonce else ''}"
+        tz = "" if self.calendar.is_utc else f":tz={self.calendar.name}"
+        key = f"core:{self.channel}:{month}:{self.inbox_digest()}{tz}{':' + nonce if nonce else ''}"
         rid, created = self.repo.enqueue(
             key,
             f"core:{self.channel}:{month}",
@@ -554,6 +635,13 @@ class RefreshService:
             raise PublicationRefusedError("la generación no pasó la validación")
         if manifest["channel"] != self.channel:
             raise PublicationRefusedError("la generación pertenece a otro canal")
+        check_tz_binding(self.state, self.channel, self.calendar)
+        gen_tz = manifest["inputs"].get("calendar", {}).get("business_tz", UTC_NAME)
+        if gen_tz != self.calendar.name:
+            raise PublicationRefusedError(
+                f"la generación se calculó con la zona {gen_tz}; la configuración es "
+                f"{self.calendar.name}"
+            )
         if self.channel == "operativo":
             if manifest["month"] != self.current_month():
                 raise PublicationRefusedError("canal operativo: el Frozen no es del mes vigente")
@@ -581,6 +669,7 @@ class RefreshService:
                 "manifest_sha256": manifest_sha,
                 "actor": actor,
                 "server_ts": iso(self.clock()),
+                **({} if self.calendar.is_utc else {"business_tz": self.calendar.name}),
             },
         )
         self.state.append_event(

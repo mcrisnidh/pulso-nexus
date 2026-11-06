@@ -207,3 +207,12 @@ forbidden_modules = [
     "nexus.normalize", "nexus.connectors", "nexus.pipeline", "nexus.metadata",
 ]
 allow_indirect_imports = true  # la web usa RefreshService/PublishedReader como fachada
+
+[[tool.importlinter.contracts]]
+name = "CORE B0-7: el calendario operativo es puro (sin E/S, estado, cálculo ni web)"
+type = "forbidden"
+source_modules = ["nexus.core.timebase"]
+forbidden_modules = [
+    "nexus.storage", "nexus.metadata", "nexus.pipeline", "nexus.web", "nexus.core.state",
+    "nexus.core.refresh", "nexus.core.cs", "nexus.core.coverage", "nexus.core.read", "nexus.cli",
+]
