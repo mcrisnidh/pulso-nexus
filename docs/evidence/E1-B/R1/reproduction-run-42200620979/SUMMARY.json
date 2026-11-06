@@ -1,0 +1,42 @@
+{
+ "rcsi-off_read-committed": {
+  "failed": [
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[request_row] - AssertionError: {'blocker': 'request_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:19:52.437856', ...}",
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[lease_row] - AssertionError: {'blocker': 'lease_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:19:55.100260', ...}"
+  ],
+  "job_id": 127834702181,
+  "result": [
+   "================== 2 failed, 424 passed in 501.59s (0:08:21) ==================="
+  ]
+ },
+ "rcsi-off_snapshot": {
+  "failed": [
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[request_row] - AssertionError: {'blocker': 'request_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:20:02.273800', ...}",
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[lease_row] - AssertionError: {'blocker': 'lease_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:20:04.957991', ...}"
+  ],
+  "job_id": 127834702250,
+  "result": [
+   "================== 2 failed, 424 passed in 518.86s (0:08:38) ==================="
+  ]
+ },
+ "rcsi-on_read-committed": {
+  "failed": [
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[request_row] - AssertionError: {'blocker': 'request_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:19:35.302818', ...}",
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[lease_row] - AssertionError: {'blocker': 'lease_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:19:37.979832', ...}"
+  ],
+  "job_id": 127834702239,
+  "result": [
+   "================== 2 failed, 424 passed in 497.08s (0:08:17) ==================="
+  ]
+ },
+ "rcsi-on_snapshot": {
+  "failed": [
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[request_row] - AssertionError: {'blocker': 'request_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:20:33.516188', ...}",
+   "FAILED tests/sql/test_r1_01_claim_validity.py::test_r1_01_expired_claim_never_acquires_lease[lease_row] - AssertionError: {'blocker': 'lease_row', 'schema': 'nexus', 'acquisition_was_blocked': True, 'claim_expires_at': '2026-11-06 10:20:36.208604', ...}"
+  ],
+  "job_id": 127834702258,
+  "result": [
+   "================== 2 failed, 424 passed in 544.85s (0:09:04) ==================="
+  ]
+ }
+}

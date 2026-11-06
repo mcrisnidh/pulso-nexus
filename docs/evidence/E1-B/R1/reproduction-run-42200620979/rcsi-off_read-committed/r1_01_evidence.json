@@ -1,0 +1,136 @@
+[
+ {
+  "R1_01": "original_531107c",
+  "acquisition_was_blocked": true,
+  "attempts_rows": 1,
+  "blocker": "request_row",
+  "claim_expires_at": "2026-11-06 10:19:47.098237",
+  "generation_rows": 1,
+  "granted_after_claim_expiry": true,
+  "lease_acquired_events": [
+   "2026-11-06 10:19:47.647831"
+  ],
+  "lease_holder": "('lento',)",
+  "outcome": {
+   "acquired": true,
+   "reason": null
+  },
+  "released_at_server": "2026-11-06 10:19:47.643466",
+  "request": {
+   "attempts": 1,
+   "claim_token": "95135E95-39AA-49A1-B5D9-7F59DA456931",
+   "completed_attempt_id": null,
+   "max_attempts": 3,
+   "request_id": 5675,
+   "state": "RUNNING"
+  },
+  "request_id": 5675,
+  "schema": "nexus_r1_original"
+ },
+ {
+  "R1_01": "original_531107c",
+  "acquisition_was_blocked": true,
+  "attempts_rows": 1,
+  "blocker": "lease_row",
+  "claim_expires_at": "2026-11-06 10:19:49.787212",
+  "generation_rows": 1,
+  "granted_after_claim_expiry": true,
+  "lease_acquired_events": [
+   "2026-11-06 10:19:50.331568"
+  ],
+  "lease_holder": "('lento',)",
+  "outcome": {
+   "acquired": true,
+   "reason": null
+  },
+  "released_at_server": "2026-11-06 10:19:50.327491",
+  "request": {
+   "attempts": 1,
+   "claim_token": "9DCC0854-B56B-44E4-80E3-4ACA98829486",
+   "completed_attempt_id": null,
+   "max_attempts": 3,
+   "request_id": 5676,
+   "state": "RUNNING"
+  },
+  "request_id": 5676,
+  "schema": "nexus_r1_original"
+ },
+ {
+  "R1_01": "corrected",
+  "acquisition_was_blocked": true,
+  "attempts_rows": 1,
+  "blocker": "request_row",
+  "claim_expires_at": "2026-11-06 10:19:52.437856",
+  "generation_rows": 1,
+  "granted_after_claim_expiry": true,
+  "lease_acquired_events": [
+   "2026-11-06 10:19:52.974008"
+  ],
+  "lease_holder": "('lento',)",
+  "outcome": {
+   "acquired": true,
+   "reason": null
+  },
+  "recovered": [
+   0,
+   0
+  ],
+  "released_at_server": "2026-11-06 10:19:52.974008",
+  "request": {
+   "attempts": 1,
+   "claim_token": "612DDD28-D744-4A32-BC0A-CD28015391F3",
+   "completed_attempt_id": null,
+   "max_attempts": 3,
+   "request_id": 5677,
+   "state": "RUNNING"
+  },
+  "request_after_recover": {
+   "attempts": 1,
+   "claim_token": "612DDD28-D744-4A32-BC0A-CD28015391F3",
+   "completed_attempt_id": null,
+   "max_attempts": 3,
+   "request_id": 5677,
+   "state": "RUNNING"
+  },
+  "schema": "nexus"
+ },
+ {
+  "R1_01": "corrected",
+  "acquisition_was_blocked": true,
+  "attempts_rows": 1,
+  "blocker": "lease_row",
+  "claim_expires_at": "2026-11-06 10:19:55.100260",
+  "generation_rows": 1,
+  "granted_after_claim_expiry": true,
+  "lease_acquired_events": [
+   "2026-11-06 10:19:55.689162"
+  ],
+  "lease_holder": "('lento',)",
+  "outcome": {
+   "acquired": true,
+   "reason": null
+  },
+  "recovered": [
+   0,
+   0
+  ],
+  "released_at_server": "2026-11-06 10:19:55.685092",
+  "request": {
+   "attempts": 1,
+   "claim_token": "45C61CB3-2BA2-46A0-8D89-9166023CEA13",
+   "completed_attempt_id": null,
+   "max_attempts": 3,
+   "request_id": 5678,
+   "state": "RUNNING"
+  },
+  "request_after_recover": {
+   "attempts": 1,
+   "claim_token": "45C61CB3-2BA2-46A0-8D89-9166023CEA13",
+   "completed_attempt_id": null,
+   "max_attempts": 3,
+   "request_id": 5678,
+   "state": "RUNNING"
+  },
+  "schema": "nexus"
+ }
+]
