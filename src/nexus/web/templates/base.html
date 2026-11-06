@@ -1,0 +1,10 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PULSO NEXUS CORE</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body>
+<header><h1>PULSO NEXUS · CORE v1.0</h1>
+<span class="meta">Canal <strong>{{ channel }}</strong> · mes {{ month }}</span>
+{% if user %}<nav><a href="{{ url_for('board') }}">Junta</a><a href="{{ url_for('history') }}">Historial</a></nav>
+<span class="meta">{{ user.name }} ({{ user.roles|join(', ') }})</span>
+<form class="inline" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sec" type="submit">Salir</button></form>{% endif %}
+</header><main>
+{% if channel != 'operativo' %}<p class="banner syn">{{ 'REPLAY — NO OPERATIVO' if channel == 'replay' else 'DATOS SINTÉTICOS — NO OPERATIVO' }}</p>{% endif %}
+{% block content %}{% endblock %}</main></body></html>

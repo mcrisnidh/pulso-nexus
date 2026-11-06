@@ -14,6 +14,11 @@ dependencies = [
 [project.scripts]
 nexus = "nexus.cli:main"
 
+[project.optional-dependencies]
+web = [
+    "flask>=3.1,<4",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8",
@@ -22,6 +27,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "import-linter>=2",
+    "flask>=3.1,<4",
 ]
 
 [build-system]
@@ -110,7 +116,7 @@ type = "forbidden"
 source_modules = [
     "nexus.cli", "nexus.connectors", "nexus.contracts", "nexus.engines", "nexus.errors",
     "nexus.hashing", "nexus.normalize", "nexus.pipeline", "nexus.sealed", "nexus.snapshots",
-    "nexus.storage",
+    "nexus.storage", "nexus.core", "nexus.web",
 ]
 forbidden_modules = ["pyodbc"]
 allow_indirect_imports = true  # la regla es sobre imports DIRECTOS; el CLI usa metadata
@@ -173,3 +179,31 @@ name = "pipeline no depende del CLI"
 type = "forbidden"
 source_modules = ["nexus.pipeline"]
 forbidden_modules = ["nexus.cli"]
+
+[[tool.importlinter.contracts]]
+name = "CORE C4: el cálculo de cobertura es puro (sin E/S, sin estado, sin CS, sin web)"
+type = "forbidden"
+source_modules = ["nexus.core.coverage", "nexus.core.rules"]
+forbidden_modules = [
+    "nexus.storage", "nexus.metadata", "nexus.pipeline", "nexus.web", "nexus.core.state",
+    "nexus.core.refresh", "nexus.core.cs", "nexus.core.read", "nexus.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "CORE C7: Frozen, Refresh, publicación y lectura no conocen las notas CS"
+type = "forbidden"
+source_modules = [
+    "nexus.core.refresh", "nexus.core.state", "nexus.core.coverage", "nexus.core.sources",
+    "nexus.core.read", "nexus.core.demo",
+]
+forbidden_modules = ["nexus.core.cs", "nexus.web"]
+
+[[tool.importlinter.contracts]]
+name = "CORE C6: la web solo lee lo publicado (no importa cálculo, adaptadores ni motores)"
+type = "forbidden"
+source_modules = ["nexus.web"]
+forbidden_modules = [
+    "nexus.core.coverage", "nexus.core.sources", "nexus.planning", "nexus.engines",
+    "nexus.normalize", "nexus.connectors", "nexus.pipeline", "nexus.metadata",
+]
+allow_indirect_imports = true  # la web usa RefreshService/PublishedReader como fachada

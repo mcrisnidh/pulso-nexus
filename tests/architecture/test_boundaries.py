@@ -90,10 +90,16 @@ def test_only_pipeline_integrates_engines_and_normalizers() -> None:
 
 
 def test_no_web_layer_in_e1a() -> None:
-    assert not (SRC / "web").exists()
+    """E1-A prohibía toda capa web. CORE v1.0 (Hito A, autorizado) añade ÚNICAMENTE
+    ``nexus.web`` (Flask, solo loopback): ningún otro paquete —E1-A, E1-B, Pilot-20 ni el núcleo
+    CORE— puede importar un framework web, y no se admite ningún otro framework."""
     for path in SRC.rglob("*.py"):
         names = _imports(ast.parse(path.read_text("utf-8")))
-        assert not {n for n in names if n.split(".")[0] in {"fastapi", "flask", "django"}}
+        web = {n for n in names if n.split(".")[0] in {"fastapi", "flask", "django"}}
+        if path.is_relative_to(SRC / "web"):
+            assert {n.split(".")[0] for n in web} <= {"flask"}, (path, web)
+        else:
+            assert not web, (path, web)
 
 
 def test_import_linter_contracts_pass() -> None:

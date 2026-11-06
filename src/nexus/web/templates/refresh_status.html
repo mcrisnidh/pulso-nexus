@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block content %}<h2>Refresh</h2>
+<p>Solicitud: {% if status %}<strong>{{ status.state }}</strong> (intentos {{ status.attempts }}/{{ status.max_attempts }}){% else %}no encontrada en este proceso{% endif %}</p>
+<p><a href="{{ url_for('refresh_status', k=key) }}">Actualizar estado</a> · <a href="{{ url_for('board') }}">Volver a la junta</a></p>
+<h2>Últimos eventos</h2><table><tbody>{% for e in events|reverse %}<tr><td>{{ e.server_ts }}</td><td>{{ e.kind }}</td><td><code>{{ e.detail|tojson }}</code></td></tr>{% endfor %}</tbody></table>{% endblock %}

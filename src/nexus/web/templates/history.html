@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block content %}<h2>Publicaciones</h2>
+{% if chain %}<p class="banner err">Cadena de publicaciones con problemas: {{ chain|join('; ') }}</p>{% endif %}
+<div class="scroll"><table><thead><tr><th>#</th><th>Acción</th><th>Generación</th><th>Mes</th><th>Actor</th><th>Instante</th><th></th></tr></thead><tbody>
+{% for p in publications|reverse %}<tr><td>{{ p.seq }}</td><td>{{ p.action }}</td><td><code>{{ p.gen_id }}</code></td><td>{{ p.month }}</td><td>{{ p.actor }}</td><td>{{ p.server_ts }}</td>
+<td>{% if user and 'admin' in user.roles and not loop.first %}<form class="inline" method="post" action="{{ url_for('rollback') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="gen_id" value="{{ p.gen_id }}"><button class="sec" type="submit">Volver a esta</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>Eventos</h2><div class="scroll"><table><tbody>{% for e in events|reverse %}<tr><td>{{ e.server_ts }}</td><td>{{ e.kind }}</td><td><code>{{ e.detail|tojson }}</code></td></tr>{% endfor %}</tbody></table></div>{% endblock %}

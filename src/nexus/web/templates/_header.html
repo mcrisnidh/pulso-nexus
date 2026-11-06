@@ -1,0 +1,10 @@
+{% if pub.error %}<p class="banner err">Error de integridad en el corte publicado: {{ pub.error }}. No se muestran cifras.</p>
+{% elif not pub.head %}<p class="banner prov">Aún no hay un corte publicado en este canal.</p>
+{% else %}
+{% set s = pub.summary %}{% set m = pub.manifest %}
+{% if not s.rules.fully_approved %}<p class="banner prov">PROVISIONAL — reglas {{ s.rules.version }} ({{ s.rules.approval }}): ninguna cifra es KPI oficial.</p>{% endif %}
+<p class="meta">Mes {{ m.month }} · Frozen 29 OERAS {{ m.sources.frozen.oeras_29.instant }} ({{ m.sources.frozen.oeras_29.file }})
+· Frozen Portal {{ m.sources.frozen.portal_cat.instant }} · corte FG/embarques {{ s.cut_ts }}
+· generación <code>{{ pub.head.gen_id }}</code> (publicación #{{ pub.head.seq }}, {{ pub.head.action }}, {{ pub.head.server_ts }})
+· manifiesto <code>{{ pub.head.manifest_sha256[:16] }}…</code> · reglas {{ s.rules.version }}</p>
+{% endif %}

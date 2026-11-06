@@ -7,6 +7,8 @@ Comandos:
   nexus replay   --store DIR --run-id ID [--level L1|L2|L3] [--threads N]
   nexus verify   --store DIR --all
   nexus planning --dataset DIR --rules FILE --out DIR [--layout FILE] [--item ITEM]...
+  nexus core init-demo|refresh|status|rollback --data DIR --channel CANAL ...   (CORE v1.0)
+  nexus web --data DIR --channel CANAL [--port N] [--simulate-start ISO]       (solo loopback)
 
 La ejecución manual y la programada usan exactamente el mismo comando ``run``.
 El planificador solo debe invocarlo con ``--trigger scheduled``.
@@ -227,7 +229,70 @@ def _cmd_planning(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def build_parser() -> argparse.ArgumentParser:
+LOOPBACK = ("127.0.0.1", "::1", "localhost")
+
+
+def _core_clock(args: argparse.Namespace) -> Any:
+    import datetime as dt  # noqa: PLC0415
+
+    start = getattr(args, "now", None) or getattr(args, "simulate_start", None)
+    if not start:
+        return None
+    fixed = dt.datetime.fromisoformat(str(start).replace("Z", "+00:00"))
+    origin = dt.datetime.now(dt.UTC)
+    return lambda: fixed + (dt.datetime.now(dt.UTC) - origin)
+
+
+def _cmd_core(args: argparse.Namespace) -> int:
+    from pathlib import Path  # noqa: PLC0415
+
+    from nexus.core.refresh import RefreshService  # noqa: PLC0415
+
+    data = Path(args.data)
+    if args.core_command == "init-demo":
+        from nexus.core.demo import scenario  # noqa: PLC0415
+
+        paths = scenario(data)
+        _emit({"data": str(data), "rules": str(paths["rules"]), "users": str(paths["users"])})
+        return EXIT_OK
+    clock = _core_clock(args)
+    service = RefreshService(
+        data, args.channel, data / "rules.json", **({"clock": clock} if clock else {})
+    )
+    if args.core_command == "refresh":
+        result = service.refresh(args.actor, args.month)
+        _emit(
+            {"request": result["request"], "outcomes": result["outcomes"], "head": result["head"]}
+        )
+    elif args.core_command == "status":
+        _emit(
+            {
+                "head": service.state.publication_head(args.channel),
+                "frozen": service.state.list_frozen(args.channel),
+                "chain_problems": service.state.verify_publication_chain(args.channel),
+            }
+        )
+    else:
+        _emit(service.rollback(args.to, args.actor))
+    return EXIT_OK
+
+
+def _cmd_web(args: argparse.Namespace) -> int:
+    from pathlib import Path  # noqa: PLC0415
+
+    if args.host not in LOOPBACK:
+        raise ConfigurationError(
+            f"--host {args.host!r} rechazado: el prototipo solo escucha en loopback (127.0.0.1/::1)"
+        )
+    from nexus.web import create_app  # noqa: PLC0415
+
+    secret = os.environ.get("NEXUS_WEB_SECRET", "")
+    app = create_app(Path(args.data), args.channel, secret, clock=_core_clock(args))
+    app.run(host=args.host, port=args.port, debug=False, use_reloader=False, threaded=True)
+    return EXIT_OK
+
+
+def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (declaración lineal de la CLI)
     parser = argparse.ArgumentParser(prog="nexus", description="PULSO NEXUS — núcleo E1-A")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -285,6 +350,32 @@ def build_parser() -> argparse.ArgumentParser:
     p_plan.add_argument("--item", action="append", default=[], help="limitar a uno o más ITEM")
     p_plan.add_argument("--allow-out-in-repo", action="store_true")
     p_plan.set_defaults(func=_cmd_planning)
+
+    p_core = sub.add_parser("core", help="CORE v1.0: Frozen, Refresh y publicación (offline)")
+    core_sub = p_core.add_subparsers(dest="core_command", required=True)
+    for name in ("init-demo", "refresh", "status", "rollback"):
+        cp = core_sub.add_parser(name)
+        cp.add_argument("--data", required=True)
+        cp.add_argument(
+            "--channel", default="sintetico", choices=["sintetico", "replay", "operativo"]
+        )
+        cp.add_argument("--now", default=None, help="reloj simulado (ISO UTC) para la demo")
+        cp.add_argument("--actor", default="cli")
+        if name == "refresh":
+            cp.add_argument("--month", default=None)
+        if name == "rollback":
+            cp.add_argument("--to", required=True)
+        cp.set_defaults(func=_cmd_core)
+
+    p_web = sub.add_parser("web", help="CORE v1.0: web mínima (solo loopback, sin debug)")
+    p_web.add_argument("--data", required=True)
+    p_web.add_argument(
+        "--channel", default="sintetico", choices=["sintetico", "replay", "operativo"]
+    )
+    p_web.add_argument("--host", default="127.0.0.1")
+    p_web.add_argument("--port", type=int, default=8765)
+    p_web.add_argument("--simulate-start", default=None, help="reloj simulado (ISO UTC)")
+    p_web.set_defaults(func=_cmd_web)
     return parser
 
 

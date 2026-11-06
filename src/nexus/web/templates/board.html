@@ -1,0 +1,21 @@
+{% extends 'base.html' %}{% block content %}
+{% include '_header.html' %}
+{% for a in alerts %}<p class="banner err">{{ a.kind }}: {{ a.source_id }} — extracto {{ a.earlier_file }} ({{ a.earlier_instant }}) anterior al Frozen registrado ({{ a.frozen_instant }}). {{ a.action }}</p>{% endfor %}
+{% if user and 'refresher' in user.roles %}<form method="post" action="{{ url_for('refresh') }}" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Refresh</button> <span class="muted">Captura las fuentes, valida y publica solo si todo es válido; si falla, se conserva el corte actual.</span></form>{% endif %}
+{% if pub.summary %}{% set t = pub.summary.totals %}
+<div class="kpis">
+{% for k, label in [('demand','Debe entregar (demanda del mes)'),('attended','Entregado (embarques físicos)'),('pending','Pendiente'),('fg_assignable','FG disponible asignable'),('covered','Cubierto con FG'),('uncovered','Sin cubrir')] %}
+<div class="kpi"><div class="v">{{ t[k].known_sum }}</div><div class="l">{{ label }}{% if not t[k].complete %} · <strong>incompleto</strong>: {{ t[k].unknown_items|length }} ITEM desconocidos (no cero){% endif %}</div></div>{% endfor %}
+</div>
+<div class="scroll"><table><thead><tr><th>ITEM</th><th>Demanda</th><th>Entregado</th><th>Pendiente</th><th>FG asignable</th><th>Cubierto FG</th><th>Sin cubrir</th><th>Estatus CS</th><th>Fecha CS</th><th>Adelanto</th><th>Última nota</th></tr></thead><tbody>
+{% for item in items %}{% set r = pub.summary.rows[item] %}{% set c = cs[item] %}
+<tr><td><a href="{{ url_for('item_view', i=item) }}">{{ item }}</a></td>
+{% for k in ['demand','attended','pending','fg_assignable','covered','uncovered'] %}{% set f = r.facts[k] %}
+<td class="n">{{ fmt(f.value) }}<span class="st {{ f.status }}">{{ f.status }}</span><span class="tag {{ 'of' if r.kpi[k]=='OFICIAL' }}">{{ r.kpi[k] }}</span></td>{% endfor %}
+<td>{{ c.current.CS_STATUS.value if c.current.CS_STATUS else '—' }}</td>
+<td>{{ c.current.DELIVERY_DATE.value if c.current.DELIVERY_DATE else '—' }}</td>
+<td>{{ fmt(c.current.ADVANCE.value) if c.current.ADVANCE else '—' }}</td>
+<td>{% if c.last_note %}<span class="note">{{ c.last_note.value[:80] }}</span><span class="st">{{ c.last_note.author }} · {{ c.last_note.server_ts }}</span>{% else %}—{% endif %}</td></tr>
+{% endfor %}</tbody></table></div>
+<p class="meta">Campos CS = seguimiento manual (origen MANUAL_CS); no alteran el cálculo. Valores de meses anteriores: solo referencia en el detalle del ITEM.</p>
+{% endif %}{% endblock %}

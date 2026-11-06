@@ -1,0 +1,30 @@
+{
+  "schema": "nexus.core.layout/1",
+  "description": "Contratos lógicos CORE v1.0. Formato físico SINTÉTICO (CSV UTF-8) hasta contrastarlo con ejemplares reales autorizados en el Hito B.",
+  "sources": {
+    "oeras_29": {
+      "role": "29 OERAS: Frozen (primer extracto válido del mes) y Current (posteriores)",
+      "physical_format_status": "PROVISIONAL_PENDING_REAL_SAMPLE",
+      "instant_column": "extraction_ts",
+      "required_columns": ["extraction_ts", "source_system", "report_id", "item", "customer_key_exact", "customer_name", "order", "line", "due_date", "qty_ordered", "qty_open"]
+    },
+    "portal_cat": {
+      "role": "Portal CAT: Frozen CAT (primera captura cronológica válida del mes) y Current",
+      "physical_format_status": "PROVISIONAL_PENDING_REAL_SAMPLE",
+      "instant_column": "capture_ts",
+      "required_columns": ["capture_ts", "source_system", "item", "item_portal", "line_id", "status", "ordered_raw", "shipped_raw", "ship_date", "delivery_date"]
+    },
+    "fg_inventory": {
+      "role": "Inventario FG por stockroom en un instante de corte",
+      "physical_format_status": "PROVISIONAL_PENDING_REAL_SAMPLE",
+      "instant_column": "cut_ts",
+      "required_columns": ["cut_ts", "source_system", "item", "stockroom", "qty_physical", "qty_reserved"]
+    },
+    "shipments": {
+      "role": "Embarques FÍSICOS a cliente (nunca facturación); ventana [inicio del mes, cut_ts]",
+      "physical_format_status": "PROVISIONAL_PENDING_REAL_SAMPLE",
+      "instant_column": "cut_ts",
+      "required_columns": ["cut_ts", "source_system", "movement_id", "item", "customer_key_exact", "order", "line", "qty", "movement_ts", "movement_type", "reverses_movement_id", "uom"]
+    }
+  }
+}

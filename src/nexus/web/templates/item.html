@@ -1,0 +1,35 @@
+{% extends 'base.html' %}{% block content %}
+{% include '_header.html' %}<h2>ITEM {{ item }}</h2>
+{% if error %}<p class="banner err">Integridad: {{ error }}. No se muestran cifras de este ITEM.</p>{% endif %}
+{% if detail %}{% set cv = detail.coverage %}
+<section class="scroll"><table><thead><tr><th>Cifra</th><th>Valor</th><th>Estado</th><th>KPI</th><th>Limitaciones</th><th>Origen</th></tr></thead><tbody>
+{% for k in ['demand','attended','pending','fg_assignable','covered','uncovered'] %}{% set f = cv.facts[k] %}
+<tr><td>{{ k }}</td><td class="n">{{ fmt(f.value) }}</td><td><span class="st {{ f.status }}">{{ f.status }}</span></td><td>{{ cv.kpi[k] }}</td>
+<td>{% for l in f.limitations %}{{ l }}<br>{% endfor %}</td><td>{% for p in f.provenance %}{{ p.source_id }} · {{ p.file }} · líneas {{ p.lines|join(',') }}<br>{% endfor %}</td></tr>{% endfor %}
+</tbody></table></section>
+<section><h2>Demanda congelada del mes (unidades)</h2><div class="scroll"><table><thead><tr><th>Tipo</th><th>Clase</th><th>Cliente</th><th>Pedido</th><th>Línea</th><th>Entrega</th><th>Demanda</th><th>Atendida exacta</th><th>Atendida agregada</th><th>Pendiente</th><th>Notas</th></tr></thead><tbody>
+{% for u in cv.units %}<tr><td>{{ u.kind }}</td><td>{{ u.customer_class }}</td><td><code>{{ u.customer_key }}</code></td><td>{{ u.order }}</td><td>{{ u.line }}</td><td>{{ u.due }}{% if u.overdue %} (vencida){% endif %}</td>
+<td class="n">{{ fmt(u.demand) }}</td><td class="n">{{ u.attended_exact }}</td><td class="n">{{ u.attended_aggregate }}</td><td class="n">{{ fmt(u.pending) }}</td><td>{{ u.reasons|join('; ') }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="meta">Cobertura por línea: {{ cv.line_coverage.status }} {{ cv.line_coverage.reason or '' }}</p></section>
+<section><h2>FG por stockroom</h2><table><thead><tr><th>Stockroom</th><th>Física</th><th>Reservada</th><th>Usable</th></tr></thead><tbody>
+{% for r in cv.fg_detail %}<tr><td>{{ r.stockroom }}</td><td class="n">{{ fmt(r.qty_physical) }}</td><td class="n">{{ fmt(r.qty_reserved) }}</td><td>{{ 'sí' if r.usable else 'no (separado)' }}</td></tr>{% else %}<tr><td colspan="4">Sin registros (desconocido, no cero)</td></tr>{% endfor %}</tbody></table></section>
+{% if detail.current_vs_frozen %}<p class="meta">Current 29 OERAS ({{ detail.current_vs_frozen.current_instant }}) frente al Frozen: +{{ detail.current_vs_frozen.added }} / −{{ detail.current_vs_frozen.removed }} / Δ{{ detail.current_vs_frozen.changed }} líneas (informativo; el Frozen no cambia).</p>{% endif %}
+{% endif %}
+<section><h2>Customer Service</h2><p class="meta">Notas y seguimiento manual (MANUAL_CS), independientes de las generaciones: Refresh y rollback no las modifican.</p>
+{% for t in threads %}<div class="card"><strong>Asociación:</strong> ITEM {{ t.item }}{% if t.customer_key %} · cliente <code>{{ t.customer_key }}</code>{% endif %}{% if t.order %} · pedido {{ t.order }}{% endif %}{% if t.line %} · línea {{ t.line }}{% endif %}
+· {{ t.versions|length }} versiones · <a href="{{ url_for('cs_history', t=t.thread_id) }}">historial</a>
+<div class="grid2">{% for k in ['CS_STATUS','DELIVERY_DATE','ADVANCE'] %}<div><span class="muted">{{ k }} ({{ month }}):</span> {% if t.state.current[k] %}<strong>{{ fmt(t.state.current[k].value) }}</strong> <span class="st">{{ t.state.current[k].author }} · {{ t.state.current[k].server_ts }}</span>{% else %}—{% endif %}
+{% if t.state.reference[k] %}<span class="st">Ref. {{ t.state.reference[k].valid_month }}: {{ fmt(t.state.reference[k].value) }} — requiere reconfirmar</span>{% endif %}</div>{% endfor %}</div>
+{% if t.state.last_note %}<p class="note">{{ t.state.last_note.value }}</p><span class="st">{{ t.state.last_note.author }} · {{ t.state.last_note.server_ts }}</span>{% endif %}
+{% if user and 'cs_editor' in user.roles %}<form method="post" action="{{ url_for('cs_append') }}" class="grid2">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="item" value="{{ t.item }}"><input type="hidden" name="customer_key" value="{{ t.customer_key }}"><input type="hidden" name="order" value="{{ t.order }}"><input type="hidden" name="line" value="{{ t.line }}"><input type="hidden" name="expected_version" value="{{ t.versions|length }}">
+<select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select>
+<input name="value" placeholder="Nota / estatus ({{ vocabulary|join(', ') }}) / fecha AAAA-MM-DD / cantidad / versión a retirar" required>
+<input name="date" placeholder="Fecha del adelanto (opcional)"><input name="reason" placeholder="Motivo (opcional)"><button type="submit">Guardar versión</button></form>{% endif %}
+</div>{% endfor %}
+{% if user and 'cs_editor' in user.roles %}<form method="post" action="{{ url_for('cs_append') }}" class="card grid2"><strong>Nuevo seguimiento</strong>
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="item" value="{{ item }}"><input type="hidden" name="expected_version" value="0">
+<input name="customer_key" placeholder="Cliente exacto (opcional)"><input name="order" placeholder="Pedido (opcional)"><input name="line" placeholder="Línea (opcional)">
+<select name="kind">{% for k in kinds if k != 'RETRACT' %}<option>{{ k }}</option>{% endfor %}</select><input name="value" required placeholder="Valor"><input name="date" placeholder="Fecha del adelanto (opcional)"><button type="submit">Crear</button></form>{% endif %}
+</section>{% endblock %}

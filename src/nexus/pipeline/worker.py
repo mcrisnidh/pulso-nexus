@@ -21,6 +21,19 @@ from nexus.pipeline.run import execute
 from nexus.storage.object_store import LocalObjectStore
 
 StageHook = Callable[[str], None]
+# Ejecutor enchufable (CORE v1.0): recibe el almacén y el payload de la solicitud y devuelve un
+# run_record con run_id, input_digest, result_digest y artifacts. Por defecto, el pipeline E1-A.
+Executor = Callable[[LocalObjectStore, dict[str, Any]], dict[str, Any]]
+
+
+def _default_executor(store: LocalObjectStore, payload: dict[str, Any]) -> dict[str, Any]:
+    return execute(
+        store,
+        snapshot_id=str(payload["snapshot_id"]),
+        as_of=str(payload["as_of"]),
+        params=dict(payload.get("params", {})),
+        trigger=str(payload.get("trigger", "manual")),
+    )
 
 
 @dataclass(frozen=True)
@@ -57,6 +70,7 @@ def work_once(
     profile: Profile,
     worker: str,
     hook: StageHook | None = None,
+    executor: Executor | None = None,
 ) -> WorkOutcome:
     def stage(name: str) -> None:
         if hook is not None:
@@ -81,13 +95,7 @@ def work_once(
     beat.start()
     try:
         payload: dict[str, Any] = claim.payload
-        record = execute(
-            store,
-            snapshot_id=str(payload["snapshot_id"]),
-            as_of=str(payload["as_of"]),
-            params=dict(payload.get("params", {})),
-            trigger=str(payload.get("trigger", "manual")),
-        )
+        record = (executor or _default_executor)(store, payload)
         stage("after_execute")
         if beat.lost is not None:
             raise beat.lost
