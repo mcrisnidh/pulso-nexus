@@ -224,11 +224,15 @@ BEGIN
         THROW 50010, N'NEXUS:FENCED token obsoleto o lease vencido', 1;
     END;
     -- FENCE:END
+    -- Por clave primaria (scope): un UPDATE por attempt_id recorría pk_scope_lease tomando U sobre
+    -- filas de otros workers -> interbloqueos complete/complete (grafos de system_health en CI).
+    DECLARE @lease_key nvarchar(128) = (SELECT scope FROM nexus.attempt WHERE attempt_id = @attempt_id);
     UPDATE nexus.scope_lease
     SET expires_at = DATEADD(millisecond, @lease_ms, SYSUTCDATETIME())
-    WHERE attempt_id = @attempt_id AND fencing_token = @fencing_token;
+    WHERE scope = @lease_key AND attempt_id = @attempt_id AND fencing_token = @fencing_token;
     COMMIT TRANSACTION;
-    SELECT expires_at, SYSUTCDATETIME() AS server_ts FROM nexus.scope_lease WHERE attempt_id = @attempt_id;
+    SELECT expires_at, SYSUTCDATETIME() AS server_ts FROM nexus.scope_lease
+    WHERE scope = @lease_key AND attempt_id = @attempt_id;
 END;
 GO
 
@@ -484,8 +488,11 @@ BEGIN
     UPDATE nexus.run_request
     SET state = N'COMPLETED', completed_attempt_id = @sealed
     WHERE request_id = @request_id AND state = N'RUNNING';
+    -- Por clave primaria (scope): un UPDATE por attempt_id recorría pk_scope_lease tomando U sobre
+    -- filas de otros workers -> interbloqueos complete/complete (grafos de system_health en CI).
+    DECLARE @lease_key nvarchar(128) = (SELECT scope FROM nexus.attempt WHERE attempt_id = @attempt_id);
     UPDATE nexus.scope_lease SET holder = NULL, attempt_id = NULL, expires_at = NULL
-    WHERE attempt_id = @attempt_id AND fencing_token = @fencing_token;
+    WHERE scope = @lease_key AND attempt_id = @attempt_id AND fencing_token = @fencing_token;
     INSERT INTO nexus.run_event (kind, request_id, attempt_id, fencing_token, detail)
     VALUES (N'COMPLETED', @request_id, @attempt_id, @fencing_token, @sealed);
     COMMIT TRANSACTION;
@@ -531,8 +538,11 @@ BEGIN
         claim_token = NULL, claimed_by = NULL, claim_expires_at = NULL,
         not_before = DATEADD(millisecond, @backoff_ms, SYSUTCDATETIME())
     WHERE request_id = @request_id AND state = N'RUNNING';
+    -- Por clave primaria (scope): un UPDATE por attempt_id recorría pk_scope_lease tomando U sobre
+    -- filas de otros workers -> interbloqueos complete/complete (grafos de system_health en CI).
+    DECLARE @lease_key nvarchar(128) = (SELECT scope FROM nexus.attempt WHERE attempt_id = @attempt_id);
     UPDATE nexus.scope_lease SET holder = NULL, attempt_id = NULL, expires_at = NULL
-    WHERE attempt_id = @attempt_id AND fencing_token = @fencing_token;
+    WHERE scope = @lease_key AND attempt_id = @attempt_id AND fencing_token = @fencing_token;
     INSERT INTO nexus.run_event (kind, request_id, attempt_id, fencing_token, detail)
     VALUES (N'FAILED', @request_id, @attempt_id, @fencing_token, @reason);
     COMMIT TRANSACTION;

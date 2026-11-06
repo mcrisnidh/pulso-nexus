@@ -116,3 +116,10 @@ def test_no_range_locks_where_lease_row_already_serializes(proc: str) -> None:
     fence = re.sub(r"DECLARE @fence_scope.*?THROW 50010", "", code, flags=re.DOTALL)
     for hint in re.findall(r"(\w+(?:\s+AS\s+\w+)?)\s+WITH\s*\(([^()]*)\)", fence):
         assert "HOLDLOCK" not in hint[1].upper() or "scope_lease" in hint[0], (proc, hint)
+
+
+def test_scope_lease_written_only_by_primary_key() -> None:
+    """Regresión (grafos de interbloqueo reales): toda escritura en scope_lease filtra por scope."""
+    code = _code(SQL["0002_procedures.sql"])
+    for stmt in re.findall(r"UPDATE nexus\.scope_lease.*?;", code, flags=re.DOTALL):
+        assert re.search(r"WHERE\s+scope\s*=", stmt), stmt
