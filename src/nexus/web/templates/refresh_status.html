@@ -1,4 +1,35 @@
-{% extends 'base.html' %}{% block content %}<h2>Refresh</h2>
-<p>Solicitud: {% if status %}<strong>{{ status.state }}</strong> (intentos {{ status.attempts }}/{{ status.max_attempts }}){% else %}no encontrada en este proceso{% endif %}</p>
-<p><a href="{{ url_for('refresh_status', k=key) }}">Actualizar estado</a> · <a href="{{ url_for('board') }}">Volver a la junta</a></p>
-<h2>Últimos eventos</h2><table><tbody>{% for e in events|reverse %}<tr><td>{{ e.server_ts }}</td><td>{{ e.kind }}</td><td><code>{{ e.detail|tojson }}</code></td></tr>{% endfor %}</tbody></table>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Refresh{% endblock %}
+{% block content %}
+<nav class="crumbs" aria-label="Ruta"><a href="{{ url_for('board') }}">Junta</a> › Refresh</nav>
+<div class="page-head"><div><h1>Estado del Refresh</h1><div class="sub">{% if auto_reload %}Esta página se actualiza sola cada 2 segundos mientras el proceso sigue en curso.{% else %}Proceso terminado.{% endif %}</div></div></div>
+{% set ph = view.phase %}
+<section class="card state-card" role="status" aria-live="polite">
+  <span class="state-dot {{ 'ok' if ph in ('published', 'unchanged') else ('err' if ph in ('not_published', 'failed') else 'run') }}" aria-hidden="true"></span>
+  <div>
+  {% if ph == 'pending' %}<h2>Pendiente</h2><p>La solicitud está en cola y comenzará en un momento.</p>
+  {% elif ph == 'running' %}<h2>En ejecución</h2><p>Capturando y validando fuentes, calculando la cobertura.</p>
+  {% elif ph == 'publishing' %}<h2>Publicando…</h2><p>El cálculo terminó y la publicación se está comprobando. Aún no se considera publicado.</p>
+  {% elif ph == 'published' %}<h2>Publicado</h2>
+    <p>Corte publicado como <strong>publicación #{{ view.publication.seq }}</strong> el {{ view.publication.server_ts|datetime_es }}.
+    {% if view.is_current %}Es el corte vigente.{% else %}Ya fue reemplazado por una publicación posterior.{% endif %}</p>
+    <p><a class="btn" href="{{ url_for('board') }}">Ver la junta</a></p>
+  {% elif ph == 'unchanged' %}<h2>Sin cambios</h2>
+    <p>Las fuentes no cambiaron desde la <strong>publicación #{{ view.publication.seq }}</strong> ({{ view.publication.server_ts|datetime_es }}): ese resultado {{ 'sigue siendo el corte vigente' if view.is_current else 'ya fue publicado antes y luego reemplazado' }}. No se creó una publicación nueva.</p>
+    <p><a class="btn" href="{{ url_for('board') }}">Ver la junta</a></p>
+  {% elif ph == 'not_published' %}<h2>No publicado</h2>
+    <p>La actualización no pasó la validación y <strong>no se publicó</strong>. Los datos del último corte válido siguen disponibles{% if head %} (publicación #{{ head.seq }}, {{ head.server_ts|datetime_es }}){% endif %}.</p>
+    <ul>{% for r in view.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+    <p><a class="btn secondary" href="{{ url_for('board') }}">Volver a la junta</a></p>
+  {% elif ph == 'failed' %}<h2>Fallido</h2>
+    <p>El proceso falló tras agotar sus reintentos. <strong>No se publicó nada</strong>; el último corte válido sigue disponible{% if head %} (publicación #{{ head.seq }}){% endif %}.</p>
+    <ul>{% for r in view.reasons %}<li class="small">{{ r }}</li>{% endfor %}</ul>
+  {% else %}<h2>Solicitud no encontrada</h2><p>Esta solicitud no pertenece a la sesión actual del servidor (por ejemplo, tras un reinicio). Consulte el historial de eventos.</p>{% endif %}
+  {% if view.status %}<p class="small muted">Solicitud #{{ view.request_id }} · estado interno {{ view.status.state }} · intentos {{ view.status.attempts }}/{{ view.status.max_attempts }}</p>{% endif %}
+  {% if auto_reload %}<p><a href="{{ url_for('refresh_status', k=key) }}">Actualizar ahora</a></p>{% endif %}
+  </div>
+</section>
+<section class="card"><h2>Últimos eventos</h2>
+<ul class="timeline">{% for e in (view.events[-8:])|reverse %}<li><time datetime="{{ e.server_ts }}">{{ e.server_ts|datetime_es }}</time><span>{{ e.kind|event_label }}</span></li>{% endfor %}</ul>
+<p class="small"><a href="{{ url_for('history') }}">Ver historial completo</a></p></section>
+{% endblock %}

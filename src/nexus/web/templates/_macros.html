@@ -1,0 +1,71 @@
+{% macro badge_status(status) -%}
+{%- if status == 'PROVISIONAL_CALCULATED' -%}<span class="badge neutral">{{ status|status_label }}</span>
+{%- elif status in ('UNKNOWN_NOT_ZERO', 'NOT_CERTIFIABLE', 'TEMPORAL_MISMATCH') -%}<span class="badge warn">{{ status|status_label }}</span>
+{%- elif status in ('BLOCKED_SOURCE', 'BLOCKED_CRC') -%}<span class="badge err">{{ status|status_label }}</span>
+{%- else -%}<span class="badge info">{{ status|status_label }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro kpi_chip(kpi) -%}
+{%- if kpi == 'OFICIAL' -%}<span class="badge oficial">✓ KPI oficial</span>{%- else -%}<span class="badge prov">Provisional</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro cell(fact) -%}
+{%- if fact.value is none -%}<span class="unknown" title="{{ fact.status|status_label }}">—</span><span class="sd" title="{{ fact.status|status_label }}">{{ 'no cert.' if fact.status == 'NOT_CERTIFIABLE' else 's/d' }}</span>{%- else -%}{{ fact.value|num }}{%- endif -%}
+{%- endmacro %}
+
+{% macro value(fact) -%}
+{%- if fact.value is none -%}<span class="unknown">—</span> {{ badge_status(fact.status) }}{%- else -%}{{ fact.value|num }}{%- endif -%}
+{%- endmacro %}
+
+{% macro bar(b, cls='bar', label='') -%}
+<svg class="{{ cls }}" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="{{ label }}{% for s in b.segments %}{{ s.label }} {{ s.pct }}%{{ ', ' if not loop.last }}{% endfor %}">
+{%- for s in b.segments if s.width > 0 %}<rect class="seg-{{ s.key }}" x="{{ s.x }}" y="0" width="{{ s.width }}" height="10"></rect>{% endfor -%}
+</svg>
+{%- endmacro %}
+
+{% macro legend(b) -%}
+<div class="legend">{% for s in b.segments %}<span><span class="sw {{ s.key }}" aria-hidden="true"></span>{{ s.label }} <strong>{{ s.qty|num }}</strong> ({{ s.pct }}%)</span>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro cut_strip(pub, show_refresh=False) -%}
+{% set s = pub.summary %}{% set m = pub.manifest %}
+<section class="card" aria-labelledby="cut-title">
+  <h2 id="cut-title" class="sr-only">Último corte válido</h2>
+  <div class="cut">
+    <div><div class="label">Último corte válido</div>
+      <div class="value">Publicación #{{ pub.head.seq }} <span class="muted">· {{ pub.head.server_ts|datetime_es }}</span></div>
+      <div class="small muted">{{ 'Rollback' if pub.head.action == 'ROLLBACK' else 'Publicado' }} por {{ pub.head.actor }}</div></div>
+    <div><div class="label">Corte FG y embarques</div><div class="value">{{ s.cut_ts|datetime_es }}</div></div>
+    <div><div class="label">Frozen 29 OERAS</div><div class="value">{{ m.sources.frozen.oeras_29.instant|datetime_es }}</div><div class="small muted">{{ m.sources.frozen.oeras_29.file }}</div></div>
+    <div><div class="label">Frozen Portal CAT</div><div class="value">{{ m.sources.frozen.portal_cat.instant|datetime_es }}</div><div class="small muted">{{ m.sources.frozen.portal_cat.file }}</div></div>
+    {% if show_refresh %}
+    <div class="action">
+      <form method="post" action="{{ url_for('refresh') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn lg" type="submit">↻ Refresh</button></form>
+      <span class="hint">Captura y valida las fuentes. Solo publica si todo es válido; si falla, se conserva este corte.</span>
+    </div>
+    {% endif %}
+  </div>
+  <details class="tech"><summary>Detalle técnico del corte</summary>
+    <dl>
+      <dt>Generación</dt><dd><code>{{ pub.head.gen_id }}</code></dd>
+      <dt>Manifiesto (SHA-256)</dt><dd><code>{{ pub.head.manifest_sha256 }}</code></dd>
+      <dt>Mes del Frozen</dt><dd>{{ m.month }}</dd>
+      <dt>Reglas</dt><dd>{{ s.rules.version }} · {{ s.rules.approval }} · <code>{{ s.rules.sha256[:16] }}…</code></dd>
+      <dt>Frozen 29 OERAS</dt><dd><code>{{ m.sources.frozen.oeras_29.sha256 }}</code></dd>
+      <dt>Frozen Portal</dt><dd><code>{{ m.sources.frozen.portal_cat.sha256 }}</code></dd>
+      <dt>FG</dt><dd>{{ m.sources.fg.file }} · <code>{{ m.sources.fg.sha256 }}</code></dd>
+      <dt>Embarques</dt><dd>{{ m.sources.shipments.file }} · <code>{{ m.sources.shipments.sha256 }}</code></dd>
+      <dt>Sistemas de origen</dt><dd>{{ m.sources.source_systems|join(', ') }}</dd>
+    </dl>
+  </details>
+</section>
+{%- endmacro %}
+
+{% macro notices(pub, failure=None, failure_reasons=None, alerts=()) -%}
+{% if pub.error %}<div class="notice err" role="alert"><span class="icon">!</span><p><strong>Error de integridad en el corte publicado.</strong> No se muestran cifras ({{ pub.error }}). Un administrador puede volver a una publicación anterior desde Historial.</p></div>
+{% elif not pub.head %}<div class="notice info"><span class="icon">i</span><p>Aún no hay un corte publicado en este canal. Un usuario con permiso de Refresh puede generarlo.</p></div>
+{% elif not pub.summary.rules.fully_approved %}<div class="notice prov"><span class="icon">!</span><p><strong>Cifras provisionales.</strong> Reglas {{ pub.summary.rules.version }} ({{ pub.summary.rules.approval }}): ninguna cifra es KPI oficial hasta aprobar las reglas comerciales y certificar las fuentes.</p></div>{% endif %}
+{% if failure %}<div class="notice err" role="alert"><span class="icon">!</span><div><p><strong>La última actualización no se publicó</strong> ({{ failure.server_ts|datetime_es }}). Se siguen mostrando los datos del último corte válido.</p>
+<ul>{% for r in failure_reasons(failure) %}<li>{{ r }}</li>{% endfor %}</ul></div></div>{% endif %}
+{% for a in alerts %}<div class="notice err"><span class="icon">!</span><p><strong>Conflicto de precedencia del Frozen ({{ a.source_id }}).</strong> Llegó el extracto {{ a.earlier_file }} ({{ a.earlier_instant|datetime_es }}), anterior al Frozen registrado ({{ a.frozen_instant|datetime_es }}). El Frozen no se reemplaza automáticamente: requiere procedimiento con doble aprobación.</p></div>{% endfor %}
+{%- endmacro %}

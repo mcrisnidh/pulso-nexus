@@ -1,10 +1,35 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PULSO NEXUS CORE</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body>
-<header><h1>PULSO NEXUS · CORE v1.0</h1>
-<span class="meta">Canal <strong>{{ channel }}</strong> · mes {{ month }}</span>
-{% if user %}<nav><a href="{{ url_for('board') }}">Junta</a><a href="{{ url_for('history') }}">Historial</a></nav>
-<span class="meta">{{ user.name }} ({{ user.roles|join(', ') }})</span>
-<form class="inline" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sec" type="submit">Salir</button></form>{% endif %}
-</header><main>
-{% if channel != 'operativo' %}<p class="banner syn">{{ 'REPLAY — NO OPERATIVO' if channel == 'replay' else 'DATOS SINTÉTICOS — NO OPERATIVO' }}</p>{% endif %}
-{% block content %}{% endblock %}</main></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% if auto_reload %}<meta http-equiv="refresh" content="2">{% endif %}
+<title>{% block title %}Junta operativa{% endblock %} · PULSO NEXUS</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="app-header">
+  <div class="bar">
+    <a class="brand" href="{{ url_for('board') }}" aria-label="PULSO NEXUS — inicio">
+      <span class="brand-mark" aria-hidden="true">PN</span>
+      <span><span class="brand-name">PULSO NEXUS</span><br><span class="brand-sub">CORE v1.0 · Junta operativa</span></span>
+    </a>
+    {% if user %}
+    <nav class="app-nav" aria-label="Principal">
+      <a href="{{ url_for('board') }}" {% if nav in ('board', 'item_view', 'cs_history') %}aria-current="page"{% endif %}>Junta</a>
+      <a href="{{ url_for('history') }}" {% if nav in ('history', 'refresh_status', 'rollback_confirm') %}aria-current="page"{% endif %}>Historial</a>
+    </nav>
+    <div class="app-user">
+      <span class="who"><strong>{{ user.name }}</strong> · {{ user.roles|join(', ') }}</span>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn-ghost-light" type="submit">Salir</button></form>
+    </div>
+    {% endif %}
+  </div>
+</header>
+{% if channel != 'operativo' %}<div class="env {{ 'replay' if channel == 'replay' else '' }}" role="note">{{ 'REPLAY HISTÓRICO — NO OPERATIVO' if channel == 'replay' else 'DATOS SINTÉTICOS — NO OPERATIVO' }} · canal {{ channel }}</div>{% endif %}
+<main id="contenido" tabindex="-1">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

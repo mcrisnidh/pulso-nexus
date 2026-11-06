@@ -1,0 +1,37 @@
+# Archivos modificados respecto de b2d6a76 (línea base del Hito A)
+ scripts/core_a_browser.js                   | 173 +++++++++++++----
+ scripts/core_a_demo.py                      |   2 +-
+ src/nexus/web/__init__.py                   | 179 +++++++++++++++--
+ src/nexus/web/static/style.css              | 289 ++++++++++++++++++++++++++--
+ src/nexus/web/templates/_header.html        |  10 -
+ src/nexus/web/templates/base.html           |  45 ++++-
+ src/nexus/web/templates/board.html          |  99 ++++++++--
+ src/nexus/web/templates/cs_history.html     |  25 ++-
+ src/nexus/web/templates/error.html          |  11 +-
+ src/nexus/web/templates/history.html        |  31 ++-
+ src/nexus/web/templates/item.html           | 153 +++++++++++----
+ src/nexus/web/templates/login.html          |  18 +-
+ src/nexus/web/templates/refresh_status.html |  39 +++-
+ tests/web/test_core_web.py                  |  88 +++++++--
+ 14 files changed, 981 insertions(+), 181 deletions(-)
+ M scripts/core_a_browser.js
+ M scripts/core_a_demo.py
+ M src/nexus/web/__init__.py
+ M src/nexus/web/static/style.css
+ D src/nexus/web/templates/_header.html
+ M src/nexus/web/templates/base.html
+ M src/nexus/web/templates/board.html
+ M src/nexus/web/templates/cs_history.html
+ M src/nexus/web/templates/error.html
+ M src/nexus/web/templates/history.html
+ M src/nexus/web/templates/item.html
+ M src/nexus/web/templates/login.html
+ M src/nexus/web/templates/refresh_status.html
+ M tests/web/test_core_web.py
+?? scripts/core_ui_screens.js
+?? src/nexus/web/present.py
+?? src/nexus/web/templates/_macros.html
+?? src/nexus/web/templates/rollback_confirm.html
+
+# Diff en código de cálculo, estado, publicación, metadatos, pipeline y planificación (debe estar vacío):
+0

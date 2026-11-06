@@ -1,0 +1,57 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0
+rootdir: /home/user/pulso-nexus
+configfile: pyproject.toml
+testpaths: tests
+plugins: hypothesis-6.170.14, cov-7.1.0
+collected 544 items / 115 deselected / 429 selected
+
+tests/adversarial/test_concurrency.py ..........                         [  2%]
+tests/adversarial/test_crash_injection.py ...................            [  6%]
+tests/adversarial/test_relocation.py ....                                [  7%]
+tests/adversarial/test_resealed_tampering.py .........                   [  9%]
+tests/adversarial/test_tampering.py .....                                [ 10%]
+tests/adversarial/test_toctou.py ......                                  [ 12%]
+tests/architecture/test_boundaries.py ........                           [ 14%]
+tests/architecture/test_forbidden_deps.py ....                           [ 15%]
+tests/architecture/test_manifest_hygiene.py ..                           [ 15%]
+tests/architecture/test_no_replace.py ...                                [ 16%]
+tests/contract/test_normalize_synthetic.py ......                        [ 17%]
+tests/contract/test_synthetic_contracts.py ..................            [ 21%]
+tests/core/test_core_cs.py ..................                            [ 26%]
+tests/core/test_core_engine.py ..................                        [ 30%]
+tests/core/test_core_refresh.py .........................                [ 36%]
+tests/planning/test_planning_pilot.py ...................                [ 40%]
+tests/planning/test_planning_real.py ssssssssssss                        [ 43%]
+tests/reproducibility/test_replay_levels.py ..........................   [ 49%]
+tests/reproducibility/test_run_twice.py ....                             [ 50%]
+tests/reproducibility/test_threads_tz.py ...                             [ 51%]
+tests/unit/test_fixtures_and_network.py ...                              [ 51%]
+tests/unit/test_hashing.py .............                                 [ 54%]
+tests/unit/test_manifest_and_cli.py .............                        [ 57%]
+tests/unit/test_metadata_core.py ...................                     [ 62%]
+tests/unit/test_object_store.py ........................................ [ 71%]
+............                                                             [ 74%]
+tests/unit/test_r1_02_reconcile_complete.py ..........                   [ 76%]
+tests/unit/test_r1_02_reconcile_original_gaps.py .                       [ 76%]
+tests/unit/test_sealed.py ...                                            [ 77%]
+tests/unit/test_snapshots.py ............                                [ 80%]
+tests/unit/test_sql_static.py .......................................... [ 90%]
+...............                                                          [ 93%]
+tests/unit/test_synthetic_sum.py ............                            [ 96%]
+tests/unit/test_worker_reconcile_memory.py ....                          [ 97%]
+tests/web/test_core_web.py ...........                                   [100%]
+
+- generated xml file: /home/user/pulso-nexus/docs/evidence/CORE-UI/test-results/junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/planning/test_planning_real.py:93: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:101: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:114: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:147: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:156: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:185: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:214: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [3] tests/planning/test_planning_real.py:224: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:249: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:260: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+=============== 417 passed, 12 skipped, 115 deselected in 43.94s ===============

@@ -32,6 +32,7 @@ from nexus.core.refresh import RefreshService, iso
 from nexus.core.state import PublicationConflictError, PublicationRefusedError
 from nexus.errors import IntegrityError
 from nexus.storage.object_store import LocalObjectStore
+from nexus.web import present
 from nexus.web.auth import DevAuth
 
 Clock = Callable[[], dt.datetime]
@@ -122,7 +123,11 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
 
     @app.errorhandler(403)
     def _forbidden(_e: Any) -> Any:
-        return render_template("error.html", code=403, message="Permiso denegado"), 403
+        return render_template(
+            "error.html",
+            code=403,
+            message="Permiso denegado: su rol no permite esta acción o el formulario expiró.",
+        ), 403
 
     @app.errorhandler(404)
     def _missing(_e: Any) -> Any:
@@ -140,7 +145,20 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
             "channel": channel,
             "month": service.current_month(),
             "fmt": fmt_value,
+            "nav": request.endpoint,
         }
+
+    for name in (
+        "num",
+        "date_es",
+        "datetime_es",
+        "month_es",
+        "status_label",
+        "kind_label",
+        "event_label",
+    ):
+        app.add_template_filter(getattr(present, name), name)
+    app.add_template_global(present.cs_value, "cs_value")
 
     # ------------------------------------------------------------------ autenticación
     @app.get("/login")
@@ -191,12 +209,25 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
         require("reader")
         pub = reader.current()
         items = sorted(pub.summary["rows"]) if pub.summary else []
+        month = service.current_month()
+        rows = present.board_rows(pub.summary, cs_board(month, items)) if pub.summary else []
+        args = {
+            k: request.args.get(k, "")
+            for k in ("q", "cobertura", "estatus", "excepciones", "orden")
+        }
+        shown = present.apply_filters(rows, args)
+        events = service.state.events(channel)
         return render_template(
             "board.html",
             pub=pub,
-            items=items,
-            cs=cs_board(service.current_month(), items),
-            alerts=service.state.alerts(channel, service.current_month()),
+            rows=shown,
+            total_rows=len(rows),
+            args=args,
+            totals=present.totals_view(pub.summary["totals"], rows) if pub.summary else None,
+            failure=present.last_refresh_failure(events),
+            failure_reasons=present.failure_reasons,
+            vocabulary=service.rules.cs_status_vocabulary,
+            alerts=service.state.alerts(channel, month),
         )
 
     @app.get("/item")
@@ -218,6 +249,24 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
             if item
             else []
         )
+        if item and not any(
+            not (t["customer_key"] or t["order"] or t["line"]) for t in threads
+        ):  # seguimiento general del ITEM, aún sin versiones (solo presentación)
+            general: dict[str, Any] = {
+                "thread_id": None,
+                "item": item,
+                "customer_key": "",
+                "order": "",
+                "line": "",
+                "versions": [],
+            }
+            threads.insert(0, {**general, "state": board_state([], month)})
+        future = [f for f in (pub.summary or {}).get("future_lines", []) if f["item"] == item]
+        values = (
+            {k: present.to_dec(detail["coverage"]["facts"][k]["value"]) for k in present.METRICS}
+            if detail
+            else {}
+        )
         return render_template(
             "item.html",
             item=item,
@@ -227,6 +276,10 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
             threads=threads,
             kinds=KINDS,
             vocabulary=service.rules.cs_status_vocabulary,
+            future=future,
+            item_bar=present.coverage_bar(values) if detail else None,
+            saved=request.args.get("ok", ""),
+            saved_version=request.args.get("v", ""),
         )
 
     @app.get("/cs/history")
@@ -238,7 +291,8 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
         versions = cs.history(thread)
         if not versions:
             abort(404)
-        return render_template("cs_history.html", versions=versions)
+        retracted = {v["value"]: v["version"] for v in versions if v["kind"] == "RETRACT"}
+        return render_template("cs_history.html", versions=versions, retracted=retracted)
 
     @app.post("/cs")
     def cs_append() -> Any:
@@ -257,7 +311,7 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
             )
             expected = int(f.get("expected_version", "-1"))
             head = service.state.publication_head(channel)
-            cs.append(
+            saved = cs.append(
                 assoc,
                 kind,
                 value,
@@ -270,11 +324,24 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
             )
         except CsConflictError as exc:
             return render_template(
-                "error.html", code=409, message=f"Conflicto: {exc}. Recargue y vuelva a intentar."
+                "error.html",
+                code=409,
+                title="Otro usuario guardó un cambio antes",
+                message=f"No se guardó su versión ({exc}). Nada se perdió: abra de nuevo el "
+                "ITEM para ver la versión vigente y vuelva a capturar su cambio.",
+                back=url_for("item_view", i=f.get("item", "")),
             ), 409
         except (CsValidationError, ValueError) as exc:
-            return render_template("error.html", code=400, message=f"Dato inválido: {exc}"), 400
-        return redirect(url_for("item_view", i=assoc.item))
+            return render_template(
+                "error.html",
+                code=400,
+                title="Dato no válido",
+                message=f"No se guardó: {exc}.",
+                back=url_for("item_view", i=f.get("item", "")) if f.get("item") else None,
+            ), 400
+        return redirect(
+            url_for("item_view", i=assoc.item, ok=kind, v=saved["version"], _anchor="cs")
+        )
 
     # ------------------------------------------------------------------ Refresh y publicación
     def _work() -> None:
@@ -295,26 +362,114 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
             _work()
         return redirect(url_for("refresh_status", k=req["key"]))
 
+    def refresh_view(key: str) -> dict[str, Any]:
+        """Estado legible de una solicitud. Solo dice "publicado" si la generación de la solicitud
+        figura en el historial de publicación; nunca lo supone."""
+        status = service.status(key)
+        events = service.state.events(channel)
+        if status is None:
+            return {"phase": "unknown", "events": events}
+        rid = int(status["request_id"])
+        view: dict[str, Any] = {"status": status, "events": events, "request_id": rid}
+        state = status["state"]
+        if state == "PENDING":
+            return {**view, "phase": "pending"}
+        if state in ("CLAIMED", "RUNNING"):
+            return {**view, "phase": "running"}
+        if state == "FAILED_PERMANENT":
+            fails = [
+                e
+                for e in events
+                if e["kind"] == "REFRESH_ATTEMPT_FAILED" and e["detail"].get("request_id") == rid
+            ]
+            return {**view, "phase": "failed", "reasons": [str(e["detail"]) for e in fails]}
+        gen = next(
+            (
+                str(g["store_run_id"])
+                for g in service.repo.list_generations()
+                if g["request_id"] == rid and g["sealed_at"]
+            ),
+            None,
+        )
+        if gen is None:
+            return {**view, "phase": "running"}
+        manifest = service.state.get_manifest(channel, gen)
+        if manifest["validation"]["status"] != "PASS":
+            reasons = [
+                *manifest["validation"]["failures"],
+                *manifest["validation"]["invariant_violations"],
+            ]
+            return {**view, "phase": "not_published", "gen": gen, "reasons": reasons}
+        pubs = [p for p in service.state.publication_history(channel) if p["gen_id"] == gen]
+        refused = [
+            e for e in events if e["kind"] == "PUBLISH_REFUSED" and e["detail"].get("gen_id") == gen
+        ]
+        requested = [
+            e["server_ts"]
+            for e in events
+            if e["kind"] == "REFRESH_REQUESTED" and e["detail"].get("idempotency_key") == key
+        ]
+        if pubs and requested and pubs[-1]["server_ts"] < requested[-1]:
+            head = service.state.publication_head(channel)
+            return {
+                **view,
+                "phase": "unchanged",
+                "gen": gen,
+                "publication": pubs[-1],
+                "is_current": bool(head and head["gen_id"] == gen),
+            }
+        if pubs:
+            head = service.state.publication_head(channel)
+            return {
+                **view,
+                "phase": "published",
+                "gen": gen,
+                "publication": pubs[-1],
+                "is_current": bool(head and head["gen_id"] == gen),
+            }
+        if refused:
+            return {
+                **view,
+                "phase": "not_published",
+                "gen": gen,
+                "reasons": [str(e["detail"].get("reason")) for e in refused],
+            }
+        return {**view, "phase": "publishing", "gen": gen}
+
     @app.get("/refresh/status")
     def refresh_status() -> Any:
         require("reader")
         key = request.args.get("k", "")
+        view = refresh_view(key)
         return render_template(
             "refresh_status.html",
             key=key,
-            status=service.status(key),
-            events=service.state.events(channel)[-10:],
+            view=view,
+            head=service.state.publication_head(channel),
+            auto_reload=view["phase"] in ("pending", "running", "publishing"),
         )
 
     @app.get("/history")
     def history() -> Any:
         require("reader")
+        publications = reader.history()
         return render_template(
             "history.html",
-            publications=reader.history(),
+            publications=publications,
+            head=publications[-1] if publications else None,
             events=reader.events(),
             chain=service.state.verify_publication_chain(channel),
         )
+
+    @app.get("/admin/rollback")
+    def rollback_confirm() -> Any:
+        require("admin")
+        gen = request.args.get("gen", "")
+        publications = reader.history()
+        target = next((p for p in reversed(publications) if p["gen_id"] == gen), None)
+        if target is None:
+            abort(404)
+        return render_template("rollback_confirm.html", target=target, head=publications[-1])
 
     @app.post("/admin/rollback")
     def rollback() -> Any:

@@ -199,7 +199,7 @@ def main(root: Path) -> int:  # noqa: PLR0915 (pasos lineales y verificados de l
     )
     step(
         "Mes 2: estatus CS reiniciado; valor de enero solo como referencia",
-        "Ref. 2031-01: EN_RIESGO — requiere reconfirmar" in page
+        "Ref. Enero 2031: EN_RIESGO — requiere reconfirmar" in page
         and "Cliente acepta parcial" in page
         and ">400<" in board.replace(" ", ""),
     )

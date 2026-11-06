@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Confirmar rollback{% endblock %}
+{% block content %}
+<nav class="crumbs" aria-label="Ruta"><a href="{{ url_for('history') }}">Historial</a> › Confirmar rollback</nav>
+<div class="page-head"><div><h1>Volver a un corte anterior</h1></div></div>
+<section class="card narrow-lg">
+<p>Se publicará de nuevo el corte <strong>#{{ target.seq }}</strong> ({{ target.month|month_es }}, {{ target.server_ts|datetime_es }}) en lugar del vigente <strong>#{{ head.seq }}</strong>.</p>
+<ul class="small"><li>Se registra como una publicación nueva de tipo rollback; el historial no se borra.</li><li>El Frozen del mes y las notas de Customer Service no se modifican.</li><li>Un Refresh posterior puede volver a publicar un corte nuevo.</li></ul>
+<form method="post" action="{{ url_for('rollback') }}" class="row"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="gen_id" value="{{ target.gen_id }}">
+<button class="btn danger" type="submit">Confirmar rollback a #{{ target.seq }}</button> <a class="btn secondary" href="{{ url_for('history') }}">Cancelar</a></form>
+<details class="tech"><summary>Detalle técnico</summary><dl><dt>Generación destino</dt><dd><code>{{ target.gen_id }}</code></dd><dt>Generación vigente</dt><dd><code>{{ head.gen_id }}</code></dd></dl></details>
+</section>
+{% endblock %}

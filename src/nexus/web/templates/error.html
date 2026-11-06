@@ -1,2 +1,9 @@
-{% extends 'base.html' %}{% block content %}<p class="banner err">{{ code }} — {{ message }}</p>
-<p><a href="{{ url_for('board') }}">Volver a la junta</a></p>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ title or 'Aviso' }}{% endblock %}
+{% block content %}
+<section class="card narrow-lg" role="alert">
+<h1>{{ title or ('Permiso denegado' if code == 403 else 'No encontrado' if code == 404 else 'No se pudo completar') }}</h1>
+<p>{{ message }}</p><p class="small muted">Código {{ code }}</p>
+<p>{% if back %}<a class="btn" href="{{ back }}">Volver</a> {% endif %}<a class="btn secondary" href="{{ url_for('board') }}">Ir a la junta</a></p>
+</section>
+{% endblock %}

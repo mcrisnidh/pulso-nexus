@@ -1,36 +1,117 @@
-{% extends 'base.html' %}{% block content %}
-{% include '_header.html' %}<h2>ITEM {{ item }}</h2>
-{% if error %}<p class="banner err">Integridad: {{ error }}. No se muestran cifras de este ITEM.</p>{% endif %}
-{% if detail %}{% set cv = detail.coverage %}
-<section class="scroll"><table><thead><tr><th>Cifra</th><th>Valor</th><th>Estado</th><th>KPI</th><th>Limitaciones</th><th>Origen</th></tr></thead><tbody>
-{% set labels = {'demand':'Debe entregar (demanda del mes)','attended':'Entregado (embarques físicos)','pending':'Pendiente','fg_assignable':'FG disponible asignable','covered':'Cubierto con FG','uncovered':'Sin cubrir'} %}
-{% for k in ['demand','attended','pending','fg_assignable','covered','uncovered'] %}{% set f = cv.facts[k] %}
-<tr><td>{{ labels[k] }}</td><td class="n">{{ fmt(f.value) }}</td><td><span class="st {{ f.status }}">{{ f.status }}</span></td><td>{{ cv.kpi[k] }}</td>
-<td>{% for l in f.limitations %}{{ l }}<br>{% endfor %}</td><td>{% for p in f.provenance %}{{ p.source_id }} · {{ p.file }} · líneas {{ p.lines|join(',') }}<br>{% endfor %}</td></tr>{% endfor %}
-</tbody></table></section>
-<section><h2>Demanda congelada del mes (unidades)</h2><div class="scroll"><table><thead><tr><th>Tipo</th><th>Clase</th><th>Cliente</th><th>Pedido</th><th>Línea</th><th>Entrega</th><th>Demanda</th><th>Atendida exacta</th><th>Atendida agregada</th><th>Pendiente</th><th>Notas</th></tr></thead><tbody>
-{% for u in cv.units %}<tr><td>{{ u.kind }}</td><td>{{ u.customer_class }}</td><td><code>{{ u.customer_key }}</code></td><td>{{ u.order }}</td><td>{{ u.line }}</td><td>{{ u.due }}{% if u.overdue %} (vencida){% endif %}</td>
-<td class="n">{{ fmt(u.demand) }}</td><td class="n">{{ u.attended_exact }}</td><td class="n">{{ u.attended_aggregate }}</td><td class="n">{{ fmt(u.pending) }}</td><td>{{ u.reasons|join('; ') }}</td></tr>{% endfor %}
-</tbody></table></div>
-<p class="meta">Cobertura por línea: {{ cv.line_coverage.status }} {{ cv.line_coverage.reason or '' }}</p></section>
-<section><h2>FG por stockroom</h2><table><thead><tr><th>Stockroom</th><th>Física</th><th>Reservada</th><th>Usable</th></tr></thead><tbody>
-{% for r in cv.fg_detail %}<tr><td>{{ r.stockroom }}</td><td class="n">{{ fmt(r.qty_physical) }}</td><td class="n">{{ fmt(r.qty_reserved) }}</td><td>{{ 'sí' if r.usable else 'no (separado)' }}</td></tr>{% else %}<tr><td colspan="4">Sin registros (desconocido, no cero)</td></tr>{% endfor %}</tbody></table></section>
-{% if detail.current_vs_frozen %}<p class="meta">Current 29 OERAS ({{ detail.current_vs_frozen.current_instant }}) frente al Frozen: +{{ detail.current_vs_frozen.added }} / −{{ detail.current_vs_frozen.removed }} / Δ{{ detail.current_vs_frozen.changed }} líneas (informativo; el Frozen no cambia).</p>{% endif %}
-{% endif %}
-<section><h2>Customer Service</h2><p class="meta">Notas y seguimiento manual (MANUAL_CS), independientes de las generaciones: Refresh y rollback no las modifican.</p>
-{% for t in threads %}<div class="card"><strong>Asociación:</strong> ITEM {{ t.item }}{% if t.customer_key %} · cliente <code>{{ t.customer_key }}</code>{% endif %}{% if t.order %} · pedido {{ t.order }}{% endif %}{% if t.line %} · línea {{ t.line }}{% endif %}
-· {{ t.versions|length }} versión(es) · <a href="{{ url_for('cs_history', t=t.thread_id) }}">historial</a>
-<div class="grid2">{% for k in ['CS_STATUS','DELIVERY_DATE','ADVANCE'] %}<div><span class="muted">{{ k }} ({{ month }}):</span> {% if t.state.current[k] %}<strong>{{ fmt(t.state.current[k].value) }}</strong> <span class="st">{{ t.state.current[k].author }} · {{ t.state.current[k].server_ts }}</span>{% else %}—{% endif %}
-{% if t.state.reference[k] %}<span class="st">Ref. {{ t.state.reference[k].valid_month }}: {{ fmt(t.state.reference[k].value) }} — requiere reconfirmar</span>{% endif %}</div>{% endfor %}</div>
-{% if t.state.last_note %}<p class="note">{{ t.state.last_note.value }}</p><span class="st">{{ t.state.last_note.author }} · {{ t.state.last_note.server_ts }}</span>{% endif %}
-{% if user and 'cs_editor' in user.roles %}<form method="post" action="{{ url_for('cs_append') }}" class="grid2">
-<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="item" value="{{ t.item }}"><input type="hidden" name="customer_key" value="{{ t.customer_key }}"><input type="hidden" name="order" value="{{ t.order }}"><input type="hidden" name="line" value="{{ t.line }}"><input type="hidden" name="expected_version" value="{{ t.versions|length }}">
-<select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select>
-<input name="value" placeholder="Nota / estatus ({{ vocabulary|join(', ') }}) / fecha AAAA-MM-DD / cantidad / versión a retirar" required>
-<input name="date" placeholder="Fecha del adelanto (opcional)"><input name="reason" placeholder="Motivo (opcional)"><button type="submit">Guardar versión</button></form>{% endif %}
-</div>{% endfor %}
-{% if user and 'cs_editor' in user.roles %}<form method="post" action="{{ url_for('cs_append') }}" class="card grid2"><strong>Nuevo seguimiento</strong>
-<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="item" value="{{ item }}"><input type="hidden" name="expected_version" value="0">
-<input name="customer_key" placeholder="Cliente exacto (opcional)"><input name="order" placeholder="Pedido (opcional)"><input name="line" placeholder="Línea (opcional)">
-<select name="kind">{% for k in kinds if k != 'RETRACT' %}<option>{{ k }}</option>{% endfor %}</select><input name="value" required placeholder="Valor"><input name="date" placeholder="Fecha del adelanto (opcional)"><button type="submit">Crear</button></form>{% endif %}
-</section>{% endblock %}
+{% extends 'base.html' %}
+{% from '_macros.html' import badge_status, kpi_chip, value, bar, legend, notices with context %}
+{% block title %}ITEM {{ item }}{% endblock %}
+{% macro hidden_assoc(t, kind) -%}
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="{{ kind }}">
+<input type="hidden" name="item" value="{{ t.item }}"><input type="hidden" name="customer_key" value="{{ t.customer_key }}">
+<input type="hidden" name="order" value="{{ t.order }}"><input type="hidden" name="line" value="{{ t.line }}">
+<input type="hidden" name="expected_version" value="{{ t.versions|length }}">
+{%- endmacro %}
+{% block content %}
+<nav class="crumbs" aria-label="Ruta"><a href="{{ url_for('board') }}">Junta</a> › ITEM {{ item }}</nav>
+<div class="page-head"><div><h1>ITEM {{ item }}</h1>
+<div class="sub">{% if pub.summary %}{{ pub.summary.month|month_es }} · corte {{ pub.summary.cut_ts|datetime_es }} · publicación #{{ pub.head.seq }}{% endif %}</div></div></div>
+{{ notices(pub) }}
+{% if saved %}<div class="notice ok" role="status"><span class="icon">✓</span><p>Guardado: {{ saved|kind_label }} (versión {{ saved_version }}). La versión anterior se conserva en el historial.</p></div>{% endif %}
+{% if error %}<div class="notice err" role="alert"><span class="icon">!</span><p><strong>Integridad:</strong> {{ error }}. No se muestran cifras de este ITEM.</p></div>{% endif %}
+<div class="item-grid">
+<div class="stack">
+{% if detail %}{% set cv = detail.coverage %}{% set f = cv.facts %}
+  <section aria-label="Indicadores del ITEM" class="kpis compact">
+  {% for key, label, cls in [('demand', 'Demanda congelada', 'frozen'), ('attended', 'Embarcado', 'shipped'), ('uncovered', 'Sin cubrir', 'uncovered'), ('covered', 'Cubierto con FG', 'covered'), ('pending', 'Pendiente', 'secondary'), ('fg_assignable', 'FG asignable', 'secondary')] %}
+    <div class="kpi {{ cls }}"><div class="label">{{ label }}</div><div class="value">{{ value(f[key]) }}</div><div class="foot">{{ kpi_chip(cv.kpi[key]) }}</div></div>
+  {% endfor %}
+  </section>
+  <section class="card coverage"><div class="head"><h2>Cobertura</h2></div>
+  {% if item_bar %}{{ bar(item_bar, 'bar', 'Cobertura del ITEM: ') }}{{ legend(item_bar) }}{% else %}<p class="small muted">Indicador no disponible: hay cifras desconocidas o no certificables para este ITEM.</p>{% endif %}
+  </section>
+  <section class="card"><h2>Demanda congelada del mes</h2>
+  <div class="table-wrap"><table class="data cards">
+    <thead><tr><th scope="col">Origen</th><th scope="col">Clase</th><th scope="col">Cliente</th><th scope="col">Pedido · línea</th><th scope="col">Entrega</th><th scope="col" class="n">Demanda</th><th scope="col" class="n">Embarcado</th><th scope="col" class="n">Pendiente</th></tr></thead>
+    <tbody>{% for u in cv.units %}<tr>
+      <td data-label="Origen">{{ 'Portal CAT (agregado)' if u.kind == 'POOL' else 'Línea 29 OERAS' }}</td>
+      <td data-label="Clase">{{ u.customer_class }}</td>
+      <td data-label="Cliente">{% if u.customer_key %}<code>{{ u.customer_key }}</code>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td data-label="Pedido · línea">{{ u.order or '—' }}{% if u.line %} · {{ u.line }}{% endif %}</td>
+      <td data-label="Entrega">{{ u.due|date_es }}{% if u.overdue %} <span class="badge err">Vencida</span>{% endif %}</td>
+      <td class="n" data-label="Demanda">{% if u.demand is none %}<span class="unknown">—</span> <span class="badge warn">Desconocida</span>{% else %}{{ u.demand|num }}{% endif %}</td>
+      <td class="n" data-label="Embarcado">{{ u.attended_exact|num }}{% if u.attended_aggregate != '0' %} <span class="small muted">+ {{ u.attended_aggregate|num }} agreg.</span>{% endif %}</td>
+      <td class="n" data-label="Pendiente">{{ u.pending|num }}</td>
+    </tr>{% if u.reasons %}<tr><td colspan="8" class="small muted">{{ u.reasons|join('; ') }}</td></tr>{% endif %}{% endfor %}</tbody>
+  </table></div>
+  <p class="small muted">Cobertura por línea: {{ badge_status(cv.line_coverage.status) }} {{ cv.line_coverage.reason or '' }}. "Agreg." = embarque atribuido por ITEM y cliente o clase, sin evidencia de pedido y línea.</p>
+  {% if future %}<details class="tech"><summary>Líneas con entrega posterior al mes ({{ future|length }}) — consultables, fuera del indicador</summary>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Origen</th><th>Clase</th><th>Pedido / línea Portal</th><th>Entrega</th><th class="n">Cantidad</th></tr></thead><tbody>
+  {% for x in future %}<tr><td>{{ x.source }}</td><td>{{ x.customer_class }}</td><td>{{ x.order or x.line_id }}{% if x.line %} · {{ x.line }}{% endif %}</td><td>{{ (x.due_date or x.date)|date_es }}</td><td class="n">{{ (x.qty_open if x.qty_open is defined else x.dif)|num }}</td></tr>{% endfor %}
+  </tbody></table></div></details>{% endif %}
+  </section>
+  <section class="card"><h2>FG por stockroom</h2>
+  <div class="table-wrap"><table class="data"><thead><tr><th scope="col">Stockroom</th><th scope="col" class="n">Física</th><th scope="col" class="n">Reservada</th><th scope="col">Uso</th></tr></thead><tbody>
+  {% for r in cv.fg_detail %}<tr><td>{{ r.stockroom }}</td><td class="n">{{ r.qty_physical|num }}</td><td class="n">{{ r.qty_reserved|num }}</td><td>{% if r.usable %}<span class="badge ok">Asignable</span>{% else %}<span class="badge neutral">Separado (no asignable)</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="4" class="empty">Sin registros de inventario: desconocido, no cero.</td></tr>{% endfor %}</tbody></table></div>
+  {% if detail.current_vs_frozen %}<p class="small muted">Extracto Current 29 OERAS del {{ detail.current_vs_frozen.current_instant|datetime_es }} frente al Frozen: +{{ detail.current_vs_frozen.added }} altas, −{{ detail.current_vs_frozen.removed }} bajas, {{ detail.current_vs_frozen.changed }} cambios. Informativo: el Frozen no cambia.</p>{% endif %}
+  </section>
+  <section class="card"><details class="tech"><summary>Detalle técnico: estados, limitaciones y procedencia de cada cifra</summary>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Cifra</th><th class="n">Valor</th><th>Estado</th><th>KPI</th><th>Limitaciones</th><th>Procedencia</th></tr></thead><tbody>
+  {% for k, label in [('demand','Demanda congelada'),('attended','Embarcado'),('pending','Pendiente'),('fg_assignable','FG asignable'),('covered','Cubierto con FG'),('uncovered','Sin cubrir')] %}{% set x = f[k] %}
+  <tr><td>{{ label }}</td><td class="n">{{ x.value|num }}</td><td>{{ badge_status(x.status) }}<br><code>{{ x.status }}</code></td><td>{{ cv.kpi[k] }}</td>
+  <td class="small">{% for l in x.limitations %}{{ l }}<br>{% endfor %}</td>
+  <td class="small">{% for p in x.provenance %}{{ p.source_id }} · {{ p.file }} · líneas {{ p.lines|join(', ') }}<br><code>{{ p.sha256[:16] }}…</code><br>{% endfor %}</td></tr>{% endfor %}
+  </tbody></table></div></details></section>
+{% elif not error %}<div class="notice info"><span class="icon">i</span><p>No hay cifras publicadas para este ITEM.</p></div>{% endif %}
+</div>
+
+<section class="card" id="cs" aria-labelledby="cs-title">
+  <h2 id="cs-title">Customer Service</h2>
+  <p class="small muted">Seguimiento manual (MANUAL_CS) del mes {{ month|month_es }}. Cada cambio crea una versión nueva; Refresh y rollback no lo modifican. Los valores de meses anteriores se muestran solo como referencia.</p>
+  {% for t in threads %}
+  <article class="cs-assoc" aria-label="Seguimiento {{ t.item }} {{ t.customer_key }} {{ t.order }} {{ t.line }}">
+    <div class="assoc">{% if t.customer_key or t.order %}<strong>Asociación:</strong> {% if t.customer_key %}cliente <code>{{ t.customer_key }}</code>{% endif %}{% if t.order %} · pedido {{ t.order }}{% endif %}{% if t.line %} · línea {{ t.line }}{% endif %}{% else %}<strong>Seguimiento general del ITEM</strong>{% endif %}
+      {% if t.versions %} · <a href="{{ url_for('cs_history', t=t.thread_id) }}">Historial ({{ t.versions|length }} {{ 'versión' if t.versions|length == 1 else 'versiones' }})</a>{% endif %}</div>
+    <div class="cs-fields">
+    {% for k, label in [('CS_STATUS', 'Estatus CS'), ('DELIVERY_DATE', 'Fecha CS'), ('ADVANCE', 'Adelanto')] %}
+      <div class="cs-field"><div class="k">{{ label }}</div>
+        {% set cur = t.state.current[k] %}{% set ref = t.state.reference[k] %}
+        <div class="v">{% if cur %}{% if k == 'CS_STATUS' %}<span class="status-chip {{ cur.value }}">{{ cur.value|replace('_', ' ')|capitalize }}</span>{% else %}{{ cs_value(k, cur.value) }}{% endif %}{% else %}<span class="muted">Sin captura este mes</span>{% endif %}</div>
+        {% if cur %}<div class="small muted">{{ cur.author }} · {{ cur.server_ts|date_es }}</div>{% endif %}
+        {% if ref and not cur %}<div class="ref">Ref. {{ ref.valid_month|month_es }}: {{ cs_value(k, ref.value) }} — requiere reconfirmar</div>{% endif %}
+      </div>
+    {% endfor %}
+    </div>
+    {% if t.state.last_note %}<div class="cs-note">{{ t.state.last_note.value }}<span class="by">Última nota · {{ t.state.last_note.author }} · {{ t.state.last_note.server_ts|datetime_es }}</span></div>{% elif t.versions %}<p class="small muted">Sin notas.</p>{% endif %}
+    {% if user and 'cs_editor' in user.roles %}
+    <details class="edit" {{ 'open' if not t.versions }}><summary>Actualizar seguimiento</summary>
+      <div class="forms">
+        <form method="post" action="{{ url_for('cs_append') }}" class="wide">{{ hidden_assoc(t, 'NOTE') }}
+          <label class="field">Nota de seguimiento<textarea name="value" maxlength="2000" required placeholder="Acuerdo, compromiso o aclaración de la junta"></textarea></label>
+          <div><button class="btn small" type="submit">Guardar nota</button></div></form>
+        <form method="post" action="{{ url_for('cs_append') }}">{{ hidden_assoc(t, 'CS_STATUS') }}
+          <label class="field">Estatus CS<select name="value" required><option value="">Seleccione…</option>{% for v in vocabulary %}<option value="{{ v }}">{{ v|replace('_', ' ')|capitalize }}</option>{% endfor %}</select></label>
+          <div><button class="btn small" type="submit">Guardar estatus</button></div></form>
+        <form method="post" action="{{ url_for('cs_append') }}">{{ hidden_assoc(t, 'DELIVERY_DATE') }}
+          <label class="field">Fecha CS<input type="date" name="value" required></label>
+          <div><button class="btn small" type="submit">Guardar fecha</button></div></form>
+        <form method="post" action="{{ url_for('cs_append') }}" class="wide">{{ hidden_assoc(t, 'ADVANCE') }}
+          <div class="row"><label class="field">Adelanto (cantidad EA)<input type="number" name="value" min="0" step="any" inputmode="decimal" required></label>
+          <label class="field">Fecha del adelanto (opcional)<input type="date" name="date"></label></div>
+          <div><button class="btn small" type="submit">Guardar adelanto</button></div></form>
+      </div>
+    </details>
+    {% endif %}
+  </article>
+  {% endfor %}
+  {% if user and 'cs_editor' in user.roles %}
+  <details class="edit"><summary>Nuevo seguimiento por cliente, pedido o línea</summary>
+    <form method="post" action="{{ url_for('cs_append') }}" class="forms">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="NOTE"><input type="hidden" name="item" value="{{ item }}"><input type="hidden" name="expected_version" value="0">
+      <label class="field">Cliente (clave exacta)<input type="text" name="customer_key" autocomplete="off"></label>
+      <div class="row"><label class="field">Pedido<input type="text" name="order" autocomplete="off"></label><label class="field">Línea<input type="text" name="line" autocomplete="off"></label></div>
+      <label class="field wide">Primera nota<textarea name="value" maxlength="2000" required></textarea></label>
+      <div><button class="btn small" type="submit">Crear seguimiento</button></div>
+      <p class="small muted wide">La clave de cliente se guarda exactamente como se escribe, con sus espacios. Si ya existe un seguimiento con la misma asociación, use su formulario.</p>
+    </form>
+  </details>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

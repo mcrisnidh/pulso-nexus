@@ -1,3 +1,22 @@
-{% extends 'base.html' %}{% block content %}<h2>Historial CS</h2><div class="scroll"><table><thead><tr><th>Versión</th><th>Tipo</th><th>Valor</th><th>Mes</th><th>Autor</th><th>Instante (servidor)</th><th>Origen</th><th>Motivo</th><th>Generación publicada</th></tr></thead><tbody>
-{% for v in versions %}<tr><td>{{ v.version }}</td><td>{{ v.kind }}</td><td class="note">{{ fmt(v.value) }}</td><td>{{ v.valid_month }}</td><td>{{ v.author }}</td><td>{{ v.server_ts }}</td><td>{{ v.origin }}</td><td>{{ v.reason }}</td><td><code>{{ v.published_generation or '—' }}</code></td></tr>{% endfor %}
-</tbody></table></div><p><a href="{{ url_for('item_view', i=versions[0].item) }}">Volver al ITEM</a></p>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Historial CS{% endblock %}
+{% block content %}{% set first = versions[0] %}
+<nav class="crumbs" aria-label="Ruta"><a href="{{ url_for('board') }}">Junta</a> › <a href="{{ url_for('item_view', i=first.item) }}">ITEM {{ first.item }}</a> › Historial CS</nav>
+<div class="page-head"><div><h1>Historial de seguimiento</h1>
+<div class="sub">ITEM {{ first.item }}{% if first.customer_key %} · cliente <code>{{ first.customer_key }}</code>{% endif %}{% if first.order %} · pedido {{ first.order }}{% endif %}{% if first.line %} · línea {{ first.line }}{% endif %} · {{ versions|length }} versiones, de la más reciente a la más antigua. Nada se borra: un retiro crea una versión nueva.</div></div></div>
+<section class="card table-card"><div class="table-wrap"><table class="data cards">
+<thead><tr><th scope="col" class="n">Versión</th><th scope="col">Tipo</th><th scope="col">Valor</th><th scope="col">Mes</th><th scope="col">Autor</th><th scope="col">Fecha y hora</th><th scope="col">Estado</th>{% if user and 'cs_editor' in user.roles %}<th scope="col"><span class="sr-only">Acciones</span></th>{% endif %}</tr></thead>
+<tbody>{% for v in versions|reverse %}
+<tr><td class="n" data-label="Versión">{{ v.version }}</td><td data-label="Tipo">{{ v.kind|kind_label }}</td>
+<td data-label="Valor" class="note-cell">{% if v.kind == 'CS_STATUS' %}<span class="status-chip {{ v.value }}">{{ v.value|replace('_', ' ')|capitalize }}</span>{% else %}{{ cs_value(v.kind, v.value) }}{% endif %}</td>
+<td data-label="Mes">{{ v.valid_month|month_es }}</td><td data-label="Autor">{{ v.author }}</td><td data-label="Fecha y hora">{{ v.server_ts|datetime_es }}</td>
+<td data-label="Estado">{% if v.version in retracted %}<span class="badge neutral">Retirada (v{{ retracted[v.version] }})</span>{% elif v.kind == 'RETRACT' %}<span class="badge info">Retiro</span>{% else %}<span class="badge ok">Vigente en historial</span>{% endif %}</td>
+{% if user and 'cs_editor' in user.roles %}<td>{% if v.kind != 'RETRACT' and v.version not in retracted %}
+<form method="post" action="{{ url_for('cs_append') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="RETRACT"><input type="hidden" name="value" value="{{ v.version }}">
+<input type="hidden" name="item" value="{{ v.item }}"><input type="hidden" name="customer_key" value="{{ v.customer_key }}"><input type="hidden" name="order" value="{{ v.order }}"><input type="hidden" name="line" value="{{ v.line }}"><input type="hidden" name="expected_version" value="{{ versions|length }}">
+<button class="btn secondary small" type="submit" aria-label="Retirar la versión {{ v.version }}">Retirar</button></form>{% endif %}</td>{% endif %}
+</tr>{% endfor %}</tbody></table></div></section>
+<details class="tech card"><summary>Detalle técnico de las versiones</summary><dl>
+{% for v in versions %}<dt>v{{ v.version }}</dt><dd>origen {{ v.origin }} · generación publicada al escribir <code>{{ v.published_generation or '—' }}</code>{% if v.reason %} · motivo: {{ v.reason }}{% endif %}</dd>{% endfor %}
+</dl></details>
+{% endblock %}

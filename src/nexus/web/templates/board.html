@@ -1,21 +1,80 @@
-{% extends 'base.html' %}{% block content %}
-{% include '_header.html' %}
-{% for a in alerts %}<p class="banner err">{{ a.kind }}: {{ a.source_id }} — extracto {{ a.earlier_file }} ({{ a.earlier_instant }}) anterior al Frozen registrado ({{ a.frozen_instant }}). {{ a.action }}</p>{% endfor %}
-{% if user and 'refresher' in user.roles %}<form method="post" action="{{ url_for('refresh') }}" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Refresh</button> <span class="muted">Captura las fuentes, valida y publica solo si todo es válido; si falla, se conserva el corte actual.</span></form>{% endif %}
-{% if pub.summary %}{% set t = pub.summary.totals %}
-<div class="kpis">
-{% for k, label in [('demand','Debe entregar (demanda del mes)'),('attended','Entregado (embarques físicos)'),('pending','Pendiente'),('fg_assignable','FG disponible asignable'),('covered','Cubierto con FG'),('uncovered','Sin cubrir')] %}
-<div class="kpi"><div class="v">{{ t[k].known_sum }}</div><div class="l">{{ label }}{% if not t[k].complete %} · <strong>incompleto</strong>: {{ t[k].unknown_items|length }} ITEM desconocidos (no cero){% endif %}</div></div>{% endfor %}
+{% extends 'base.html' %}
+{% from '_macros.html' import badge_status, kpi_chip, value, cell, bar, legend, cut_strip, notices with context %}
+{% block title %}Junta operativa{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Junta operativa{% if pub.summary %} · {{ pub.summary.month|month_es }}{% endif %}</h1>
+  <div class="sub">Demanda congelada exigible del mes: cuánto se debe entregar, cuánto se embarcó, cuánto cubre el FG y cuánto sigue sin cubrir.</div></div>
 </div>
-<div class="scroll"><table><thead><tr><th>ITEM</th><th>Demanda</th><th>Entregado</th><th>Pendiente</th><th>FG asignable</th><th>Cubierto FG</th><th>Sin cubrir</th><th>Estatus CS</th><th>Fecha CS</th><th>Adelanto</th><th>Última nota</th></tr></thead><tbody>
-{% for item in items %}{% set r = pub.summary.rows[item] %}{% set c = cs[item] %}
-<tr><td><a href="{{ url_for('item_view', i=item) }}">{{ item }}</a></td>
-{% for k in ['demand','attended','pending','fg_assignable','covered','uncovered'] %}{% set f = r.facts[k] %}
-<td class="n">{{ fmt(f.value) }}<span class="st {{ f.status }}">{{ f.status }}</span><span class="tag {{ 'of' if r.kpi[k]=='OFICIAL' }}">{{ r.kpi[k] }}</span></td>{% endfor %}
-<td>{{ c.current.CS_STATUS.value if c.current.CS_STATUS else '—' }}</td>
-<td>{{ c.current.DELIVERY_DATE.value if c.current.DELIVERY_DATE else '—' }}</td>
-<td>{{ fmt(c.current.ADVANCE.value) if c.current.ADVANCE else '—' }}</td>
-<td>{% if c.last_note %}<span class="note">{{ c.last_note.value[:80] }}</span><span class="st">{{ c.last_note.author }} · {{ c.last_note.server_ts }}</span>{% else %}—{% endif %}</td></tr>
-{% endfor %}</tbody></table></div>
-<p class="meta">Campos CS = seguimiento manual (origen MANUAL_CS); no alteran el cálculo. Valores de meses anteriores: solo referencia en el detalle del ITEM.</p>
-{% endif %}{% endblock %}
+{{ notices(pub, failure, failure_reasons, alerts) }}
+{% if pub.summary and not pub.error %}
+{{ cut_strip(pub, show_refresh=(user and 'refresher' in user.roles)) }}
+{% set t = pub.summary.totals %}
+<section aria-label="Indicadores del mes" class="kpis">
+{% for key, label, cls in [('demand', 'Demanda congelada exigible', 'frozen'), ('attended', 'Embarcado', 'shipped'), ('covered', 'Cubierto con FG', 'covered'), ('uncovered', 'Sin cubrir', 'uncovered'), ('pending', 'Pendiente', 'secondary'), ('fg_assignable', 'FG asignable', 'secondary')] %}
+  <div class="kpi {{ cls }}">
+    <div class="label">{{ label }}</div>
+    <div class="value">{{ t[key].known_sum|num }}</div>
+    {% if not t[key].complete %}<div class="foot warn">Parcial: {{ t[key].unknown_items|length }} ITEM sin dato (no se suman como cero)</div>
+    {% else %}<div class="foot">{{ t['items'] }} ITEM · EA</div>{% endif %}
+  </div>
+{% endfor %}
+</section>
+<section class="card coverage" aria-labelledby="cov-title">
+  <div class="head"><h2 id="cov-title">Cobertura de la demanda congelada</h2>
+  {% if totals.scope == 'all' %}<span class="small muted">Todos los ITEM ({{ totals.n_items }})</span>
+  {% elif totals.scope == 'subset' %}<span class="small muted">Solo {{ totals.subset }} de {{ totals.n_items }} ITEM con datos completos; los demás se excluyen del indicador</span>{% endif %}</div>
+  {% if totals.bar %}{{ bar(totals.bar, 'bar', 'Cobertura: ') }}{{ legend(totals.bar) }}
+  {% else %}<p class="muted small">Indicador no disponible: ningún ITEM tiene demanda, embarque y FG completos y certificables.</p>{% endif %}
+</section>
+<section class="card table-card" aria-labelledby="tbl-title">
+  <form class="filters" method="get" action="{{ url_for('board') }}" role="search" aria-label="Filtrar ITEM">
+    <label class="field grow">Buscar ITEM<input type="search" name="q" value="{{ args.q }}" placeholder="Ej. SYN-A" autocomplete="off"></label>
+    <label class="field">Cobertura<select name="cobertura">
+      {% for v, l in [('', 'Todas'), ('faltante', 'Con faltante'), ('cubierto', 'Cubierto completo'), ('sin_dato', 'Sin dato / no certificable')] %}<option value="{{ v }}" {{ 'selected' if args.cobertura == v }}>{{ l }}</option>{% endfor %}
+    </select></label>
+    <label class="field">Estatus CS<select name="estatus">
+      <option value="">Todos</option><option value="__none__" {{ 'selected' if args.estatus == '__none__' }}>Sin estatus este mes</option>
+      {% for v in vocabulary %}<option value="{{ v }}" {{ 'selected' if args.estatus == v }}>{{ v|replace('_', ' ')|capitalize }}</option>{% endfor %}
+    </select></label>
+    <label class="field">Orden<select name="orden">
+      <option value="sin_cubrir" {{ 'selected' if args.orden != 'item' }}>Mayor sin cubrir</option><option value="item" {{ 'selected' if args.orden == 'item' }}>ITEM (A–Z)</option>
+    </select></label>
+    <label class="field check"><input type="checkbox" name="excepciones" value="1" {{ 'checked' if args.excepciones == '1' }}> Solo excepciones</label>
+    <button class="btn" type="submit">Filtrar</button>
+    {% if args.q or args.cobertura or args.estatus or args.excepciones or args.orden == 'item' %}<a href="{{ url_for('board') }}">Limpiar</a>{% endif %}
+    <span class="count" aria-live="polite">{{ rows|length }} de {{ total_rows }} ITEM</span>
+  </form>
+  <div class="table-wrap">
+  <table class="data cards">
+    <caption id="tbl-title" class="sr-only">ITEM del mes con demanda, embarques, FG y seguimiento de Customer Service</caption>
+    <thead><tr>
+      <th scope="col">ITEM</th><th scope="col" class="n">Frozen</th><th scope="col" class="n">Embarcado</th><th scope="col" class="n">Pendiente</th>
+      <th scope="col" class="n">FG asig.</th><th scope="col" class="n">Cubierto FG</th><th scope="col" class="n">Sin cubrir</th><th scope="col">Cobertura</th>
+      <th scope="col">Seguimiento CS</th><th scope="col">Última nota</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}{% set f = r.facts %}
+    <tr>
+      <td class="item" data-label="ITEM"><span><a href="{{ url_for('item_view', i=r.item) }}">{{ r.item }}</a>
+        {% if r.exceptions %}<span class="exc">{% for e in r.exceptions %}<span class="badge warn">{{ e }}</span>{% endfor %}</span>{% endif %}</span></td>
+      <td class="n strong" data-label="Frozen">{{ cell(f.demand) }}</td>
+      <td class="n" data-label="Embarcado">{{ cell(f.attended) }}</td>
+      <td class="n" data-label="Pendiente">{{ cell(f.pending) }}</td>
+      <td class="n" data-label="FG asignable">{{ cell(f.fg_assignable) }}</td>
+      <td class="n" data-label="Cubierto FG">{{ cell(f.covered) }}</td>
+      <td class="n {{ 'bad' if r.nums.uncovered is not none and r.nums.uncovered > 0 else ('good' if r.nums.uncovered is not none else '') }}" data-label="Sin cubrir">{{ cell(f.uncovered) }}</td>
+      <td data-label="Cobertura">{% if r.bar %}{{ bar(r.bar, 'mini', r.item ~ ': ') }}{% else %}<span class="small muted">n/d</span>{% endif %}</td>
+      <td class="cs-cell" data-label="Seguimiento CS">{% if r.cs.current.CS_STATUS %}<span class="status-chip {{ r.cs.current.CS_STATUS.value }}">{{ r.cs.current.CS_STATUS.value|replace('_', ' ')|capitalize }}</span>{% else %}<span class="muted small">Sin estatus</span>{% endif %}
+        {% if r.cs.current.DELIVERY_DATE %}<span class="cs-line">Fecha CS {{ r.cs.current.DELIVERY_DATE.value|date_es }}</span>{% endif %}
+        {% if r.cs.current.ADVANCE %}<span class="cs-line">Adelanto {{ cs_value('ADVANCE', r.cs.current.ADVANCE.value) }}</span>{% endif %}</td>
+      <td class="note-cell" data-label="Última nota">{% if r.cs.last_note %}<span class="clip" title="{{ r.cs.last_note.value }}">{{ r.cs.last_note.value }}</span><span class="by">{{ r.cs.last_note.author }} · {{ r.cs.last_note.server_ts|date_es }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="10" class="empty">Ningún ITEM coincide con los filtros.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<p class="small muted">Todas las cantidades en EA. {% if not pub.summary.rules.fully_approved %}Cifras <span class="badge prov">Provisional</span> hasta aprobar reglas y certificar fuentes. {% endif %}Los campos de Customer Service son seguimiento manual (origen MANUAL_CS) y no alteran el cálculo.</p>
+{% endif %}
+{% endblock %}

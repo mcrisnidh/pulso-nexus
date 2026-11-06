@@ -1,0 +1,5 @@
+generaciones (código b2d6a76): ['03af9cef59d04b2f81abd85957020e1e', '5a9202008f4b0519c9ad01328b857324', '68200aba843ae2df34dbed6e04f0b562', '7046f90803f00477fb790c37bb014953', '846661a1017b922847f2f00c6e1f0a15']
+generaciones (código UI nuevo): ['03af9cef59d04b2f81abd85957020e1e', '5a9202008f4b0519c9ad01328b857324', '68200aba843ae2df34dbed6e04f0b562', '7046f90803f00477fb790c37bb014953', '846661a1017b922847f2f00c6e1f0a15']
+archivos de generación: 27 vs 27
+archivos distintos: 0
+RESULTADO: IDÉNTICAS BYTE A BYTE

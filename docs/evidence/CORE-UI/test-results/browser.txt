@@ -1,0 +1,34 @@
+{"name":"desktop1920: sin desbordamiento horizontal de página","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"desktop1920: tabla de la junta completa sin desplazamiento horizontal","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"desktop1920: tamaño mínimo de texto legible (≥ 11 px)","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"desktop1920: contraste WCAG AA en textos de la junta","ok":true,"extra":[]}
+{"name":"laptop1366: sin desbordamiento horizontal de página","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"laptop1366: tabla de la junta completa sin desplazamiento horizontal","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"laptop1366: tamaño mínimo de texto legible (≥ 11 px)","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"laptop1366: contraste WCAG AA en textos de la junta","ok":true,"extra":[]}
+{"name":"tablet820: sin desbordamiento horizontal de página","ok":true,"extra":{"doc":0,"table":146,"minFont":12.5}}
+{"name":"tablet820: tamaño mínimo de texto legible (≥ 11 px)","ok":true,"extra":{"doc":0,"table":146,"minFont":12.5}}
+{"name":"tablet820: contraste WCAG AA en textos de la junta","ok":true,"extra":[]}
+{"name":"mobile390: sin desbordamiento horizontal de página","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"mobile390: tamaño mínimo de texto legible (≥ 11 px)","ok":true,"extra":{"doc":0,"table":0,"minFont":12.5}}
+{"name":"mobile390: contraste WCAG AA en textos de la junta","ok":true,"extra":[]}
+{"name":"lector: sin botón Refresh","ok":true}
+{"name":"teclado: el primer Tab enfoca \"Saltar al contenido\" visible con foco","ok":true,"extra":{"text":"Saltar al contenido","outline":"solid","top":8}}
+{"name":"teclado: \"Saltar al contenido\" mueve el foco al contenido","ok":true}
+{"name":"lector: detalle sin formularios de edición CS","ok":true}
+{"name":"filtro por ITEM (servidor)","ok":true}
+{"name":"filtro por cobertura: solo ITEM con faltante","ok":true}
+{"name":"teclado: botón Refresh con foco visible","ok":true,"extra":"solid"}
+{"name":"Refresh: estado final comprobado contra el historial (nunca supuesto)","ok":true,"extra":"Sin cambios"}
+{"name":"CS: nota en textarea, estatus en selector, fecha en selector de fecha, adelanto con cantidad y fecha","ok":true}
+{"name":"CS: nota guardada con confirmación visible","ok":true}
+{"name":"CS: última nota visible en el detalle","ok":true}
+{"name":"CS: estatus guardado y mostrado","ok":true}
+{"name":"CS: edición simultánea → aviso claro de conflicto sin pérdida","ok":true}
+{"name":"CS: dato inválido → mensaje de error comprensible (400)","ok":true}
+{"name":"CS: historial de versiones con autor y fecha","ok":true}
+{"name":"rollback: pantalla de confirmación explícita","ok":true}
+{"name":"rollback: registrado como vigente","ok":true}
+{"name":"CSP sin unsafe-inline","ok":true}
+{"name":"sin errores de consola, JavaScript ni violaciones de CSP","ok":true,"extra":[]}
+{"browser_checks":33,"failed":0}

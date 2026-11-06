@@ -1,7 +1,24 @@
-{% extends 'base.html' %}{% block content %}<h2>Publicaciones</h2>
-{% if chain %}<p class="banner err">Cadena de publicaciones con problemas: {{ chain|join('; ') }}</p>{% endif %}
-<div class="scroll"><table><thead><tr><th>#</th><th>Acción</th><th>Generación</th><th>Mes</th><th>Actor</th><th>Instante</th><th></th></tr></thead><tbody>
-{% for p in publications|reverse %}<tr><td>{{ p.seq }}</td><td>{{ p.action }}</td><td><code>{{ p.gen_id }}</code></td><td>{{ p.month }}</td><td>{{ p.actor }}</td><td>{{ p.server_ts }}</td>
-<td>{% if user and 'admin' in user.roles and not loop.first %}<form class="inline" method="post" action="{{ url_for('rollback') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="gen_id" value="{{ p.gen_id }}"><button class="sec" type="submit">Volver a esta</button></form>{% endif %}</td></tr>{% endfor %}
-</tbody></table></div>
-<h2>Eventos</h2><div class="scroll"><table><tbody>{% for e in events|reverse %}<tr><td>{{ e.server_ts }}</td><td>{{ e.kind }}</td><td><code>{{ e.detail|tojson }}</code></td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Historial{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Historial de publicaciones</h1><div class="sub">Cada Refresh válido y cada rollback quedan registrados en una cadena verificable. Nada se sobrescribe.</div></div></div>
+{% if chain %}<div class="notice err" role="alert"><span class="icon">!</span><p><strong>La cadena de publicaciones presenta problemas:</strong> {{ chain|join('; ') }}</p></div>
+{% elif publications %}<div class="notice ok"><span class="icon">✓</span><p>Cadena de publicaciones verificada ({{ publications|length }} registros).</p></div>{% endif %}
+{% if head %}<section class="card"><div class="cut"><div><div class="label">Corte vigente</div><div class="value">Publicación #{{ head.seq }}</div><div class="small muted">{{ head.server_ts|datetime_es }}</div></div>
+<div><div class="label">Mes</div><div class="value">{{ head.month|month_es }}</div></div><div><div class="label">Acción</div><div class="value">{{ 'Rollback' if head.action == 'ROLLBACK' else 'Publicación' }}</div><div class="small muted">por {{ head.actor }}</div></div>
+<div><div class="label">Generación</div><div class="value"><code>{{ head.gen_id[:12] }}…</code></div></div></div></section>{% endif %}
+<section class="card table-card"><div class="table-wrap"><table class="data cards">
+<caption>Publicaciones</caption>
+<thead><tr><th scope="col" class="n">#</th><th scope="col">Acción</th><th scope="col">Mes</th><th scope="col">Fecha y hora</th><th scope="col">Por</th><th scope="col">Generación</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+<tbody>{% for p in publications|reverse %}<tr>
+<td class="n" data-label="#">{{ p.seq }}</td>
+<td data-label="Acción">{% if loop.first %}<span class="badge ok">Vigente</span> {% endif %}{{ 'Rollback' if p.action == 'ROLLBACK' else 'Publicación' }}</td>
+<td data-label="Mes">{{ p.month|month_es }}</td><td data-label="Fecha y hora">{{ p.server_ts|datetime_es }}</td><td data-label="Por">{{ p.actor }}</td>
+<td data-label="Generación"><code title="{{ p.gen_id }}">{{ p.gen_id[:12] }}…</code></td>
+<td>{% if user and 'admin' in user.roles and not loop.first and p.gen_id != head.gen_id %}<a class="btn secondary small" href="{{ url_for('rollback_confirm', gen=p.gen_id) }}">Volver a este corte…</a>{% endif %}</td>
+</tr>{% else %}<tr><td colspan="7" class="empty">Aún no hay publicaciones.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="card"><h2>Eventos</h2>
+<ul class="timeline">{% for e in events|reverse %}<li><time datetime="{{ e.server_ts }}">{{ e.server_ts|datetime_es }}</time><span>{{ e.kind|event_label }}
+{%- if e.kind == 'FROZEN_REGISTERED' %} · {{ e.detail.source_id }} · {{ e.detail.month|month_es }}{% elif e.kind in ('PUBLISH', 'ROLLBACK') %} · #{{ e.detail.seq }} por {{ e.detail.actor }}{% elif e.kind == 'REFRESH_REQUESTED' %} · por {{ e.detail.actor }}{% endif %}
+<details class="tech"><summary>Detalle</summary><code>{{ e.detail|tojson }}</code></details></span></li>{% endfor %}</ul></section>
+{% endblock %}
