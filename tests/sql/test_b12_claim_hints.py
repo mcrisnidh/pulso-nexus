@@ -64,18 +64,21 @@ def test_b12_production_candidate_is_declared_and_not_forbidden() -> None:
     assert not {"ROWLOCK", "READCOMMITTEDLOCK"} <= set(PRODUCTION.split(", "))
 
 
-def _skip_locked(admin_settings: Any, repo: Any, admin: Any) -> dict[str, Any]:
-    """Una fila bloqueada (U) por otra transacción debe saltarse sin esperar."""
+def _skip_locked(admin_settings: Any, repo: Any, schema: str) -> dict[str, Any]:
+    """Un reclamante concurrente (MISMO procedimiento candidato) tiene una solicitud reclamada y
+    su transacción sin confirmar; la reclamación bajo prueba debe saltarla y tomar la siguiente
+    sin esperar (LOCK_TIMEOUT acotado)."""
     seed_tag = uuid.uuid4().hex[:8]
     first, _ = repo.enqueue(f"b12-lock-{seed_tag}", f"b12a-{seed_tag}", "manual", {}, 3)
     second, _ = repo.enqueue(f"b12-free-{seed_tag}", f"b12b-{seed_tag}", "manual", {}, 3)
-    locker = connect(admin_settings, 60)
+    competitor = connect(admin_settings, 60)
     try:
-        locker.cursor().execute(
-            "BEGIN TRANSACTION; SELECT request_id FROM nexus.run_request WITH (UPDLOCK, ROWLOCK) "
-            "WHERE request_id = ?",
-            first,
-        ).fetchall()
+        cur = competitor.cursor()
+        cur.execute("BEGIN TRANSACTION")
+        held = cur.execute(
+            f"EXEC {schema}.usp_claim_request @worker = N'competidor', @claim_ms = 30000"
+        ).fetchone()
+        locked = None if held is None else int(held[0])
         repo._connection().cursor().execute("SET LOCK_TIMEOUT 3000")
         started = time.monotonic()
         error = None
@@ -86,15 +89,16 @@ def _skip_locked(admin_settings: Any, repo: Any, admin: Any) -> dict[str, Any]:
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"[:300]
         elapsed_ms = round((time.monotonic() - started) * 1000)
-        locker.cursor().execute("IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION")
+        competitor.cursor().execute("IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION")
     finally:
-        locker.close()
-    ok = error is None and claimed == second and elapsed_ms < 2500
+        competitor.close()
+    expected = second if locked == first else first
+    ok = locked == first and error is None and claimed == expected and elapsed_ms < 2500
     return {
         "skip_locked_ok": ok,
         "claimed": claimed,
-        "expected": second,
-        "locked": first,
+        "expected": expected,
+        "locked_by_competitor": locked,
         "elapsed_ms": elapsed_ms,
         "error": error,
     }
@@ -127,14 +131,16 @@ def test_b12_hint_candidate_conformance(
         evidence["compile_error"] = f"{type(exc).__name__}: {exc}"[:400]
     if evidence["compiled"]:
         try:
-            evidence.update(_skip_locked(admin_settings, repo_factory(proc_schema=schema), admin))
+            evidence.update(_skip_locked(admin_settings, repo_factory(proc_schema=schema), schema))
             wipe(admin)
-            runs = [
-                probe_claim_exclusivity(
-                    repo_factory, admin, workers=8, requests=100, proc_schema=schema
+            runs = []
+            for _ in range(REPS):
+                wipe(admin)  # cada repetición parte de tablas vacías (no se acumulan estados)
+                runs.append(
+                    probe_claim_exclusivity(
+                        repo_factory, admin, workers=8, requests=100, proc_schema=schema
+                    )
                 )
-                for _ in range(REPS)
-            ]
             evidence["exclusivity_runs"] = len(runs)
             evidence["exclusivity_violations"] = [v for r in runs for v in r["violations"]]
         except Exception as exc:
