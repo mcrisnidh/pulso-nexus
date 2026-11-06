@@ -73,7 +73,7 @@ BEGIN
     SET state = N'CLAIMED',
         claim_token = @token,
         claimed_by = @worker,
-        claim_expires_at = DATEADD(millisecond, @claim_ms, @now)
+        claim_expires_at = DATEADD(millisecond, @claim_ms, SYSUTCDATETIME())
     OUTPUT inserted.request_id, inserted.claim_token, inserted.scope, inserted.payload,
            inserted.attempts, inserted.max_attempts, inserted.claim_expires_at
     INTO @claimed (request_id, claim_token, scope, payload, attempts, max_attempts, claim_expires_at);
@@ -127,6 +127,20 @@ BEGIN
     DECLARE @max int;
     DECLARE @sealed nvarchar(64);
     DECLARE @lease TABLE (fencing_token bigint, expires_at datetime2(7));
+    -- La fila de lease del ámbito se crea FUERA de la transacción principal e insertando
+    -- directamente (duplicado = ya existe). Un IF NOT EXISTS ... WITH (UPDLOCK, HOLDLOCK) sobre una
+    -- clave nueva toma bloqueos de rango que, con ámbitos contiguos y 16 workers, producían
+    -- interbloqueos (detectados tras segundos) y leases emitidos ya vencidos (defecto hallado en CI).
+    DECLARE @lease_scope nvarchar(128) = (SELECT scope FROM nexus.run_request WHERE request_id = @request_id);
+    IF @lease_scope IS NOT NULL AND NOT EXISTS (SELECT 1 FROM nexus.scope_lease WHERE scope = @lease_scope)
+    BEGIN
+        BEGIN TRY
+            INSERT INTO nexus.scope_lease (scope) VALUES (@lease_scope);
+        END TRY
+        BEGIN CATCH
+            IF ERROR_NUMBER() NOT IN (2601, 2627) THROW;
+        END CATCH;
+    END;
     BEGIN TRANSACTION;
     SELECT @scope = scope, @attempts = attempts, @max = max_attempts
     FROM nexus.run_request WITH (UPDLOCK, HOLDLOCK)
@@ -152,14 +166,12 @@ BEGIN
                SYSUTCDATETIME() AS server_ts;
         RETURN;
     END;
-    IF NOT EXISTS (SELECT 1 FROM nexus.scope_lease WITH (UPDLOCK, HOLDLOCK) WHERE scope = @scope)
-        INSERT INTO nexus.scope_lease (scope) VALUES (@scope);
     DECLARE @attempt_id nvarchar(64) =
         N'att-' + LOWER(REPLACE(CONVERT(nvarchar(36), NEWID()), N'-', N''));
     -- Solo se emite un lease libre: los vencidos los libera usp_recover_expired (que invalida el token).
     UPDATE nexus.scope_lease
     SET holder = @worker, attempt_id = @attempt_id, fencing_token = fencing_token + 1,
-        expires_at = DATEADD(millisecond, @lease_ms, @now)
+        expires_at = DATEADD(millisecond, @lease_ms, SYSUTCDATETIME())
     OUTPUT inserted.fencing_token, inserted.expires_at INTO @lease (fencing_token, expires_at)
     WHERE scope = @scope AND holder IS NULL;
     IF NOT EXISTS (SELECT 1 FROM @lease)
@@ -303,7 +315,7 @@ BEGIN
             THROW 50040, N'NEXUS:INVALID la generación no admite nuevos artefactos', 1;
         END;
     END;
-    IF EXISTS (SELECT 1 FROM nexus.artifact WITH (UPDLOCK, HOLDLOCK)
+    IF EXISTS (SELECT 1 FROM nexus.artifact WITH (UPDLOCK)
                WHERE attempt_id = @attempt_id AND contract = @contract)
     BEGIN
         IF NOT EXISTS (
@@ -397,7 +409,7 @@ BEGIN
     END;
     -- FENCE:END
     SELECT @request_id = request_id, @state = state
-    FROM nexus.generation WITH (UPDLOCK, HOLDLOCK) WHERE attempt_id = @attempt_id;
+    FROM nexus.generation WITH (UPDLOCK) WHERE attempt_id = @attempt_id;  -- UPDLOCK se mantiene hasta el fin de la transacción
     IF @state <> N'OPEN'
     BEGIN
         THROW 50040, N'NEXUS:INVALID la generación no está abierta', 1;
@@ -406,7 +418,7 @@ BEGIN
     BEGIN
         THROW 50040, N'NEXUS:INVALID no se sella una generación sin artefactos', 1;
     END;
-    IF EXISTS (SELECT 1 FROM nexus.generation WITH (UPDLOCK, HOLDLOCK)
+    IF EXISTS (SELECT 1 FROM nexus.generation
                WHERE request_id = @request_id AND sealed_at IS NOT NULL)
     BEGIN
         THROW 50030, N'NEXUS:ALREADY_SEALED la solicitud ya tiene una generación sellada', 1;
@@ -459,7 +471,7 @@ BEGIN
     END;
     -- FENCE:END
     SELECT @request_id = request_id FROM nexus.attempt WHERE attempt_id = @attempt_id;
-    SELECT @sealed = attempt_id FROM nexus.generation WITH (UPDLOCK, HOLDLOCK)
+    SELECT @sealed = attempt_id FROM nexus.generation
     WHERE request_id = @request_id AND sealed_at IS NOT NULL;
     IF @sealed IS NULL
     BEGIN
@@ -544,7 +556,7 @@ BEGIN
     UPDATE l
     SET holder = NULL, attempt_id = NULL, expires_at = NULL, fencing_token = l.fencing_token + 1
     OUTPUT deleted.scope, deleted.attempt_id, inserted.fencing_token INTO @expired (scope, attempt_id, fencing_token)
-    FROM nexus.scope_lease AS l WITH (UPDLOCK, HOLDLOCK)
+    FROM nexus.scope_lease AS l WITH (UPDLOCK)
     WHERE l.holder IS NOT NULL AND l.expires_at < @now;
     UPDATE a SET state = N'FAILED', failure = N'LEASE_EXPIRED', finished_at = @now
     FROM nexus.attempt AS a JOIN @expired AS e ON e.attempt_id = a.attempt_id
@@ -571,7 +583,7 @@ BEGIN
     SET state = N'PENDING', claim_token = NULL, claimed_by = NULL, claim_expires_at = NULL,
         not_before = DATEADD(millisecond, @backoff_ms, @now)
     OUTPUT inserted.request_id, deleted.claim_token INTO @claims (request_id, claim_token)
-    FROM nexus.run_request AS r WITH (UPDLOCK, HOLDLOCK)
+    FROM nexus.run_request AS r WITH (UPDLOCK)
     WHERE r.state = N'CLAIMED' AND r.claim_expires_at < @now;
     INSERT INTO nexus.run_event (kind, request_id, claim_token, actor)
     SELECT N'CLAIM_RECOVERED', request_id, claim_token, @actor FROM @claims;

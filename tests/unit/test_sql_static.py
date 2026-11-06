@@ -98,3 +98,21 @@ def test_fence_blocks_lock_only_by_primary_key() -> None:
         code = _code(block).upper()
         assert " JOIN " not in code
         assert "WHERE SCOPE = @FENCE_SCOPE" in code
+
+
+def test_lease_and_claim_expiry_computed_at_write_time() -> None:
+    """Regresión: @now capturado al inicio + espera por bloqueos = lease emitido ya vencido."""
+    acquire = _code(PROCS["usp_acquire_lease"])
+    assert "DATEADD(millisecond, @lease_ms, SYSUTCDATETIME())" in acquire
+    assert "DATEADD(millisecond, @claim_ms, SYSUTCDATETIME())" in _code(PROCS["usp_claim_request"])
+
+
+@pytest.mark.parametrize(
+    "proc",
+    ["usp_register_artifact", "usp_seal_generation", "usp_complete_run", "usp_recover_expired"],
+)
+def test_no_range_locks_where_lease_row_already_serializes(proc: str) -> None:
+    code = _code(PROCS[proc])
+    fence = re.sub(r"DECLARE @fence_scope.*?THROW 50010", "", code, flags=re.DOTALL)
+    for hint in re.findall(r"(\w+(?:\s+AS\s+\w+)?)\s+WITH\s*\(([^()]*)\)", fence):
+        assert "HOLDLOCK" not in hint[1].upper() or "scope_lease" in hint[0], (proc, hint)
