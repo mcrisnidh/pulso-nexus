@@ -1,0 +1,458 @@
+{
+ "INV_STA289.TXT": {
+  "file": "INV_STA289.TXT",
+  "layout_sha256": "2a093addbaae52519202bb978973abaa4c0c72903053c35dc0989444901c3cf2",
+  "layout_status": "PROVISIONAL_R2_PROBE_1",
+  "notice": "informe saneado: sin filas, ITEM, clientes, pedidos ni cantidades",
+  "schema": "nexus.core.probe/1",
+  "sha256": "fc059f295de20d0628a6f4ae45fcc0f15ce8f00561d7c0aae51db17cc1288d3c",
+  "size": 1981,
+  "structure": {
+   "bom": "",
+   "contract_source": "fg_inventory",
+   "distinct_counts": {
+    "item": 2,
+    "stockroom": 4
+   },
+   "document_time": {
+    "month": "2026-11",
+    "precision": "second",
+    "source": "document_header"
+   },
+   "encoding": "cp850",
+   "exception_first_line_by_code": {
+    "WARNING:QTY_NEGATIVE:qty_physical": 8
+   },
+   "exception_lines_first": [],
+   "exceptions": {
+    "WARNING:QTY_NEGATIVE:qty_physical": 1
+   },
+   "flags": {
+    "excludes_zero_physical": true,
+    "reconciliation": {
+     "cut_dates_distinct": 1,
+     "cut_times_distinct": 1,
+     "data_rows": 5,
+     "groups": [
+      {
+       "qty_total_match": true,
+       "rows": 2,
+       "stockroom": "FG",
+       "value_total_match": true
+      },
+      {
+       "qty_total_match": true,
+       "rows": 1,
+       "stockroom": "QF",
+       "value_total_match": true
+      },
+      {
+       "qty_total_match": true,
+       "rows": 1,
+       "stockroom": "RM",
+       "value_total_match": true
+      },
+      {
+       "qty_total_match": true,
+       "rows": 1,
+       "stockroom": "QH",
+       "value_total_match": true
+      }
+     ],
+     "rows_assigned_to_stockroom": 5,
+     "rows_without_group_total": 0
+    }
+   },
+   "kind": "in092u",
+   "line_balance": {
+    "balanced": true,
+    "classified_lines": 16,
+    "total_lines": 16
+   },
+   "line_classes": {
+    "cut_time": 1,
+    "data_row": 5,
+    "group_total": 4,
+    "page_header": 3,
+    "page_text": 2,
+    "trailer": 1
+   },
+   "line_endings": {
+    "CRLF": 16
+   },
+   "line_lengths_top": [
+    {
+     "length": 129,
+     "lines": 9
+    },
+    {
+     "length": 71,
+     "lines": 1
+    },
+    {
+     "length": 78,
+     "lines": 1
+    },
+    {
+     "length": 118,
+     "lines": 1
+    },
+    {
+     "length": 128,
+     "lines": 1
+    },
+    {
+     "length": 130,
+     "lines": 1
+    },
+    {
+     "length": 131,
+     "lines": 1
+    },
+    {
+     "length": 132,
+     "lines": 1
+    }
+   ],
+   "records": 5,
+   "shapes_masked": {
+    "cut_time": [
+     "                                                                                                        AAAA:  9:99:99"
+    ],
+    "data_row": [
+     "AAAAAAA9        AAAAA AAAAAAAAA                      A-99  A      999   999         999.999             .99999           9,999.99",
+     "AAAAAAA9        AAAAA AAAAAAAAA                      A-99  A      999   999           9.999-            .99999           9,999.99",
+     "AAAAAAA9        AAAAA AAAAAAAAA                      A-99  A      999   999          99.999             .99999           9,999.99"
+    ],
+    "group_total": [
+     "                                                     AAAAAAAAA: AA  AAAAA:          999.999                              9,999.99",
+     "                                                     AAAAAAAAA: AA  AAAAA:           99.999                              9,999.99",
+     "                                                     AAAAAAAAA: AA  AAAAA:            9.999                              9,999.99"
+    ],
+    "page_header": [
+     "AA999A     AAAAAAAAA AAAAAA - AAAAAA                 AAAAAAAAA AAAAAA AAAAAA                            AAAA: 99/99/99    AAAA:    9",
+     "AAAAA: AAA AAAAA                                                                                    AAAAAAAA AAAA AAAAAAAA AAAAAAAA",
+     "--------------- ------------------------------------ ----- ---- ----- ----- ---------------- ------------------  -----------------"
+    ],
+    "page_text": [
+     "AAAA AAAA: AAA AAAA AAAAA                       AAAAAAAAA: AA - AAAAAAAA AAAAA",
+     "AAAA            AAAAAAAAAAA                          AAA   AAA  AAA   AAA   AAAAAAAA AAAAAAAA       AAAA AAAA              AAAAA"
+    ],
+    "trailer": [
+     "                                                  *** AAA AA AAAAAA ***"
+    ]
+   },
+   "total_lines": 16,
+   "valid": true
+  }
+ },
+ "Portal_CAT_2026-11-03_0955.csv": {
+  "file": "Portal_CAT_2026-11-03_0955.csv",
+  "layout_sha256": "2a093addbaae52519202bb978973abaa4c0c72903053c35dc0989444901c3cf2",
+  "layout_status": "PROVISIONAL_R2_PROBE_1",
+  "notice": "informe saneado: sin filas, ITEM, clientes, pedidos ni cantidades",
+  "schema": "nexus.core.probe/1",
+  "sha256": "e0c24e2d3fa51745641a61fa3851f8ff6d704919cb63d9bb123eb7f6e335d55b",
+  "size": 584,
+  "structure": {
+   "bom": "UTF-16LE",
+   "contract_source": "portal_cat",
+   "distinct_counts": {
+    "item": 1,
+    "item_portal": 1
+   },
+   "document_time": {
+    "month": "2026-11",
+    "precision": "date",
+    "source": "file_name"
+   },
+   "encoding": "utf-16-le",
+   "exception_first_line_by_code": {
+    "WARNING:DOCUMENT_DATE_FROM_FILE_NAME": null,
+    "WARNING:SHIPPED_MISSING:shipped": 8,
+    "WARNING:UNMAPPED_ITEM:item_portal": 6
+   },
+   "exception_lines_first": [],
+   "exceptions": {
+    "WARNING:DOCUMENT_DATE_FROM_FILE_NAME": 1,
+    "WARNING:SHIPPED_MISSING:shipped": 1,
+    "WARNING:UNMAPPED_ITEM:item_portal": 3
+   },
+   "flags": {
+    "header_columns": 7,
+    "header_diagnosis": {
+     "ambiguous": [],
+     "columns": 7,
+     "fields": {
+      "delivery_date": {
+       "aliases_tried": 1,
+       "column": 6,
+       "matched_alias": "Delivery Date",
+       "status": "MATCHED"
+      },
+      "item_portal": {
+       "aliases_tried": 4,
+       "column": 1,
+       "matched_alias": "Part Number",
+       "status": "MATCHED"
+      },
+      "line_id": {
+       "aliases_tried": 2,
+       "column": 0,
+       "matched_alias": "Line ID",
+       "status": "MATCHED"
+      },
+      "ordered": {
+       "aliases_tried": 3,
+       "column": 3,
+       "matched_alias": "Ordered",
+       "status": "MATCHED"
+      },
+      "ship_date": {
+       "aliases_tried": 1,
+       "column": 5,
+       "matched_alias": "Ship Date",
+       "status": "MATCHED"
+      },
+      "shipped": {
+       "aliases_tried": 3,
+       "column": 4,
+       "matched_alias": "Shipped",
+       "status": "MATCHED"
+      },
+      "status": {
+       "aliases_tried": 1,
+       "column": 2,
+       "matched_alias": "Status",
+       "status": "MATCHED"
+      }
+     },
+     "line": 5,
+     "missing": [],
+     "unmatched_columns_masked": []
+    }
+   },
+   "kind": "portal",
+   "line_balance": {
+    "balanced": true,
+    "classified_lines": 8,
+    "total_lines": 8
+   },
+   "line_classes": {
+    "data_row": 3,
+    "header": 1,
+    "preamble": 4
+   },
+   "line_endings": {
+    "CRLF": 8
+   },
+   "line_lengths_top": [
+    {
+     "length": 0,
+     "lines": 1
+    },
+    {
+     "length": 13,
+     "lines": 1
+    },
+    {
+     "length": 19,
+     "lines": 1
+    },
+    {
+     "length": 22,
+     "lines": 1
+    },
+    {
+     "length": 49,
+     "lines": 1
+    },
+    {
+     "length": 52,
+     "lines": 1
+    },
+    {
+     "length": 54,
+     "lines": 1
+    },
+    {
+     "length": 66,
+     "lines": 1
+    }
+   ],
+   "records": 3,
+   "shapes_masked": {
+    "data_row": [
+     "AA-9\tAAA AAAAAA 9\tAAAA\t999\t999\t99/99/9999\t99/99/9999",
+     "AA-9\tAAA AAAAAA 9\tAAAAAAAAA\t99\t9\t99/99/9999\t99/99/9999",
+     "AA-9\tAAA AAAAAA 9\tAAAA\t999\t\t99/99/9999\t99/99/9999"
+    ],
+    "header": [
+     "AAAA AA\tAAAA AAAAAA\tAAAAAA\tAAAAAAA\tAAAAAAA\tAAAA AAAA\tAAAAAAAA AAAA"
+    ],
+    "preamble": [
+     "AAAAAAAA AAAAAA AAAAAA",
+     "AAAAAAAA: AAA",
+     "AAAAAAAAA AA AAAAAA"
+    ]
+   },
+   "total_lines": 8,
+   "valid": true
+  }
+ },
+ "R_20261101.TXT": {
+  "file": "R_20261101.TXT",
+  "layout_sha256": "2a093addbaae52519202bb978973abaa4c0c72903053c35dc0989444901c3cf2",
+  "layout_status": "PROVISIONAL_R2_PROBE_1",
+  "notice": "informe saneado: sin filas, ITEM, clientes, pedidos ni cantidades",
+  "schema": "nexus.core.probe/1",
+  "sha256": "51d1e78e7cfac760f7be1ae31635682985c96195639ee0240fc9bf00129104d3",
+  "size": 4803,
+  "structure": {
+   "bom": "",
+   "contract_note": "OE965 se entrega con el contrato lógico oeras_29 solo por la forma de sus campos; NO es el 29 OERAS certificado y no prueba equivalencia entre ambos (equivalencia: NOT_ESTABLISHED)",
+   "contract_source": "oeras_29",
+   "distinct_counts": {
+    "customer_key_exact": 6,
+    "item": 3,
+    "order": 8
+   },
+   "document_time": {
+    "month": "2026-11",
+    "precision": "date",
+    "source": "document_header"
+   },
+   "encoding": "cp850",
+   "exception_first_line_by_code": {},
+   "exception_lines_first": [],
+   "exceptions": {},
+   "flags": {
+    "contract_equivalence": "NOT_ESTABLISHED",
+    "form_feeds": 1,
+    "reconciliation": {
+     "flagged_orders": 0,
+     "grand_totals": 2,
+     "item_headers": 3,
+     "item_totals": 3,
+     "items_without_total": 0,
+     "orders_read": 8,
+     "totals_checked": {
+      "qty_alloc": 5,
+      "qty_open": 5,
+      "qty_ordered": 5,
+      "tail": 5
+     },
+     "totals_matched": {
+      "qty_alloc": 5,
+      "qty_open": 5,
+      "qty_ordered": 5,
+      "tail": 5
+     },
+     "totals_not_verifiable": {
+      "qty_alloc": 0,
+      "qty_open": 0,
+      "qty_ordered": 0,
+      "tail": 0
+     }
+    }
+   },
+   "kind": "oe965",
+   "line_balance": {
+    "balanced": true,
+    "classified_lines": 35,
+    "total_lines": 35
+   },
+   "line_classes": {
+    "blank": 1,
+    "grand_total": 2,
+    "grand_total_label": 2,
+    "item_header": 3,
+    "item_total": 3,
+    "order_line": 8,
+    "page_header": 6,
+    "page_text": 6,
+    "total_underline": 3,
+    "trailer": 1
+   },
+   "line_endings": {
+    "CRLF": 35
+   },
+   "line_lengths_top": [
+    {
+     "length": 164,
+     "lines": 18
+    },
+    {
+     "length": 165,
+     "lines": 6
+    },
+    {
+     "length": 40,
+     "lines": 3
+    },
+    {
+     "length": 38,
+     "lines": 2
+    },
+    {
+     "length": 89,
+     "lines": 2
+    },
+    {
+     "length": 163,
+     "lines": 2
+    },
+    {
+     "length": 0,
+     "lines": 1
+    },
+    {
+     "length": 90,
+     "lines": 1
+    }
+   ],
+   "records": 8,
+   "shapes_masked": {
+    "grand_total": [
+     "                                                                              9999        9999           9                                                      9999"
+    ],
+    "grand_total_label": [
+     "                                         *** AAAAAA AAA AA ***          ----------  ----------  ----------                                                ----------",
+     "                                         **** AAAAAA AAA AAAAAA ****    ----------  ----------  ----------                                                ----------"
+    ],
+    "item_header": [
+     "AAAAAAA9                999        9999-",
+     "AAAAAAA9                 99           99",
+     "AAAAAAA9                  9            9"
+    ],
+    "item_total": [
+     "                                                                              9999        9999           9                                                      9999",
+     "                                                                               999         999           9                                                      9999",
+     "                                                                                99          99           9                                                      9999"
+    ],
+    "order_line": [
+     "                                                9999999   9   99/99/99         999         999           9   AAAAAA    999  AAAAAAA AAAAAAAAA                   9999",
+     "                                                9999999   9   99/99/99          99          99           9   AAAAAA    999  AAAAAAA AAAAAAAAA                   9999",
+     "                                                9999999   9   99/99/99          99          99           9   AAAAAA   999   AAAAAAA AAAAAAAAA                   9999"
+    ],
+    "page_header": [
+     "AA999                99 - AAAAAAAAAA AA - AAAAAA                 AAAAA AAAAAA AAAAA AAAAAA                                               AAAA: 99/99/99    AAAA:    9",
+     "---------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    ],
+    "page_text": [
+     "                                                                          AAAAAAAAA: *AAA",
+     "AAAAAAAAA: AA - AAAAAAAA AAA AAAAAAAAA",
+     "                                                                AAAA         AAA          AAA        AAA     AAAAAAAA             AAAAAAAA            >       AAAAA"
+    ],
+    "total_underline": [
+     "                                                                        ----------  ----------  ----------                                                ----------"
+    ],
+    "trailer": [
+     "                                                                        *** AAA AAAAAA ***"
+    ]
+   },
+   "total_lines": 35,
+   "valid": true
+  }
+ }
+}

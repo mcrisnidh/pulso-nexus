@@ -70,7 +70,7 @@ def test_st01_probe_is_read_only_and_sanitized(tmp_path: Path, name: str, kind: 
     s = report["structure"]
     assert s["kind"] == kind and s["valid"] is True and s["records"] > 0
     assert all(
-        set(shape) <= set("A9 -/:*.=\f\t(),#") for v in s["shapes_masked"].values() for shape in v
+        set(shape) <= set("A9 -/:*.=\f\t(),#>") for v in s["shapes_masked"].values() for shape in v
     )
     assert "header_names" not in s
 
@@ -80,7 +80,10 @@ def test_st02_probe_reports_structure_needed_for_layout(tmp_path: Path) -> None:
     s = probe(lab["src"] / "R_20261101.TXT")["structure"]
     assert s["encoding"] == "cp850" and s["line_endings"] == {"CRLF": s["total_lines"]}
     assert s["line_classes"]["order_line"] == 8 and s["line_classes"]["item_header"] == 3
-    assert {"length": 164, "lines": 8} in s["line_lengths_top"]
+    assert {"length": 164, "lines": 18} in s["line_lengths_top"]  # pedidos + totales
+    assert s["line_balance"]["balanced"] is True
+    assert s["flags"]["reconciliation"]["items_without_total"] == 0
+    assert "NOT_ESTABLISHED" in s["contract_note"]
     assert s["document_time"] == {
         "precision": "date",
         "source": "document_header",

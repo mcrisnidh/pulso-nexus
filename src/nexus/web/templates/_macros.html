@@ -38,7 +38,7 @@
     {% if m.sources.shipments %}<div><div class="label">Corte FG y embarques</div><div class="value">{{ s.cut_ts|datetime_es }}</div></div>
     {% else %}<div><div class="label">Corte FG</div><div class="value">{{ s.cut_ts|datetime_es }}</div><div class="small warn-text">Embarques: no disponibles</div></div>{% endif %}
     {% for sid, label in [('oeras_29', 'Frozen 29 OERAS'), ('portal_cat', 'Frozen Portal CAT')] %}{% set fz = m.sources.frozen[sid] %}
-    <div><div class="label">{{ label }}</div>{% if fz %}<div class="value">{{ fz.instant|datetime_es }}</div><div class="small muted">{{ fz.file }}{% if fz.instant_precision == 'date' %} · fecha del documento, sin hora · Frozen provisional{% endif %}</div>
+    <div><div class="label">{{ label }}</div>{% if fz %}<div class="value">{{ fz.instant|datetime_es }}</div><div class="small muted">{{ fz.file }}{% if fz.instant_precision == 'date' %} · fecha del documento, sin hora · Frozen provisional{% endif %}{% if fz.source_system == 'JBA_OE965' %} · OE965: sin equivalencia certificada con 29 OERAS{% endif %}</div>
     {% else %}<div class="value"><span class="unknown">—</span></div><div class="small warn-text">No disponible</div>{% endif %}</div>{% endfor %}
     {% if show_refresh %}
     <div class="action">

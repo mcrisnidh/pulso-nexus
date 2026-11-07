@@ -74,7 +74,9 @@ def test_oe01_hierarchical_records_and_document_date() -> None:
     assert first["order"] == "7310101" and first["due_date"] == "2026-11-10"
     assert first["extraction_ts"] == "2026-11-01"  # solo fecha: no se inventa hora
     assert {x["customer_key_exact"] for x in r.records} >= {fx.CAT, fx.CAT_SPACED, fx.TUPY}
-    assert r.classes["page_header"] == 4 and r.flags["form_feeds"] == 1  # 2 páginas
+    assert r.classes["page_header"] == 6 and r.flags["form_feeds"] == 1  # 2 páginas × 3
+    assert r.classes["item_total"] == 3 and r.classes["grand_total"] == 2
+    assert r.flags["contract_equivalence"] == "NOT_ESTABLISHED"
 
 
 def test_oe02_leading_zeros_and_customer_spaces_preserved() -> None:
@@ -142,7 +144,7 @@ def test_oe08_document_date_missing_or_inconsistent_is_invalid() -> None:
     text = (
         fx.oe965_bytes()
         .decode("cp850")
-        .replace("Date: 11/01/26   Page: 2", "Date: 11/02/26   Page: 2")
+        .replace("Date: 11/01/26    Page:    2", "Date: 11/02/26    Page:    2")
     )
     mixed = read_oe965(text.encode("cp850"), L)
     assert not mixed.valid and "DOCUMENT_DATE_INCONSISTENT" in codes(mixed)
@@ -160,7 +162,7 @@ def test_oe09_duplicate_identity_and_missing_customer_invalid() -> None:
 
 
 def test_oe10_unclassified_line_with_digits_is_invalid() -> None:
-    text = fx.oe965_bytes().decode("cp850").replace("*** End of report ***", "  X 12 Y 9 Z 7 W")
+    text = fx.oe965_bytes().decode("cp850").replace("*** END REPORT ***", "  X 12 Y 9 Z 7 W")
     r = read_oe965(text.encode("cp850"), L)
     assert not r.valid and "UNCLASSIFIED_LINE" in codes(r)
 
@@ -270,18 +272,23 @@ def test_po08_homologation_table_rules() -> None:
 
 
 # ------------------------------------------------------------------ IN092U
-def test_in01_cut_to_utc_with_declared_zone_and_stockrooms() -> None:
+def test_in01_cut_from_separate_date_and_time_and_stockroom_from_group() -> None:
     r = read_in092u(fx.in092u_bytes(), L, "America/Mexico_City")
     assert r.valid and r.flags["excludes_zero_physical"] is True
     assert r.document_time["value"] == "2026-11-06T15:48:14Z"
     assert r.document_time["local"] == "2026-11-06T09:48:14"
     assert {(x["item"], x["stockroom"], x["qty_physical"]) for x in r.records} == {
-        ("QZXITEM1", "FG", "150"),
-        ("QZXITEM1", "QF", "40"),
-        ("QZXITEM2", "FG", "-5"),
-        ("QZXITEM2", "RM", "300"),
+        ("QZXITEM1", "FG", "150.000"),
+        ("QZXITEM2", "FG", "-5.000"),  # negativo conservado
+        ("QZXITEM1", "QF", "40.000"),
+        ("QZXITEM2", "RM", "300.000"),
+        ("QZXITEM2", "QH", "7.500"),  # QH/RM se conservan; la regla los deja fuera de FG
     }
     assert all(x["qty_reserved"] == "" for x in r.records)  # no informado: desconocido
+    rec = r.flags["reconciliation"]
+    assert rec["data_rows"] == rec["rows_assigned_to_stockroom"] == 5
+    assert [g["stockroom"] for g in rec["groups"]] == ["FG", "QF", "RM", "QH"]
+    assert all(g["qty_total_match"] and g["value_total_match"] for g in rec["groups"])
 
 
 def test_in02_without_declared_zone_there_is_no_cut() -> None:
@@ -290,24 +297,72 @@ def test_in02_without_declared_zone_there_is_no_cut() -> None:
 
 
 @pytest.mark.parametrize(
-    ("cut", "code"),
+    ("date", "time", "code"),
     [
-        ("01-nov-2026 01:30:00", "CUT_LOCAL_TIME_AMBIGUOUS"),
-        ("08-mar-2026 02:30:00", "CUT_LOCAL_TIME_NONEXISTENT"),
+        ("11/01/26", " 1:30:00", "CUT_LOCAL_TIME_AMBIGUOUS"),
+        ("03/08/26", " 2:30:00", "CUT_LOCAL_TIME_NONEXISTENT"),
     ],
 )
-def test_in03_dst_ambiguous_or_nonexistent_local_cut_rejected(cut: str, code: str) -> None:
-    r = read_in092u(fx.in092u_bytes(cut=cut), L, "America/New_York")
+def test_in03_dst_ambiguous_or_nonexistent_local_cut_rejected(
+    date: str, time: str, code: str
+) -> None:
+    r = read_in092u(fx.in092u_bytes(date=date, time=time), L, "America/New_York")
     assert not r.valid and code in codes(r)
 
 
-def test_in04_english_month_duplicates_and_zero_exclusion_flag() -> None:
-    en = read_in092u(fx.in092u_bytes(cut="06-Nov-2026 09:48:14"), L, "UTC")
-    assert en.document_time["value"] == "2026-11-06T09:48:14Z"
-    dup = read_in092u(fx.in092u_bytes(rows=[("A1", "FG", "1"), ("A1", "FG", "2")]), L, "UTC")
+def test_in04_duplicates_and_zero_exclusion_flag() -> None:
+    dup = read_in092u(
+        fx.in092u_bytes(rows=[("A1", "FG", "1.000"), ("A1", "FG", "2.000")]), L, "UTC"
+    )
     assert not dup.valid and "DUPLICATE_ITEM_STOCKROOM" in codes(dup)
     nz = read_in092u(fx.in092u_bytes(excludes_zero=False), L, "UTC")
     assert "ZERO_EXCLUSION_NOT_DECLARED" in codes(nz)
+
+
+def test_in07_group_total_mismatch_is_blocking() -> None:
+    """La asignación del stockroom se demuestra con el total del grupo: si no cuadra, no se
+    adivina a qué stockroom pertenecen las filas."""
+    r = read_in092u(fx.in092u_bytes(group_qty_override={"FG": "146.000"}), L, "UTC")
+    assert not r.valid and "GROUP_QTY_TOTAL_MISMATCH" in codes(r)
+    fg = next(g for g in r.flags["reconciliation"]["groups"] if g["stockroom"] == "FG")
+    assert fg["qty_total_match"] is False
+
+
+def test_in08_rows_without_group_total_are_blocking() -> None:
+    r = read_in092u(fx.in092u_bytes(with_group_totals=False), L, "UTC")
+    assert not r.valid and "ROW_WITHOUT_GROUP_TOTAL" in codes(r)
+    assert r.records == []  # nunca se asigna stockroom sin su total
+
+
+def test_in09_repeated_stockroom_group_is_blocking() -> None:
+    rows = [("A1", "FG", "1.000"), ("A2", "QF", "1.000"), ("A3", "FG", "1.000")]
+    r = read_in092u(fx.in092u_bytes(rows=rows), L, "UTC")
+    assert not r.valid and "GROUP_STOCKROOM_REPEATED" in codes(r)
+
+
+def test_in10_cut_inconsistent_or_missing_across_pages() -> None:
+    page2 = fx.in092u_bytes(time="10:00:00").decode("cp850").splitlines()[:2]
+    text = fx.in092u_bytes().decode("cp850") + "\r\n".join(page2) + "\r\n"
+    r = read_in092u(text.encode("cp850"), L, "UTC")
+    assert not r.valid and "CUT_INCONSISTENT" in codes(r)
+    no_time = "\r\n".join(
+        x for x in fx.in092u_bytes().decode("cp850").splitlines() if "Time:" not in x
+    )
+    r2 = read_in092u(no_time.encode("cp850"), L, "UTC")
+    assert not r2.valid and "CUT_MISSING" in codes(r2)
+
+
+def test_in11_leading_minus_zero_and_unknown_structure() -> None:
+    r = read_in092u(fx.in092u_bytes(rows=[("A1", "FG", "-2.000"), ("A2", "FG", "0.000")]), L, "UTC")
+    assert {x["qty_physical"] for x in r.records} == {"-2.000", "0.000"}
+    assert {"QTY_NEGATIVE", "QTY_ZERO_DESPITE_EXCLUSION"} <= codes(r)
+    odd = fx.in092u_bytes().decode("cp850").replace("*** END OF REPORT ***", "Lote 77 de 88")
+    bad = read_in092u(odd.encode("cp850"), L, "UTC")
+    assert not bad.valid and "UNCLASSIFIED_LINE" in codes(bad)
+    # una fila con la cantidad corrida de columna no se acepta como fila de datos
+    shifted = fx.in092u_row("A9", "1.000").replace("     1.000", "1.000     ", 1)
+    text = fx.in092u_bytes().decode("cp850").replace("*** END OF REPORT ***", shifted)
+    assert "UNCLASSIFIED_LINE" in codes(read_in092u(text.encode("cp850"), L, "UTC"))
 
 
 def test_in05_staged_csv_is_valid_fg_contract(tmp_path: Path) -> None:
@@ -326,3 +381,125 @@ def test_in06_fg_and_shipments_never_accept_date_precision(tmp_path: Path) -> No
     parsed = read_source("fg_inventory", path)
     assert not parsed.valid and parsed.instant is None
     assert any(e.severity == BLOCKING for e in read_in092u(b"", L, "UTC").exceptions)
+
+
+# ------------------------------------------------------------------ R2: conciliación OE965
+def test_oe20_item_and_grand_totals_reconcile_with_orders_read() -> None:
+    r = read_oe965(fx.oe965_bytes(), L)
+    rec = r.flags["reconciliation"]
+    assert rec["item_headers"] == rec["item_totals"] == 3 and rec["grand_totals"] == 2
+    assert rec["orders_read"] == len(r.records) == 8
+    assert (
+        rec["totals_matched"]
+        == rec["totals_checked"]
+        == {
+            "qty_ordered": 5,
+            "qty_open": 5,
+            "qty_alloc": 5,
+            "tail": 5,
+        }
+    )
+
+
+@pytest.mark.parametrize(("col", "blocking"), [(0, True), (1, True), (2, False), (3, False)])
+def test_oe21_total_mismatch_blocks_contract_columns(col: int, blocking: bool) -> None:
+    sums = [2049, 2049, 0, 4800]  # QZXITEM1: ordenada, abierta, asignada, cola
+    sums[col] += 1
+    data = fx.oe965_bytes(total_override={"QZXITEM1": tuple(sums)})  # type: ignore[dict-item]
+    r = read_oe965(data, L)
+    hits = [e for e in r.exceptions if e.code == "TOTAL_MISMATCH"]
+    assert len(hits) == 1 and (hits[0].severity == BLOCKING) is blocking
+    assert r.valid is not blocking
+
+
+def test_oe22_lost_order_line_is_detected_by_totals() -> None:
+    """Una línea de pedido que no se lee como pedido (p. ej. corrida de columna) no puede
+    desaparecer en silencio: el total del ITEM deja de cuadrar o la línea queda sin clasificar."""
+    text = fx.oe965_bytes().decode("cp850")
+    order = fx.order_line("7310103", "1", "10/20/26", "50", "50", fx.OTHER)
+    r = read_oe965(text.replace(order, " " + order[:-1]).encode("cp850"), L)
+    assert not r.valid
+    assert {"TOTAL_MISMATCH", "UNCLASSIFIED_LINE"} & {e.code for e in r.exceptions}
+
+
+def test_oe23_item_without_total_and_order_after_total_block() -> None:
+    no_totals = read_oe965(fx.oe965_bytes(totals=False), L)
+    assert not no_totals.valid and "ITEM_TOTAL_MISSING" in codes(no_totals)
+    assert no_totals.flags["reconciliation"]["items_without_total"] == 3
+    text = fx.oe965_bytes().decode("cp850")
+    extra = fx.order_line("7310199", "1", "11/10/26", "1", "1", fx.OTHER)
+    first_total = fx.total_line(2049, 2049, 0, 4800)
+    late = text.replace(first_total, first_total + "\r\n" + extra, 1)
+    r = read_oe965(late.encode("cp850"), L)
+    assert not r.valid and "ORDER_AFTER_ITEM_TOTAL" in codes(r)
+
+
+def test_oe24_flag_tail_and_unreadable_tail() -> None:
+    items = [
+        ("QZXF", "1", "1", [("7300001", "1", "11/02/26", "5", "5", fx.OTHER, "N", "0", "*", "77")])
+    ]
+    r = read_oe965(fx.oe965_bytes(items=items), L)
+    assert r.valid and r.flags["reconciliation"]["flagged_orders"] == 1
+    assert r.records[0]["customer_name"] == "N"
+    bad = [
+        ("QZXF", "1", "1", [("7300001", "1", "11/02/26", "5", "5", fx.OTHER, "N", "0", "", "7X7")])
+    ]
+    rb = read_oe965(fx.oe965_bytes(items=bad, totals=False), L)
+    assert "ORDER_TAIL_UNREADABLE" in codes(rb) and not rb.valid
+
+
+def test_oe25_missing_quantity_makes_total_not_verifiable_never_zero() -> None:
+    items = [("QZXQ", "1", "1", [("7300001", "1", "11/02/26", "10", "", fx.OTHER)])]
+    r = read_oe965(fx.oe965_bytes(items=items), L)
+    assert r.records[0]["qty_open"] == ""
+    assert r.flags["reconciliation"]["totals_not_verifiable"]["qty_open"] == 3  # ITEM + 2 generales
+    assert "TOTAL_MISMATCH" not in codes(r)
+
+
+# ------------------------------------------------------------------ R2: diagnóstico Portal
+def test_po20_header_diagnosis_names_missing_fields_without_values() -> None:
+    header = [
+        "Line ID",
+        "Part Number",
+        "Status",
+        "Ordered Qty",
+        "Shipped Qty",
+        "Need Date",
+        "Promise Date",
+    ]
+    r = read_portal(fx.portal_bytes(header=header, preamble=False), L, PORTAL_NAME, {})
+    assert not r.valid and "HEADER_INCOMPLETE" in codes(r)
+    diag = r.flags["header_diagnosis"]
+    assert diag["line"] == 1 and diag["columns"] == 7
+    assert diag["missing"] == ["delivery_date", "ship_date"]
+    assert diag["fields"]["shipped"]["status"] == "MATCHED"
+    assert diag["fields"]["shipped"]["matched_alias"] == "Shipped Qty"
+    assert diag["unmatched_columns_masked"] == [
+        {"column": 5, "shape": "AAAA AAAA"},
+        {"column": 6, "shape": "AAAAAAA AAAA"},
+    ]
+    assert r.classes["header"] == 1 and r.classes["uninterpreted_row"] == 3
+    assert r.flags["rows_by_column_count"] == {7: 3}
+    assert r.records == []  # no se interpreta ninguna fila con un encabezado incompleto
+
+
+def test_po21_probe_shows_raw_header_names_only_on_request(tmp_path: Path) -> None:
+    from nexus.core.stage import probe
+
+    header = ["Line ID", "Part Number", "Status", "Ordered Qty", "Shipped Qty", "Need Date", "X"]
+    path = tmp_path / PORTAL_NAME
+    path.write_bytes(fx.portal_bytes(header=header, preamble=False))
+    default = probe(path)["structure"]
+    assert "header_names" not in default and "Need Date" not in repr(default)
+    assert default["flags"]["header_diagnosis"]["missing"] == ["delivery_date", "ship_date"]
+    shown = probe(path, show_headers=True)["structure"]
+    assert shown["header_names"] == header
+    assert "QZX PORTAL" not in repr(shown) and "PL-1" not in repr(shown)
+
+
+def test_po22_revised_original_dates_with_spaces_are_unknown() -> None:
+    rows = [("PL-1", "QZX PORTAL 1", "Open", "5", "", "11/05/2026 (11/07/2026)", "")]
+    r = read_portal(fx.portal_bytes(rows=rows), L, PORTAL_NAME, {"QZX PORTAL 1": "QZXITEM1"})
+    rec = r.records[0]
+    assert rec["ship_date"] == "" and rec["shipped_raw"] == ""
+    assert {"DATE_AMBIGUOUS", "SHIPPED_MISSING", "DATE_MISSING"} <= codes(r)

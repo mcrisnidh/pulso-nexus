@@ -44,6 +44,10 @@ PROBE_SCHEMA = "nexus.core.probe/1"
 STAGE_SCHEMA = "nexus.core.stage-report/1"
 HOMOLOGATION_STATUSES = ("APPROVED", "PROVISIONAL")
 HOMOLOGATION_COLUMNS = ("item_portal", "item_erp", "status", "evidence")
+OE965_EQUIVALENCE_NOTE = (
+    "OE965 se entrega con el contrato lógico oeras_29 solo por la forma de sus campos; NO es el "
+    "29 OERAS certificado y no prueba equivalencia entre ambos (equivalencia: NOT_ESTABLISHED)"
+)
 
 
 def utcnow() -> dt.datetime:
@@ -194,14 +198,32 @@ def sanitized_structure(result: PhysicalResult, show_headers: bool = False) -> d
             for col in ("item", "item_portal", "customer_key_exact", "order", "stockroom")
             if result.records and col in result.records[0]
         },
+        "line_balance": {
+            "total_lines": result.total_lines,
+            "classified_lines": sum(result.classes.values()),
+            "balanced": sum(result.classes.values()) == result.total_lines,
+        },
         "exceptions": result.exception_summary(),
         "exception_lines_first": [
             e.as_dict() for e in result.exceptions if e.severity == "BLOCKING"
         ][:20],
+        "exception_first_line_by_code": {
+            key: line for key, line in sorted(_first_lines(result).items())
+        },
         "valid": result.valid,
     }
     if show_headers and "header_names" in result.flags:
         out["header_names"] = result.flags["header_names"]
+    if result.kind == "oe965":
+        out["contract_note"] = OE965_EQUIVALENCE_NOTE
+    return out
+
+
+def _first_lines(result: PhysicalResult) -> dict[str, int | None]:
+    out: dict[str, int | None] = {}
+    for e in result.exceptions:
+        key = f"{e.severity}:{e.code}" + (f":{e.field}" if e.field else "")
+        out.setdefault(key, e.line)
     return out
 
 
@@ -373,6 +395,12 @@ def stage(  # noqa: PLR0915 (pasos lineales del procedimiento, cada uno auditado
             },
             "layout": {"status": layout.get("status"), "sha256": digest_json(layout)},
             "homologation": homologation_report if kind == "portal" else None,
+            "contract_equivalence": (
+                {"status": "NOT_ESTABLISHED", "note": OE965_EQUIVALENCE_NOTE}
+                if kind == "oe965"
+                else None
+            ),
+            "reconciliation": result.flags.get("reconciliation"),
             "exceptions": result.exception_summary(),
         }
         sidecar_path = data_dir / "provenance" / result.source_id / f"{csv_name}.json"

@@ -81,7 +81,7 @@ uv run --frozen mypy --strict src
 uv run --frozen lint-imports
 ```
 
-- Esperado: **554 passed** y 12 skipped. Los 12 skipped son las pruebas Pilot-20 con datos reales.
+- Esperado: **578 passed** y 12 skipped. Los 12 skipped son las pruebas Pilot-20 con datos reales.
 - En Windows algunas pruebas POSIX de E1-A se omiten por diseño (`posix_only`), así que el número de omitidas puede ser mayor.
 - Si algo falla, **no continúe**: comparta la salida, que no contiene datos reales.
 
@@ -114,6 +114,41 @@ Compare-Object (Get-Content (Join-Path $PRIV 'sha256_originales.txt')) (Get-Cont
 - Si no, el informe indica qué ajustar: clases `unclassified`, `HEADER_NOT_FOUND`, `header_names`, longitudes. El ajuste se hace en una copia de `src/nexus/core/layouts/physical_v1.json` pasada con `--layout`, **sin filas reales**.
 
 `--show-headers` incluye los **nombres de columna** del Portal: son encabezados, no filas. Si la política local los considera sensibles, omita esa opción.
+
+### 2.2-bis Segundo probe (R2, tras el ajuste de lectores)
+
+Repita **solo** los tres probes con el commit que contiene `docs/evidence/CORE-NOV/R2_PROBE_1.md`. Escriba en archivos nuevos: `--out` nunca reemplaza un archivo existente.
+
+```powershell
+git fetch origin feature/core-v1
+git checkout feature/core-v1
+git pull origin feature/core-v1
+uv run --frozen nexus core probe --file (Join-Path $SRC 'R_20261101.TXT') --out (Join-Path $PRIV 'probe2_R_20261101.json')
+uv run --frozen nexus core probe --file (Join-Path $SRC 'Portal_CAT_2026-11-03_0955.csv') --show-headers --out (Join-Path $PRIV 'probe2_portal.json')
+uv run --frozen --with tzdata==2025.2 nexus core probe --file (Join-Path $SRC 'INV_STA289.TXT') --tz America/Mexico_City --out (Join-Path $PRIV 'probe2_INV_STA289.json')
+```
+
+Después compruebe que los originales no cambiaron:
+
+```powershell
+Get-FileHash -Algorithm SHA256 (Join-Path $SRC '*') | Format-Table Hash, Path -AutoSize | Out-File (Join-Path $PRIV 'sha256_tras_probe2.txt')
+Compare-Object (Get-Content (Join-Path $PRIV 'sha256_originales.txt')) (Get-Content (Join-Path $PRIV 'sha256_tras_probe2.txt'))
+```
+
+Qué revisar en cada informe antes de compartirlo:
+
+| Campo | Para qué sirve |
+|---|---|
+| `structure.valid` | Si el archivo se acepta |
+| `structure.line_balance.balanced` | Comprueba que cada línea física quedó en una clase |
+| `structure.line_classes` | Conteo de líneas por clase |
+| `structure.flags.reconciliation` | OE965: totales por ITEM y generales frente a lo leído. IN092U: grupos por stockroom con `qty_total_match` |
+| `structure.flags.header_diagnosis` | Portal: campos `missing` y columnas no reconocidas, enmascaradas |
+| `structure.exceptions` | Códigos de excepción |
+| `structure.exception_first_line_by_code` | Línea física del primer caso de cada código |
+
+- **Portal:** `--show-headers` agrega `header_names`, con los **nombres** de las columnas. Son encabezados, no filas. Si su política los considera sensibles, omita la opción y comparta solo `header_diagnosis`. En ese caso el ajuste de alias tomará una ronda más.
+- **No ejecutar** `stage`, `refresh`, SQL ni despliegues.
 
 ### 2.3 Configuración privada (R3 y R1)
 

@@ -18,7 +18,7 @@ import datetime as dt
 import re
 from typing import Any
 
-from nexus.core.physical.common import BLOCKING, WARNING, PhysicalResult, split_lines
+from nexus.core.physical.common import BLOCKING, WARNING, PhysicalResult, mask, split_lines
 
 _DATE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
 _DOUBLE_DATE = re.compile(r"^\S+\(\S+\)$")
@@ -29,8 +29,8 @@ def _date(raw: str) -> tuple[str, str]:
     text = raw.strip()
     if not text:
         return "", "DATE_MISSING"
-    if _DOUBLE_DATE.match(text):
-        return "", "DATE_AMBIGUOUS"
+    if _DOUBLE_DATE.match(text) or "(" in text or ")" in text:
+        return "", "DATE_AMBIGUOUS"  # fecha revisada(original): nunca se elige una
     m = _DATE.match(text)
     if not m:
         return "", "DATE_UNREADABLE"
@@ -93,13 +93,17 @@ def read_portal(  # noqa: PLR0915 (clasificación lineal de líneas físicas)
             if found is None:
                 res.count("preamble", line)
                 continue
-            if isinstance(found, str):
-                res.add(lineno, found, BLOCKING)
-                return res
-            header, width = found, len(cells)
             res.count("header", line)
             res.flags["header_names"] = [c.strip() for c in cells]  # solo con --show-headers
-            res.flags["header_columns"] = width
+            res.flags["header_columns"] = len(cells)
+            res.flags["header_diagnosis"] = diagnose_header(
+                lineno, [c.strip() for c in cells], aliases
+            )
+            if isinstance(found, str):
+                res.add(lineno, found, BLOCKING)
+                _count_rest(text, lineno, res)  # estructura del resto, sin interpretar filas
+                return res
+            header, width = found, len(cells)
             continue
         if not line.strip():
             res.count("blank")
@@ -161,6 +165,49 @@ def _match_header(cells: list[str], aliases: dict[str, list[str]]) -> dict[str, 
     if len(out) >= max(3, len(aliases) - 2):
         return "HEADER_INCOMPLETE"
     return None
+
+
+def diagnose_header(lineno: int, cells: list[str], aliases: dict[str, list[str]]) -> dict[str, Any]:
+    """Diagnóstico SANEADO del encabezado: estado de cada campo obligatorio (con el alias de
+    configuración que coincidió) y las columnas no reconocidas solo como forma enmascarada."""
+    fields: dict[str, dict[str, Any]] = {}
+    used: set[int] = set()
+    for name, names in aliases.items():
+        hits = [i for i, c in enumerate(cells) if c in names]
+        used.update(hits)
+        status = "MATCHED" if len(hits) == 1 else "AMBIGUOUS" if hits else "MISSING"
+        fields[name] = {
+            "status": status,
+            "column": hits[0] if len(hits) == 1 else None,
+            "matched_alias": cells[hits[0]] if len(hits) == 1 else None,
+            "aliases_tried": len(names),
+        }
+    return {
+        "line": lineno,
+        "columns": len(cells),
+        "fields": fields,
+        "missing": sorted(k for k, v in fields.items() if v["status"] == "MISSING"),
+        "ambiguous": sorted(k for k, v in fields.items() if v["status"] == "AMBIGUOUS"),
+        "unmatched_columns_masked": [
+            {"column": i, "shape": mask(c)} for i, c in enumerate(cells) if i not in used
+        ],
+    }
+
+
+def _count_rest(text: str, header_line: int, res: PhysicalResult) -> None:
+    """Tras un encabezado inválido: solo cuenta columnas por línea (no interpreta filas)."""
+    by_width: dict[int, int] = {}
+    scratch = PhysicalResult(kind="portal", source_id="portal_cat")
+    for lineno, line in split_lines(text, scratch):
+        if lineno <= header_line:
+            continue
+        if not line.strip():
+            res.count("blank")
+            continue
+        res.count("uninterpreted_row")
+        width = len(line.split("\t"))
+        by_width[width] = by_width.get(width, 0) + 1
+    res.flags["rows_by_column_count"] = dict(sorted(by_width.items()))
 
 
 def unmapped_lines(result: PhysicalResult) -> list[dict[str, str]]:
