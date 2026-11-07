@@ -219,16 +219,23 @@ def test_g6_failure_at_every_stage_never_partial_then_retry_publishes(
     assert svc.state.verify_publication_chain("sintetico") == []
 
 
+# WIN-02: terminación ABRUPTA real del proceso en el punto indicado (sin excepción controlada).
+# POSIX: SIGKILL → código -9. Windows no tiene SIGKILL: os.kill(pid, SIGTERM) llama a
+# TerminateProcess, que mata el proceso sin ejecutar limpieza, con código de salida 15.
+KILLED_EXIT = -signal.SIGKILL if hasattr(signal, "SIGKILL") else int(signal.SIGTERM)
+
+
 def test_g6_process_killed_mid_refresh_then_restart_recovers(tmp_path: Path) -> None:
     root, clock, svc = make(tmp_path)
     svc.refresh("t")
     demo.new_cut_m1(root)
     script = (
         "import os,signal,sys,datetime as dt\n"
+        "KILL=getattr(signal,'SIGKILL',signal.SIGTERM)\n"
         "from pathlib import Path\n"
         "from nexus.core.refresh import RefreshService\n"
         "def hook(n):\n"
-        "    if n==os.environ['KILL_AT']: os.kill(os.getpid(), signal.SIGKILL)\n"
+        "    if n==os.environ['KILL_AT']: os.kill(os.getpid(), KILL)\n"
         "now=dt.datetime(2031,1,20,20,tzinfo=dt.UTC)\n"
         "r=Path(sys.argv[1]); RefreshService(r,'sintetico',r/'rules.json',lambda:now,hook)"
         ".refresh('k')\n"
@@ -240,7 +247,7 @@ def test_g6_process_killed_mid_refresh_then_restart_recovers(tmp_path: Path) -> 
             env={**os.environ, "KILL_AT": kill_at, "PYTHONPATH": str(ROOT / "src")},
             timeout=120,
         )
-        assert proc.returncode == -signal.SIGKILL
+        assert proc.returncode == KILLED_EXIT, (kill_at, proc.returncode)
         assert svc.state.publication_head("sintetico")["seq"] == 1
     clock.set("2031-01-20T20:00:00Z")
     restarted = RefreshService(root, "sintetico", root / "rules.json", clock)

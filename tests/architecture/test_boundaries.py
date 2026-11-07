@@ -7,6 +7,7 @@ estándar: los motores no pueden importar E/S, red, procesos, reloj ni aleatorie
 from __future__ import annotations
 
 import ast
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -106,6 +107,18 @@ def test_import_linter_contracts_pass() -> None:
     exe = Path(sys.executable).parent / (
         "lint-imports.exe" if sys.platform == "win32" else "lint-imports"
     )
-    proc = subprocess.run([str(exe)], cwd=ROOT, capture_output=True, text=True, check=False)
+    # WIN-01: los nombres de contrato contienen «Δ». En Windows la consola por defecto es CP1252 y
+    # Rich fallaría al imprimirlos; se fuerza UTF-8 en el subproceso y en la lectura de su salida.
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+    proc = subprocess.run(
+        [str(exe)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="strict",
+        env=env,
+        check=False,
+    )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "BROKEN" not in proc.stdout.upper().replace("0 BROKEN", "")
