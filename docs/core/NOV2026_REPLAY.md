@@ -81,7 +81,7 @@ uv run --frozen mypy --strict src
 uv run --frozen lint-imports
 ```
 
-- Esperado: **578 passed** y 12 skipped. Los 12 skipped son las pruebas Pilot-20 con datos reales.
+- Esperado: **607 passed** y 12 skipped. Los 12 skipped son las pruebas Pilot-20 con datos reales.
 - En Windows algunas pruebas POSIX de E1-A se omiten por diseño (`posix_only`), así que el número de omitidas puede ser mayor.
 - Si algo falla, **no continúe**: comparta la salida, que no contiene datos reales.
 
@@ -149,6 +149,25 @@ Qué revisar en cada informe antes de compartirlo:
 
 - **Portal:** `--show-headers` agrega `header_names`, con los **nombres** de las columnas. Son encabezados, no filas. Si su política los considera sensibles, omita la opción y comparta solo `header_diagnosis`. En ese caso el ajuste de alias tomará una ronda más.
 - **No ejecutar** `stage`, `refresh`, SQL ni despliegues.
+
+### 2.2-ter Tercer probe (cierre de R2)
+
+Repita **solo** los tres probes con el commit que contiene `docs/evidence/CORE-NOV/R2_FINAL.md`. Use archivos de salida nuevos: `--out` nunca reemplaza un archivo existente.
+
+```powershell
+git fetch origin feature/core-v1
+git checkout feature/core-v1
+git pull origin feature/core-v1
+uv run --frozen nexus core probe --file (Join-Path $SRC 'R_20261101.TXT') --out (Join-Path $PRIV 'probe3_R_20261101.json')
+uv run --frozen nexus core probe --file (Join-Path $SRC 'Portal_CAT_2026-11-03_0955.csv') --out (Join-Path $PRIV 'probe3_portal.json')
+uv run --frozen --with tzdata==2025.2 nexus core probe --file (Join-Path $SRC 'INV_STA289.TXT') --tz America/Mexico_City --out (Join-Path $PRIV 'probe3_INV_STA289.json')
+Get-FileHash -Algorithm SHA256 (Join-Path $SRC '*') | Format-Table Hash, Path -AutoSize | Out-File (Join-Path $PRIV 'sha256_tras_probe3.txt')
+Compare-Object (Get-Content (Join-Path $PRIV 'sha256_originales.txt')) (Get-Content (Join-Path $PRIV 'sha256_tras_probe3.txt'))
+```
+
+El veredicto es `structure.acceptance.verdict`. `structure.line_accounting` es solo un conteo contable de líneas y **no** es un PASS. Los valores esperados están en `docs/evidence/CORE-NOV/R2_FINAL.md`.
+
+**No ejecutar** `stage`, `refresh`, SQL ni despliegues.
 
 ### 2.3 Configuración privada (R3 y R1)
 

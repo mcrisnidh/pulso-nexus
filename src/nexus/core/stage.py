@@ -198,10 +198,22 @@ def sanitized_structure(result: PhysicalResult, show_headers: bool = False) -> d
             for col in ("item", "item_portal", "customer_key_exact", "order", "stockroom")
             if result.records and col in result.records[0]
         },
-        "line_balance": {
+        # Contabilidad de líneas: cada línea física quedó en ALGUNA clase (incluida
+        # «unclassified»). NO es aceptación: ver ``acceptance``.
+        "line_accounting": {
             "total_lines": result.total_lines,
-            "classified_lines": sum(result.classes.values()),
-            "balanced": sum(result.classes.values()) == result.total_lines,
+            "lines_in_some_class": sum(result.classes.values()),
+            "unclassified_lines": result.classes.get("unclassified", 0),
+            "all_lines_counted": sum(result.classes.values()) == result.total_lines,
+            "meaning": "conteo contable de líneas; NO indica que el archivo sea válido",
+        },
+        "acceptance": {
+            "verdict": "PASS" if result.valid else "FAIL",
+            "records_accepted": len(result.records) if result.valid else 0,
+            "records_read": len(result.records),
+            "unclassified_lines": result.classes.get("unclassified", 0),
+            "blocking_exceptions": sum(1 for e in result.exceptions if e.severity == "BLOCKING"),
+            "rule": "PASS solo sin excepciones bloqueantes, con registros y fecha de documento",
         },
         "exceptions": result.exception_summary(),
         "exception_lines_first": [

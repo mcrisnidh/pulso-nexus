@@ -11,8 +11,10 @@ Estructura confirmada por el informe saneado del primer probe en ASMXC1200 (R2):
   terminando en la columna 129. La fila NO trae el stockroom.
 - **Total de grupo:** ``<rótulo>: <stockroom>  <rótulo>: <cantidad> <valor>`` en las mismas
   columnas. Las filas anteriores (desde el total previo) pertenecen a ese stockroom. La asignación
-  se DEMUESTRA: la suma de cantidades de las filas debe ser igual al total impreso; si no, el
-  archivo es inválido (fallo cerrado).
+  se DEMUESTRA: la suma de cantidades Y la suma de valores de las filas deben ser iguales a los
+  totales impresos; si no, el archivo es inválido (fallo cerrado).
+- ITEM con espacios internos (filas FG del probe R2 nº 2): se conservan literalmente.
+- Cifras con decimal sin entero (``.999``, filas RM del probe R2 nº 2): gramática estricta.
 - «Excludes Zero Physical Quantity»: un ITEM ausente NO es cero; CORE lo trata como desconocido.
 - Todos los stockrooms se conservan con su cantidad (negativos incluidos). La regla CORE decide
   cuáles son usables (FG); QH, RM y los demás quedan separados y no asignables.
@@ -68,6 +70,8 @@ def _amount(line: str, span: list[int]) -> Decimal | None:
         if m.end() == stop - 1 or (m.end() == stop and token.endswith("-")):
             if m.start() < start - 4:  # desborde a la izquierda acotado
                 return None
+            if line[start : m.start()].strip():  # el campo contiene UNA sola cifra
+                return None
             return parse_qty(token)
     return None
 
@@ -77,8 +81,11 @@ def _data_row(line: str, cfg: dict[str, Any]) -> tuple[str, Decimal, Decimal] | 
     i0, i1 = cfg["item"]
     if len(line.rstrip()) < cfg["qty_physical"][1] or not line[:1].strip():
         return None
-    item = line[i0:i1].strip()
-    if not item or " " in item or line[i1 : i1 + 1].strip():
+    # ITEM: campo fijo [0:15]; empieza en la columna 0 y la columna 15 es el separador. Los
+    # espacios INTERNOS se conservan literalmente (probe R2 nº 2, filas FG); solo se quitan los
+    # espacios de relleno a la derecha. Nunca se normaliza ni se fusiona una identidad.
+    item = line[i0:i1].rstrip()
+    if not item or not item.isprintable() or "\t" in item or line[i1 : i1 + 1].strip():
         return None
     qty, value = _amount(line, cfg["qty_physical"]), _amount(line, cfg["value"])
     if qty is None or value is None:
@@ -162,11 +169,15 @@ def read_in092u(  # noqa: PLR0915 (clasificación lineal de líneas físicas)
             if not info["qty_total_match"]:
                 res.add(lineno, "GROUP_QTY_TOTAL_MISMATCH", BLOCKING, "qty_physical")
             if not info["value_total_match"]:
-                res.add(lineno, "GROUP_VALUE_TOTAL_MISMATCH", WARNING, "value")
+                # Probe R2 nº 2: los 5 grupos reales concilian EXACTAMENTE cantidad y valor; una
+                # discrepancia de valor indica una fila mal leída: bloqueante.
+                res.add(lineno, "GROUP_VALUE_TOTAL_MISMATCH", BLOCKING, "value")
             for row_line, item, qty, _value in pending:
                 if (item, room) in seen:
                     res.add(row_line, "DUPLICATE_ITEM_STOCKROOM", BLOCKING)
                 seen.add((item, room))
+                if " " in item:
+                    res.add(row_line, "ITEM_INTERNAL_SPACES_PRESERVED", WARNING, "item")
                 if qty < 0:
                     res.add(row_line, "QTY_NEGATIVE", WARNING, "qty_physical")
                 elif qty == 0:

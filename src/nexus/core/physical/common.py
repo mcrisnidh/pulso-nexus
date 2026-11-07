@@ -10,7 +10,15 @@ from importlib import resources
 from typing import Any
 
 BLOCKING, WARNING = "BLOCKING", "WARNING"
-_QTY = re.compile(r"^(?P<neg_lead>-)?(?P<num>\d[\d,]*(?:\.\d+)?)(?P<neg_trail>-)?$")
+# Gramática estricta de una cantidad física impresa:
+#   entero: dígitos sin separador, o miles agrupados de 3 en 3 con coma (1,234,567)
+#   decimal opcional: punto y al menos un dígito; también decimal SIN entero (.999, observado en
+#   IN092U, probe R2 nº 2); signo negativo al inicio O al final, nunca ambos.
+_QTY = re.compile(
+    r"^(?P<neg_lead>-)?"
+    r"(?P<num>(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)|\.\d+)"
+    r"(?P<neg_trail>-)?$"
+)
 _LINE_BREAK = re.compile(r"\r\n|\n|\r")
 
 
@@ -132,7 +140,9 @@ def split_lines(text: str, result: PhysicalResult) -> list[tuple[int, str]]:
 
 
 def parse_qty(token: str) -> Decimal | None:
-    """Cantidad física: miles con coma, signo negativo al inicio o AL FINAL (``6516-``).
+    """Cantidad física: miles con coma, decimal opcional (``.999`` admitido), signo negativo al
+    inicio o AL FINAL (``6516-``). Gramática estricta: ``1..5``, ``1.2.3``, ``1,23`` o ``.``
+    son inválidos.
     ``None`` si está vacía o no es numérica (desconocida; nunca cero)."""
     m = _QTY.match(token.strip())
     if not m or (m.group("neg_lead") and m.group("neg_trail")):

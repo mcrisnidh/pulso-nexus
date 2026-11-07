@@ -1,7 +1,7 @@
 {
   "schema": "nexus.core.physical-layout/1",
-  "description": "Formato FÍSICO de las fuentes reales de noviembre 2026. Ajustado con el informe saneado del primer probe en ASMXC1200 (OE965 e IN092U) y las 3,796 líneas del Pilot-20. Portal: encabezado PENDIENTE de diagnóstico (segundo probe). Ajustar aquí con informes saneados, nunca con filas reales.",
-  "status": "PROVISIONAL_R2_PROBE_1",
+  "description": "Formato FÍSICO de las fuentes reales de noviembre 2026. Ajustado con el informe saneado del primer probe en ASMXC1200 (OE965 e IN092U) y las 3,796 líneas del Pilot-20. Portal: `Item ID` confirmado como item_portal por el diagnóstico del segundo probe. Ajustar aquí con informes saneados, nunca con filas reales.",
+  "status": "PROVISIONAL_R2_PROBE_2",
   "file_patterns": {
     "oe965": "^R_\\d{8}.*\\.TXT$",
     "portal": "^Portal_CAT_.*\\.csv$",
@@ -100,7 +100,8 @@
         "Item",
         "Part Number",
         "Part #",
-        "Part"
+        "Part",
+        "Item ID"
       ],
       "line_id": [
         "Line ID",

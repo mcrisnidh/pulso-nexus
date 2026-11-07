@@ -7,6 +7,7 @@ siguen ``layouts/physical_v1.json``. Nunca se usan archivos ni filas reales.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -234,9 +235,10 @@ IN_ROWS = [
 ]
 
 
-def _dec(raw: str) -> float:
-    raw = raw.strip()
-    return -float(raw[:-1]) if raw.endswith("-") else float(raw)
+def _dec(raw: str) -> Decimal:
+    """Valor exacto de una cifra sintética del fixture (admite ``.999`` y signo final)."""
+    raw = raw.strip().replace(",", "")
+    return -Decimal(raw[:-1]) if raw.endswith("-") else Decimal(raw)
 
 
 def _amount_put(buf: list[str], start: int, end: int, text: str) -> None:
@@ -270,17 +272,23 @@ def in092u_group_total(room: str, qty: str, value: str) -> str:
     return "".join(buf)
 
 
-def _fmt3(x: float) -> str:
+def _fmt3(x: Decimal) -> str:
     return f"{abs(x):,.3f}" + ("-" if x < 0 else "")
+
+
+def _fmt2(x: Decimal) -> str:
+    return f"{abs(x):,.2f}" + ("-" if x < 0 else "")
 
 
 def in092u_bytes(
     date: str = "11/06/26",
     time: str = " 9:48:14",
-    rows: list[tuple[str, str, str]] | None = None,
+    rows: list[tuple[str, ...]] | None = None,
     excludes_zero: bool = True,
     group_qty_override: dict[str, str] | None = None,
     with_group_totals: bool = True,
+    group_value_override: dict[str, str] | None = None,
+    page_size: int = 0,
 ) -> bytes:
     """IN092U sintético: fecha y hora separadas por página, filas sin stockroom y total por
     stockroom al final de cada grupo (cantidad y valor en las columnas de las filas)."""
@@ -314,19 +322,29 @@ def in092u_bytes(
     ]
     lines = list(head)
     rows = rows if rows is not None else IN_ROWS
-    groups: list[tuple[str, list[tuple[str, str, str]]]] = []
+    groups: list[tuple[str, list[tuple[str, ...]]]] = []
     for r in rows:
         if groups and groups[-1][0] == r[1]:
             groups[-1][1].append(r)
         else:
             groups.append((r[1], [r]))
+    printed = 0
     for room, members in groups:
-        for item, _room, qty in members:
-            lines.append(in092u_row(item, qty))
+        for member in members:  # (item, room, qty[, value])
+            if page_size and printed and printed % page_size == 0:
+                lines += ["\f" + head[0], *head[1:]]  # encabezado repetido (misma fecha y hora)
+            lines.append(in092u_row(member[0], member[2], *member[3:4]))
+            printed += 1
         if with_group_totals:
-            total = sum(_dec(q) for _, _, q in members)
-            qty = (group_qty_override or {}).get(room, _fmt3(total))
-            value = f"{1250 * len(members):,.2f}"
+            qty = (group_qty_override or {}).get(room) or _fmt3(
+                sum((_dec(m[2]) for m in members), Decimal(0))
+            )
+            value = (group_value_override or {}).get(room) or _fmt2(
+                sum(
+                    (_dec(m[3]) if len(m) > 3 else Decimal("1250.00") for m in members),
+                    Decimal(0),
+                )
+            )
             lines.append(in092u_group_total(room, qty, value))
     lines.append(f"{'':<50}*** END OF REPORT ***")
     return ("\r\n".join(lines) + "\r\n").encode("cp850")

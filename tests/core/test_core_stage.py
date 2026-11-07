@@ -81,7 +81,8 @@ def test_st02_probe_reports_structure_needed_for_layout(tmp_path: Path) -> None:
     assert s["encoding"] == "cp850" and s["line_endings"] == {"CRLF": s["total_lines"]}
     assert s["line_classes"]["order_line"] == 8 and s["line_classes"]["item_header"] == 3
     assert {"length": 164, "lines": 18} in s["line_lengths_top"]  # pedidos + totales
-    assert s["line_balance"]["balanced"] is True
+    assert s["line_accounting"]["all_lines_counted"] is True
+    assert s["acceptance"]["verdict"] == "PASS" and s["acceptance"]["records_accepted"] == 8
     assert s["flags"]["reconciliation"]["items_without_total"] == 0
     assert "NOT_ESTABLISHED" in s["contract_note"]
     assert s["document_time"] == {
@@ -285,3 +286,17 @@ def test_st20_stage_cli_does_not_publish(
     )
     assert code == 0 and out["schema"] == "nexus.core.stage-report/1"
     assert not (lab["data"] / "store").exists() and not (lab["data"] / "replay").exists()
+
+
+def test_st21_line_accounting_is_never_a_pass(tmp_path: Path) -> None:
+    """Todas las líneas pueden estar contadas (incluidas las «unclassified») y aun así el archivo
+    no es aceptado: el veredicto está en ``acceptance``, no en la contabilidad de líneas."""
+    bad = tmp_path / "INV_STA999.TXT"
+    text = fx.in092u_bytes().decode("cp850").replace("*** END OF REPORT ***", "Lote 77 de 88")
+    bad.write_bytes(text.encode("cp850"))
+    s = probe(bad, business_tz="UTC")["structure"]
+    assert s["line_accounting"]["all_lines_counted"] is True
+    assert s["line_accounting"]["unclassified_lines"] == 1
+    assert "NO indica" in s["line_accounting"]["meaning"]
+    assert s["acceptance"]["verdict"] == "FAIL" and s["acceptance"]["records_accepted"] == 0
+    assert s["acceptance"]["blocking_exceptions"] >= 1 and s["valid"] is False
