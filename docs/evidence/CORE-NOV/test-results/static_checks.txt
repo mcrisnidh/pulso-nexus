@@ -1,0 +1,39 @@
+All checks passed!
+163 files already formatted
+Success: no issues found in 68 source files
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+
+---------
+Contracts
+---------
+
+Analyzed 106 files, 504 dependencies.
+-------------------------------------
+
+E1-B: solo nexus.metadata importa pyodbc KEPT
+E1-B: metadata no depende de capas de datos ni del pipeline KEPT
+engines: sin dependencias de E/S internas KEPT
+normalize: puro, sin E/S interna KEPT
+contracts: base sin dependencias de capas superiores KEPT
+connectors: transporte sin reglas ni integración KEPT
+storage y snapshots: sin lógica de datos KEPT
+pipeline no depende del CLI KEPT
+CORE C4: el cálculo de cobertura es puro (sin E/S, sin estado, sin CS, sin web) KEPT
+CORE C7: Frozen, Refresh, publicación y lectura no conocen las notas CS KEPT
+CORE C6: la web solo lee lo publicado (no importa cálculo, adaptadores ni 
+motores) KEPT
+CORE B0-7: el calendario operativo es puro (sin E/S, estado, cálculo ni web) KEPT
+CORE Δ1: los lectores físicos son puros (bytes → registros; sin E/S, estado ni 
+web) KEPT
+CORE Δ2: probe/stage no calculan, no publican y no conocen CS ni la web KEPT
+
+Contracts: 14 kept, 0 broken.

@@ -216,3 +216,22 @@ forbidden_modules = [
     "nexus.storage", "nexus.metadata", "nexus.pipeline", "nexus.web", "nexus.core.state",
     "nexus.core.refresh", "nexus.core.cs", "nexus.core.coverage", "nexus.core.read", "nexus.cli",
 ]
+
+[[tool.importlinter.contracts]]
+name = "CORE Δ1: los lectores físicos son puros (bytes → registros; sin E/S, estado ni web)"
+type = "forbidden"
+source_modules = ["nexus.core.physical"]
+forbidden_modules = [
+    "nexus.storage", "nexus.metadata", "nexus.pipeline", "nexus.web", "nexus.core.state",
+    "nexus.core.refresh", "nexus.core.cs", "nexus.core.coverage", "nexus.core.read",
+    "nexus.core.stage", "nexus.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "CORE Δ2: probe/stage no calculan, no publican y no conocen CS ni la web"
+type = "forbidden"
+source_modules = ["nexus.core.stage"]
+forbidden_modules = [
+    "nexus.core.refresh", "nexus.core.state", "nexus.core.coverage", "nexus.core.cs",
+    "nexus.core.read", "nexus.web", "nexus.pipeline", "nexus.metadata", "nexus.storage",
+]

@@ -29,6 +29,7 @@ from nexus.planning.adapters.sources import PortalLine
 from nexus.planning.engine import portal_decision
 from nexus.planning.model import (
     BLOCKED_CRC,
+    BLOCKED_SOURCE,
     NOT_CERTIFIABLE,
     PROVISIONAL,
     UNKNOWN_NOT_ZERO,
@@ -43,6 +44,11 @@ LINE, ORDER, ITEM_CUSTOMER, ITEM_CLASS = "LINE", "ORDER", "ITEM_CUSTOMER", "ITEM
 EXACT_LEVELS = (LINE, ORDER)
 METRICS = ("demand", "attended", "pending", "fg_assignable", "covered", "uncovered")
 ZERO = Decimal(0)
+# Δ4: cifras que dependen de cada fuente que puede faltar en el canal replay
+DEPENDS_ON = {
+    "shipments": frozenset({"attended", "pending", "covered", "uncovered"}),
+    "portal_cat": frozenset({"demand", "pending", "covered", "uncovered"}),
+}
 
 
 def month_bounds(month: str) -> tuple[str, str]:
@@ -84,17 +90,21 @@ class CoverageInput:
     month: str
     cut_ts: str
     oeras: list[OerasLine]
-    portal: list[PortalLine]
+    portal: list[PortalLine] | None  # None: Portal bloqueado (Δ4, solo replay)
     fg: list[FgRecord]
-    shipments: list[Shipment]
+    shipments: list[Shipment] | None  # None: sin embarques físicos (Δ4, solo replay)
     rules: CoreRules
     certified: bool  # todas las fuentes usadas tienen acta de certificación (falso en el Hito A)
     # B0-7: inicio de la ventana de embarques (medianoche local del día 1, en UTC). ``None`` =
     # medianoche UTC, comportamiento previo idéntico.
     window_start_utc: str | None = None
+    # Δ4: motivo por fuente bloqueada (solo ``portal_cat`` y ``shipments``, solo canal replay).
+    blocked: dict[str, str] = field(default_factory=dict)
 
 
-def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[str, list[str]]]:
+def _units(  # noqa: PLR0915 (recorrido lineal de las dos fuentes de demanda)
+    inp: CoverageInput,
+) -> tuple[list[Unit], list[dict[str, Any]], dict[str, list[str]]]:
     """Unidades de demanda del horizonte + líneas fuera del horizonte (consultables)."""
     rules = inp.rules.base
     start, end = month_bounds(inp.month)
@@ -145,7 +155,7 @@ def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[s
     if sub is not None:
         pools: dict[str, list[tuple[PortalLine, Decimal | None, str | None]]] = defaultdict(list)
         unknown_pool: dict[str, list[str]] = defaultdict(list)
-        for p in sorted(inp.portal, key=lambda r: (r.item, r.line_id)):
+        for p in sorted(inp.portal or [], key=lambda r: (r.item, r.line_id)):
             decision, dif = portal_decision(p, rules)
             when = getattr(p, inp.rules.portal_date_field)
             if decision in ("EXCLUIDO_ESTADO", "EXCLUIDO_DIF"):
@@ -177,7 +187,13 @@ def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[s
             demand: Decimal | None = known
             if reasons:
                 demand = None
-            if not lines and sub_lines_in_horizon.get(item):
+            if inp.portal is None:
+                demand = None
+                reasons.append(
+                    f"Portal {sub} no disponible ({inp.blocked.get('portal_cat', 'bloqueado')}): "
+                    f"demanda {sub} no determinable"
+                )
+            elif not lines and sub_lines_in_horizon.get(item):
                 demand = None
                 reasons.append(
                     f"29 OERAS tiene {sub_lines_in_horizon[item]} líneas de clase "
@@ -206,6 +222,7 @@ def _units(inp: CoverageInput) -> tuple[list[Unit], list[dict[str, Any]], dict[s
 
 def _net_shipments(inp: CoverageInput) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Embarques netos de reversas dentro de la ventana; lo demás se informa."""
+    assert inp.shipments is not None  # noqa: S101 (la rama sin embarques no llega aquí)
     start, _ = month_bounds(inp.month)
     window_start = inp.window_start_utc or f"{start}T00:00:00Z"
     in_window = [
@@ -267,6 +284,15 @@ def _consume(
 
 
 def _attribute(inp: CoverageInput, units: list[Unit]) -> dict[str, Any]:
+    if inp.shipments is None:  # Δ4: sin embarques físicos no hay atribución (no es cero)
+        return {
+            "allocations": [],
+            "excess": [],
+            "unattributed": [],
+            "excluded": [],
+            "net": [],
+            "blocked": inp.blocked.get("shipments", "sin embarques físicos"),
+        }
     sub = inp.rules.base.substitute_class
     net, excluded = _net_shipments(inp)
     allocations: list[dict[str, Any]] = []
@@ -386,7 +412,7 @@ def _fg(
     return total, PROVISIONAL, [], refs, detail
 
 
-def compute(inp: CoverageInput) -> dict[str, Any]:
+def compute(inp: CoverageInput) -> dict[str, Any]:  # noqa: PLR0915 (hechos por ITEM, lineal)
     """Resultado completo por ITEM y total (estructura JSON-serializable vía ``serialize``)."""
     units, future, notes = _units(inp)
     attribution = _attribute(inp, units)
@@ -446,6 +472,10 @@ def compute(inp: CoverageInput) -> dict[str, Any]:
                 facts["uncovered"] = Fact(
                     "uncovered", pending_v - covered, PROVISIONAL, [*refs, *fg_refs], lim, "EA"
                 )
+        if inp.shipments is None:  # Δ4: todo lo que depende de embarques queda sin valor
+            reason = f"embarques físicos no disponibles: {inp.blocked.get('shipments', '')}"
+            for name in ("attended", "pending", "covered", "uncovered"):
+                facts[name] = Fact(name, None, BLOCKED_SOURCE, refs, [*lim, reason], "EA")
         kpi = {name: _kpi(inp, f, aggregate) for name, f in facts.items()}
         per_item[item] = {
             "item": item,
@@ -456,7 +486,8 @@ def compute(inp: CoverageInput) -> dict[str, Any]:
             "line_coverage": _line_coverage(inp, mine, facts),
             "notes": notes.get(item, []),
         }
-    return {
+    totals = _totals(per_item)
+    out: dict[str, Any] = {
         "engine": ENGINE_VERSION,
         "month": inp.month,
         "cut_ts": inp.cut_ts,
@@ -468,10 +499,20 @@ def compute(inp: CoverageInput) -> dict[str, Any]:
             "sha256": inp.rules.raw_sha256,
         },
         "items": per_item,
-        "totals": _totals(per_item),
+        "totals": totals,
         "future_lines": future,
         "attribution": attribution,
     }
+    if inp.blocked:  # Δ4: solo existe cuando falta una fuente (las demás salidas no cambian)
+        out["blocked_sources"] = dict(sorted(inp.blocked.items()))
+        for name in METRICS:
+            by = sorted(src for src in inp.blocked if name in DEPENDS_ON[src])
+            if by:
+                totals[name]["complete"] = False
+                totals[name]["blocked_by"] = by
+        if inp.shipments is None:
+            totals["items_with_uncovered"] = None
+    return out
 
 
 def _kpi(inp: CoverageInput, f: Fact, aggregate: bool) -> str:
@@ -485,6 +526,23 @@ def _kpi(inp: CoverageInput, f: Fact, aggregate: bool) -> str:
 
 
 def _unit_view(u: Unit, inp: CoverageInput) -> dict[str, Any]:
+    if inp.shipments is None:  # Δ4: sin embarques, atendida y pendiente son desconocidas
+        return {
+            "key": u.key,
+            "kind": u.kind,
+            "customer_class": u.customer_class,
+            "customer_key": u.customer_key,
+            "order": u.order,
+            "line": u.line,
+            "due": u.due,
+            "overdue": u.overdue,
+            "demand": u.demand,
+            "attended_exact": None,
+            "attended_aggregate": None,
+            "pending": None,
+            "reasons": [*u.reasons, "atendida y pendiente sin dato: embarques no disponibles"],
+            "source_lines": sorted({r.line for r in u.refs}),
+        }
     return {
         "key": u.key,
         "kind": u.kind,
@@ -536,7 +594,8 @@ def _totals(per_item: dict[str, Any]) -> dict[str, Any]:
             else:
                 known += f.value
         out[name] = {
-            "known_sum": known,
+            # Ningún ITEM con dato: no hay suma conocida (nunca un 0 por omisión)
+            "known_sum": known if len(unknown_items) < len(per_item) or not per_item else None,
             "unknown_items": unknown_items,
             "complete": not unknown_items,
         }
@@ -558,7 +617,9 @@ def check_invariants(result: dict[str, Any], shipments: list[Shipment]) -> list[
         f = data["facts"]
         v = {k: f[k].value for k in METRICS}
         for k in METRICS:
-            if f[k].status in (UNKNOWN_NOT_ZERO, NOT_CERTIFIABLE) and v[k] is not None:
+            if f[k].status in (UNKNOWN_NOT_ZERO, NOT_CERTIFIABLE, BLOCKED_SOURCE) and (
+                v[k] is not None
+            ):
                 violations.append(f"{item}: {k} desconocido con valor")
         if None not in (v["demand"], v["attended"], v["pending"]):
             if v["demand"] != v["attended"] + v["pending"]:

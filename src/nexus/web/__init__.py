@@ -29,7 +29,7 @@ from nexus.core.cs import (
 )
 from nexus.core.read import PublishedReader
 from nexus.core.refresh import RefreshService, iso
-from nexus.core.state import PublicationConflictError, PublicationRefusedError
+from nexus.core.state import PublicationConflictError, PublicationRefusedError, cs_root
 from nexus.errors import IntegrityError
 from nexus.storage.object_store import LocalObjectStore
 from nexus.web import present
@@ -64,7 +64,7 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
         **({"clock": clock} if clock else {}),
         hook=refresh_hook,
     )
-    cs = CsStore(LocalObjectStore(data_dir / "cs"), service.rules.cs_status_vocabulary)
+    cs = CsStore(LocalObjectStore(cs_root(data_dir, channel)), service.rules.cs_status_vocabulary)
     reader = PublishedReader(service.state, channel)
     app = Flask(__name__)
     app.config.update(
@@ -156,6 +156,7 @@ def create_app(  # noqa: PLR0915 (rutas declaradas en la factory)
         "status_label",
         "kind_label",
         "event_label",
+        "source_label",
     ):
         app.add_template_filter(getattr(present, name), name)
     app.add_template_global(present.cs_value, "cs_value")

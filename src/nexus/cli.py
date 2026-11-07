@@ -277,6 +277,59 @@ def _cmd_core(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_core_probe(args: argparse.Namespace) -> int:
+    from pathlib import Path  # noqa: PLC0415
+
+    from nexus.core.stage import probe  # noqa: PLC0415
+
+    report = probe(
+        Path(args.file),
+        kind=args.kind,
+        layout=_physical_layout(args.layout),
+        business_tz=args.tz,
+        show_headers=args.show_headers,
+        keys_out=Path(args.keys_out) if args.keys_out else None,
+    )
+    if args.out:
+        from nexus.core.stage import write_exclusive  # noqa: PLC0415
+
+        write_exclusive(Path(args.out), _json_bytes(report))
+        _emit({"probe": args.out, "valid": report["structure"]["valid"]})
+    else:
+        _emit(report)
+    return EXIT_OK
+
+
+def _cmd_core_stage(args: argparse.Namespace) -> int:
+    from pathlib import Path  # noqa: PLC0415
+
+    from nexus.core.stage import stage  # noqa: PLC0415
+
+    report = stage(
+        Path(args.src),
+        Path(args.data),
+        homologation_path=Path(args.homologation) if args.homologation else None,
+        layout=_physical_layout(args.layout),
+    )
+    _emit(report)
+    return EXIT_OK
+
+
+def _physical_layout(path: str | None) -> dict[str, Any] | None:
+    if not path:
+        return None
+    from pathlib import Path  # noqa: PLC0415
+
+    data: dict[str, Any] = json.loads(Path(path).read_bytes().decode("utf-8"))
+    if data.get("schema") != "nexus.core.physical-layout/1":
+        raise ConfigurationError("layout físico: esquema distinto de nexus.core.physical-layout/1")
+    return data
+
+
+def _json_bytes(doc: Any) -> bytes:
+    return (json.dumps(doc, indent=1, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+
+
 def _cmd_web(args: argparse.Namespace) -> int:
     from pathlib import Path  # noqa: PLC0415
 
@@ -366,6 +419,22 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (declaración li
         if name == "rollback":
             cp.add_argument("--to", required=True)
         cp.set_defaults(func=_cmd_core)
+
+    cp = core_sub.add_parser("probe", help="inspección SANEADA de un archivo real (solo lectura)")
+    cp.add_argument("--file", required=True)
+    cp.add_argument("--kind", choices=["oe965", "portal", "in092u"], default=None)
+    cp.add_argument("--layout", default=None, help="layout físico ajustado (JSON)")
+    cp.add_argument("--tz", default=None, help="zona de la planta para el corte IN092U")
+    cp.add_argument("--show-headers", action="store_true", help="nombres de columnas del Portal")
+    cp.add_argument("--keys-out", default=None, help="claves de cliente → archivo local privado")
+    cp.add_argument("--out", default=None, help="guardar el informe (no reemplaza)")
+    cp.set_defaults(func=_cmd_core_probe)
+    cp = core_sub.add_parser("stage", help="prepara fuentes reales en un directorio privado")
+    cp.add_argument("--src", required=True, help="carpeta con las copias autorizadas")
+    cp.add_argument("--data", required=True, help="directorio de datos privado (fuera de git)")
+    cp.add_argument("--homologation", default=None, help="tabla ITEM Portal → ERP aprobada")
+    cp.add_argument("--layout", default=None, help="layout físico ajustado (JSON)")
+    cp.set_defaults(func=_cmd_core_stage)
 
     p_web = sub.add_parser("web", help="CORE v1.0: web mínima (solo loopback, sin debug)")
     p_web.add_argument("--data", required=True)

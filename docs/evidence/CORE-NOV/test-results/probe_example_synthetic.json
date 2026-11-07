@@ -1,0 +1,278 @@
+{
+ "INV_STA289.TXT": {
+  "file": "INV_STA289.TXT",
+  "layout_sha256": "65485821ef0dac16ba5fa66cf0d7d243152fd66d76c58813d40aca7a86a3eda8",
+  "layout_status": "PROVISIONAL_PENDING_PROBE",
+  "notice": "informe saneado: sin filas, ITEM, clientes, pedidos ni cantidades",
+  "schema": "nexus.core.probe/1",
+  "sha256": "6fc4e83b523edfada27f6f49278cce7c7a66dab9b891358778e0d7cddb93c98f",
+  "size": 520,
+  "structure": {
+   "bom": "",
+   "contract_source": "fg_inventory",
+   "distinct_counts": {
+    "item": 2,
+    "stockroom": 3
+   },
+   "document_time": {
+    "month": "2026-11",
+    "precision": "second",
+    "source": "document_header"
+   },
+   "encoding": "cp850",
+   "exception_lines_first": [],
+   "exceptions": {
+    "WARNING:QTY_NEGATIVE:qty_physical": 1
+   },
+   "flags": {
+    "excludes_zero_physical": true
+   },
+   "kind": "in092u",
+   "line_classes": {
+    "data_row": 4,
+    "page_header": 3,
+    "page_text": 1,
+    "trailer": 1
+   },
+   "line_endings": {
+    "CRLF": 9
+   },
+   "line_lengths_top": [
+    {
+     "length": 59,
+     "lines": 4
+    },
+    {
+     "length": 21,
+     "lines": 1
+    },
+    {
+     "length": 31,
+     "lines": 1
+    },
+    {
+     "length": 65,
+     "lines": 1
+    },
+    {
+     "length": 70,
+     "lines": 1
+    },
+    {
+     "length": 79,
+     "lines": 1
+    }
+   ],
+   "records": 4,
+   "shapes_masked": {
+    "data_row": [
+     "AAAAAAA9             AA                  999          99.99",
+     "AAAAAAA9             AA                   99          99.99",
+     "AAAAAAA9             AA                   9-          99.99"
+    ],
+    "page_header": [
+     "AA999A        AAAAAAAAA AA AAAAAAAAA        99-AAA-9999 99:99:99        AAAA: 9",
+     "AAAAAAAA AAAA AAAAAAAA AAAAAAAA",
+     "----------------------------------------------------------------------"
+    ],
+    "page_text": [
+     "AAAA                 AAAAAAAAA     AAAAAAAA AAAAAAAA        AAAAA"
+    ],
+    "trailer": [
+     "*** AAA AA AAAAAA ***"
+    ]
+   },
+   "total_lines": 9,
+   "valid": true
+  }
+ },
+ "Portal_CAT_2026-11-03_0955.csv": {
+  "file": "Portal_CAT_2026-11-03_0955.csv",
+  "layout_sha256": "65485821ef0dac16ba5fa66cf0d7d243152fd66d76c58813d40aca7a86a3eda8",
+  "layout_status": "PROVISIONAL_PENDING_PROBE",
+  "notice": "informe saneado: sin filas, ITEM, clientes, pedidos ni cantidades",
+  "schema": "nexus.core.probe/1",
+  "sha256": "e0c24e2d3fa51745641a61fa3851f8ff6d704919cb63d9bb123eb7f6e335d55b",
+  "size": 584,
+  "structure": {
+   "bom": "UTF-16LE",
+   "contract_source": "portal_cat",
+   "distinct_counts": {
+    "item": 1,
+    "item_portal": 1
+   },
+   "document_time": {
+    "month": "2026-11",
+    "precision": "date",
+    "source": "file_name"
+   },
+   "encoding": "utf-16-le",
+   "exception_lines_first": [],
+   "exceptions": {
+    "WARNING:DOCUMENT_DATE_FROM_FILE_NAME": 1,
+    "WARNING:SHIPPED_MISSING:shipped": 1,
+    "WARNING:UNMAPPED_ITEM:item_portal": 3
+   },
+   "flags": {
+    "header_columns": 7
+   },
+   "kind": "portal",
+   "line_classes": {
+    "data_row": 3,
+    "header": 1,
+    "preamble": 4
+   },
+   "line_endings": {
+    "CRLF": 8
+   },
+   "line_lengths_top": [
+    {
+     "length": 0,
+     "lines": 1
+    },
+    {
+     "length": 13,
+     "lines": 1
+    },
+    {
+     "length": 19,
+     "lines": 1
+    },
+    {
+     "length": 22,
+     "lines": 1
+    },
+    {
+     "length": 49,
+     "lines": 1
+    },
+    {
+     "length": 52,
+     "lines": 1
+    },
+    {
+     "length": 54,
+     "lines": 1
+    },
+    {
+     "length": 66,
+     "lines": 1
+    }
+   ],
+   "records": 3,
+   "shapes_masked": {
+    "data_row": [
+     "AA-9\tAAA AAAAAA 9\tAAAA\t999\t999\t99/99/9999\t99/99/9999",
+     "AA-9\tAAA AAAAAA 9\tAAAAAAAAA\t99\t9\t99/99/9999\t99/99/9999",
+     "AA-9\tAAA AAAAAA 9\tAAAA\t999\t\t99/99/9999\t99/99/9999"
+    ],
+    "header": [
+     "AAAA AA\tAAAA AAAAAA\tAAAAAA\tAAAAAAA\tAAAAAAA\tAAAA AAAA\tAAAAAAAA AAAA"
+    ],
+    "preamble": [
+     "AAAAAAAA AAAAAA AAAAAA",
+     "AAAAAAAA: AAA",
+     "AAAAAAAAA AA AAAAAA"
+    ]
+   },
+   "total_lines": 8,
+   "valid": true
+  }
+ },
+ "R_20261101.TXT": {
+  "file": "R_20261101.TXT",
+  "layout_sha256": "65485821ef0dac16ba5fa66cf0d7d243152fd66d76c58813d40aca7a86a3eda8",
+  "layout_status": "PROVISIONAL_PENDING_PROBE",
+  "notice": "informe saneado: sin filas, ITEM, clientes, pedidos ni cantidades",
+  "schema": "nexus.core.probe/1",
+  "sha256": "3e3a97939494bbe76b4fa4f7d415f72c1061cb7c03260484b1e801e313c9e714",
+  "size": 2000,
+  "structure": {
+   "bom": "",
+   "contract_source": "oeras_29",
+   "distinct_counts": {
+    "customer_key_exact": 6,
+    "item": 3,
+    "order": 8
+   },
+   "document_time": {
+    "month": "2026-11",
+    "precision": "date",
+    "source": "document_header"
+   },
+   "encoding": "cp850",
+   "exception_lines_first": [],
+   "exceptions": {},
+   "flags": {
+    "form_feeds": 1
+   },
+   "kind": "oe965",
+   "line_classes": {
+    "blank": 1,
+    "item_header": 3,
+    "order_line": 8,
+    "page_header": 4,
+    "page_text": 2,
+    "trailer": 1
+   },
+   "line_endings": {
+    "CRLF": 19
+   },
+   "line_lengths_top": [
+    {
+     "length": 164,
+     "lines": 8
+    },
+    {
+     "length": 40,
+     "lines": 3
+    },
+    {
+     "length": 81,
+     "lines": 2
+    },
+    {
+     "length": 83,
+     "lines": 2
+    },
+    {
+     "length": 90,
+     "lines": 2
+    },
+    {
+     "length": 0,
+     "lines": 1
+    },
+    {
+     "length": 21,
+     "lines": 1
+    }
+   ],
+   "records": 8,
+   "shapes_masked": {
+    "item_header": [
+     "AAAAAAA9                999        9999-",
+     "AAAAAAA9                 99           99",
+     "AAAAAAA9                  9            9"
+    ],
+    "order_line": [
+     "                                                9999999   9   99/99/99         999         999           9   AAAAAA    999  AAAAAAA AAAAAAAAA",
+     "                                                9999999   9   99/99/99          99          99           9   AAAAAA    999  AAAAAAA AAAAAAAAA",
+     "                                                9999999   9   99/99/99          99          99           9   AAAAAA   999   AAAAAAA AAAAAAAAA"
+    ],
+    "page_header": [
+     "AA999          AAAAA AAAAAA AAAAA AAAAAA                 AAAA: 99/99/99   AAAA: 9",
+     "------------------------------------------------------------------------------------------"
+    ],
+    "page_text": [
+     "AAAA AAAAAA          AAAAAAAA    AAAAAAAAA     AAAAA   AA   AAA      AAAAAAA   AAAA"
+    ],
+    "trailer": [
+     "*** AAA AA AAAAAA ***"
+    ]
+   },
+   "total_lines": 19,
+   "valid": true
+  }
+ }
+}

@@ -11,6 +11,16 @@ Flujo de una solicitud (worker E1-B sin cambios de semántica: cola idempotente,
 4. Cálculo puro (C4) + invariantes. Generación determinista (mismas fuentes ⇒ mismo gen_id).
 5. Publicación CAS solo si la validación es PASS. Si algo falla, el puntero no se mueve.
 
+Noviembre 2026 (Δ3/Δ4, C1/C2):
+
+- Un documento 29 OERAS/Portal puede declarar solo una FECHA (sin hora). El orden entre archivos
+  es por fecha local; dos archivos válidos distintos con la misma fecha (o una fecha y un instante
+  del mismo día) tienen PRECEDENCIA AMBIGUA: si aún no hay Frozen, no se registra ni se publica.
+  Un Frozen de precisión fecha queda PROVISIONAL y conserva la evidencia de precedencia.
+- Solo en el canal ``replay`` (almacén físico propio): sin embarques físicos del mismo corte, o
+  sin Portal, se publica una vista INFORMATIVA con lo que depende de la fuente faltante sin valor
+  (BLOCKED_SOURCE). El canal operativo conserva todas sus puertas.
+
 Este módulo NO conoce las notas de Customer Service (C7): ni las lee ni las escribe.
 """
 
@@ -35,6 +45,8 @@ from nexus.core.state import (
     PublicationRefusedError,
     check_channel,
     item_key,
+    lane_of,
+    store_root,
 )
 from nexus.core.timebase import SAFE_PROCEDURE, UTC_NAME, BusinessCalendar, TimezoneBindingError
 from nexus.errors import ConfigurationError
@@ -49,6 +61,9 @@ Clock = Callable[[], dt.datetime]
 SYNTHETIC_SYSTEMS = frozenset({"SYNTHETIC"})
 FROZEN_SOURCES = ("oeras_29", "portal_cat")
 SCHEMA = "nexus.core.generation/1"
+PARTIAL_CHANNELS = frozenset({"replay"})  # Δ4: único canal con publicación informativa parcial
+PARTIAL_SOURCES = ("portal_cat", "shipments")
+INFORMATIVE_SCOPE = "INFORMATIVE_NOT_CERTIFIED"
 
 PROFILE = Profile(
     name="core-local",
@@ -69,6 +84,11 @@ PROFILE = Profile(
 )
 
 
+def parsed_is_date(instant: str | None) -> bool:
+    """¿Es una fecha de documento (precisión fecha, Δ3)?"""
+    return instant is not None and len(instant) == 10
+
+
 def utcnow() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
 
@@ -86,6 +106,7 @@ class Selection:
     rejected: list[dict[str, Any]] = field(default_factory=list)
     failures: list[str] = field(default_factory=list)
     alerts: list[dict[str, Any]] = field(default_factory=list)
+    blocked: dict[str, str] = field(default_factory=dict)  # Δ4 (solo replay)
 
 
 class CoreJob:
@@ -119,9 +140,9 @@ class CoreJob:
         out = []
         for path in sorted(folder.glob("*.csv")) if folder.is_dir() else []:
             parsed = read_source(source_id, path)
-            if parsed.instant and self.calendar.month_of(parsed.instant) != month:
+            if parsed.instant and self.calendar.business_month(parsed.instant) != month:
                 continue  # otro mes: no participa en este corte (sigue en la bandeja)
-            if parsed.valid and parsed.instant and parsed.instant > now:
+            if parsed.valid and parsed.instant and self._after_now(parsed.instant, now):
                 parsed.valid = False
                 parsed.errors.append("instante posterior al reloj del servidor")
             if parsed.valid:
@@ -129,18 +150,35 @@ class CoreJob:
             out.append(parsed)
         return out
 
+    def _after_now(self, instant: str, now: str) -> bool:
+        if parsed_is_date(instant):  # Δ3: una fecha se compara con la fecha local del servidor
+            return instant > self.calendar.local_date(now)
+        return instant > now
+
+    def _ordered(self, valid: list[ParsedSource]) -> tuple[list[ParsedSource], list[str]]:
+        """Orden de precedencia. Con instantes completos: (instante, sha), como siempre. Con alguna
+        fecha de documento (Δ3): por fecha local; devuelve además las fechas con precedencia
+        ambigua (más de un contenido distinto el mismo día)."""
+        if not any(parsed_is_date(p.instant) for p in valid):
+            return sorted(valid, key=lambda p: (p.instant or "", p.sha256 or "")), []
+        day = {id(p): self.calendar.local_date(p.instant or "") for p in valid}
+        ordered = sorted(valid, key=lambda p: (day[id(p)], p.instant or "", p.sha256 or ""))
+        by_day: dict[str, set[str]] = {}
+        for p in ordered:
+            by_day.setdefault(day[id(p)], set()).add(str(p.sha256))
+        return ordered, sorted(d for d, shas in by_day.items() if len(shas) > 1)
+
     def select(self, month: str, actor: str) -> Selection:
         now = iso(self.clock())
         sel = Selection()
         for source_id in SOURCE_IDS:
             parsed = self._parsed(source_id, month, now)
             sel.rejected += [p.describe() for p in parsed if not p.valid]
-            valid = sorted(
-                (p for p in parsed if p.valid), key=lambda p: (p.instant or "", p.sha256 or "")
-            )
+            valid, ambiguous = self._ordered([p for p in parsed if p.valid])
             if source_id in FROZEN_SOURCES:
-                self._frozen(source_id, month, valid, sel, actor, now)
-                if valid:
+                self._frozen(source_id, month, valid, ambiguous, sel, actor, now)
+                last_day = self.calendar.local_date(valid[-1].instant or "") if valid else ""
+                if valid and last_day not in ambiguous:
                     sel.current[source_id] = valid[-1]
             elif source_id == "fg_inventory":
                 sel.fg = valid[-1] if valid else None
@@ -150,10 +188,14 @@ class CoreJob:
                     same_cut = [p for p in valid if p.instant == sel.fg.instant]
                     sel.shipments = same_cut[-1] if same_cut else None
                 if sel.shipments is None:
-                    sel.failures.append(
+                    reason = (
                         "TEMPORAL_MISMATCH/BLOCKED_SOURCE: no hay embarques físicos válidos con el "
                         f"mismo corte que FG ({sel.fg.instant if sel.fg else 'sin FG'})"
                     )
+                    if self.channel in PARTIAL_CHANNELS and sel.fg is not None:
+                        sel.blocked["shipments"] = reason  # Δ4: informativo, sin valor
+                    else:
+                        sel.failures.append(reason)
         if sel.fg is None:
             sel.failures.append("BLOCKED_SOURCE: no hay inventario FG válido")
         return sel
@@ -163,11 +205,21 @@ class CoreJob:
         source_id: str,
         month: str,
         valid: list[ParsedSource],
+        ambiguous: list[str],
         sel: Selection,
         actor: str,
         now: str,
     ) -> None:
         record = self.state.get_frozen(self.channel, month, source_id)
+        first_day = self.calendar.local_date(valid[0].instant or "") if valid else ""
+        if record is None and valid and first_day in ambiguous:
+            sel.failures.append(
+                f"PRECEDENCIA AMBIGUA: {source_id} tiene varios archivos válidos distintos con la "
+                f"fecha de documento {first_day} y la fuente no declara hora; no se registra "
+                "Frozen "
+                "(se requiere evidencia de cuál es el primero)"
+            )
+            return
         if record is None and valid:
             first = valid[0]
             try:
@@ -189,6 +241,7 @@ class CoreJob:
                         "registered_by": actor,
                         "registered_at": now,
                         **({} if self.calendar.is_utc else {"business_tz": self.calendar.name}),
+                        **self._date_precision_evidence(source_id, first, valid),
                     },
                 )
                 self.state.append_event(
@@ -215,6 +268,9 @@ class CoreJob:
             )
             return
         for p in valid:
+            if parsed_is_date(p.instant) or parsed_is_date(record["instant"]):
+                self._date_precedence_alert(source_id, month, p, record, sel)
+                continue
             if p.instant and p.instant < record["instant"] and p.sha256 != record["sha256"]:
                 alert = {
                     "kind": "FROZEN_PRECEDENCE_CONFLICT",
@@ -239,11 +295,94 @@ class CoreJob:
             return
         sel.frozen[source_id] = {"record": record, "parsed": parsed}
 
+    def _date_precision_evidence(
+        self, source_id: str, first: ParsedSource, valid: list[ParsedSource]
+    ) -> dict[str, Any]:
+        """C1: evidencia de precedencia de un Frozen de precisión fecha (vacío si el instante es
+        completo: los registros previos no cambian)."""
+        if not parsed_is_date(first.instant):
+            return {}
+        evidence: dict[str, Any] = {
+            "instant_precision": "date",
+            "frozen_status": "PROVISIONAL",
+            "precedence_evidence": {
+                "basis": "primer documento válido del mes por fecha de documento entre los "
+                "archivos observados al registrar; la fuente no declara hora de extracción",
+                "observed_valid_files": [
+                    {"file": p.file_name, "sha256": p.sha256, "instant": p.instant} for p in valid
+                ],
+                "certified": False,
+            },
+        }
+        provenance = self._provenance(source_id, first)
+        if provenance is not None:
+            evidence["provenance"] = provenance
+        return evidence
+
+    def _provenance(self, source_id: str, parsed: ParsedSource) -> dict[str, Any] | None:
+        """Sidecar de ``nexus core stage`` (identidad del ORIGINAL y tiempos separados)."""
+        path = self.inbox.parent / "provenance" / source_id / f"{parsed.file_name}.json"
+        if not path.is_file():
+            return None
+        data: dict[str, Any] = json.loads(path.read_bytes().decode("utf-8"))
+        if data.get("contract_csv", {}).get("sha256") != parsed.sha256:
+            return {"error": "sidecar de procedencia no corresponde al archivo (SHA distinto)"}
+        return {
+            "original": data.get("original"),
+            "times": data.get("times"),
+            "sidecar_sha256": sha256_bytes(path.read_bytes()),
+        }
+
+    def _date_precedence_alert(
+        self,
+        source_id: str,
+        month: str,
+        p: ParsedSource,
+        record: dict[str, Any],
+        sel: Selection,
+    ) -> None:
+        """Δ3/C1: con precisión fecha, un archivo distinto del mismo día o anterior no reemplaza
+        el Frozen; se alerta y el Frozen sigue PROVISIONAL."""
+        if p.sha256 == record["sha256"] or not p.instant:
+            return
+        day = self.calendar.local_date(p.instant)
+        frozen_day = self.calendar.local_date(record["instant"])
+        if day > frozen_day:
+            return
+        alert = {
+            "kind": "FROZEN_PRECEDENCE_CONFLICT"
+            if day < frozen_day
+            else "FROZEN_PRECEDENCE_AMBIGUOUS",
+            "month": month,
+            "source_id": source_id,
+            "frozen_instant": record["instant"],
+            "earlier_file": p.file_name,
+            "earlier_instant": p.instant,
+            "earlier_sha256": p.sha256,
+            "action": "ninguna automática: el Frozen registrado no se reemplaza y queda "
+            "PROVISIONAL; requiere procedimiento con doble aprobación",
+        }
+        self.state.put_alert(self.channel, month, alert)
+        sel.alerts.append(alert)
+
+    def _portal_blocked(self, sel: Selection, month: str) -> None:
+        """Δ4 (solo replay): sin Portal válido ni Frozen Portal registrado, la demanda de la clase
+        sustituida queda desconocida en lugar de impedir toda la vista informativa."""
+        if self.channel not in PARTIAL_CHANNELS or "portal_cat" in sel.frozen:
+            return
+        prefix = "BLOCKED_SOURCE: sin Frozen portal_cat válido"
+        if any(f.startswith(prefix) for f in sel.failures):
+            sel.failures = [f for f in sel.failures if not f.startswith(prefix)]
+            sel.blocked["portal_cat"] = (
+                f"sin Portal válido para {month} (fuente ausente o homologación pendiente)"
+            )
+
     # ---------------------------------------------------------------- ejecución
     def __call__(self, store: LocalObjectStore, payload: dict[str, Any]) -> dict[str, Any]:
         month, actor = str(payload["month"]), str(payload["actor"])
         ensure_tz_binding(self.state, self.channel, self.calendar, month, iso(self.clock()), actor)
         sel = self.select(month, actor)
+        self._portal_blocked(sel, month)
         self._stage("after_capture")
         used = [sel.frozen[s]["parsed"] for s in FROZEN_SOURCES if s in sel.frozen]
         used += [p for p in (sel.fg, sel.shipments) if p is not None]
@@ -253,9 +392,13 @@ class CoreJob:
             failures.append("el canal operativo no admite fuentes sintéticas")
         result: dict[str, Any] | None = None
         violations: list[str] = []
+        if self.channel not in PARTIAL_CHANNELS and sel.blocked:  # defensa en profundidad
+            failures.append("publicación parcial solo admitida en el canal replay")
+        if not failures and "oeras_29" not in sel.frozen:
+            failures.append("BLOCKED_SOURCE: sin Frozen oeras_29")
         if not failures:
-            assert sel.fg is not None and sel.shipments is not None  # noqa: S101
-            certified = all(
+            assert sel.fg is not None  # noqa: S101
+            certified = not sel.blocked and all(
                 p.source_id in self.rules.certified_sources
                 and p.source_system not in SYNTHETIC_SYSTEMS
                 for p in used
@@ -264,18 +407,23 @@ class CoreJob:
                 month=month,
                 cut_ts=str(sel.fg.instant),
                 oeras=sel.frozen["oeras_29"]["parsed"].records,
-                portal=sel.frozen["portal_cat"]["parsed"].records,
+                portal=sel.frozen["portal_cat"]["parsed"].records
+                if "portal_cat" in sel.frozen
+                else None,
                 fg=sel.fg.records,
-                shipments=sel.shipments.records,
+                shipments=sel.shipments.records if sel.shipments else None,
                 rules=self.rules,
                 certified=certified,
                 window_start_utc=None
                 if self.calendar.is_utc
                 else self.calendar.window_utc(month)[0],
+                blocked=dict(sel.blocked),
             )
             try:
                 result = compute(inp)
-                violations = check_invariants(result, sel.shipments.records)
+                violations = check_invariants(
+                    result, sel.shipments.records if sel.shipments else []
+                )
             except ValueError as exc:
                 failures.append(f"cálculo rechazado: {exc}")
         self._stage("after_compute")
@@ -292,12 +440,16 @@ class CoreJob:
         }
         if not self.calendar.is_utc:  # B0-7: zona y límites UTC efectivos entran en la identidad
             inputs["calendar"] = self.calendar.fingerprint(month)
+        if sel.blocked:  # Δ4: la vista parcial tiene identidad propia
+            inputs["blocked"] = dict(sorted(sel.blocked.items()))
         gen_id = digest_json(inputs)[:32]
         validation = {
             "status": "PASS" if not failures and not violations else "FAIL",
             "failures": failures,
             "invariant_violations": violations,
         }
+        if sel.blocked:
+            validation["partial"] = sorted(sel.blocked)
         artifacts = self._write_generation(gen_id, month, inputs, sel, result, validation, systems)
         self._stage("after_generation")
         return {
@@ -402,6 +554,11 @@ class CoreJob:
                     },
                     "attribution": serialize(result["attribution"]),
                     "future_lines": serialize(result["future_lines"]),
+                    **(
+                        {"blocked_sources": result["blocked_sources"]}
+                        if "blocked_sources" in result
+                        else {}
+                    ),
                 },
             )
         manifest = {
@@ -417,6 +574,8 @@ class CoreJob:
             },
             "items": item_index,
         }
+        if self.channel in PARTIAL_CHANNELS:  # C2: nunca oficial ni operativo
+            manifest["publication_scope"] = INFORMATIVE_SCOPE
         key = f"{prefix}/manifest.json"
         if not self.state.store.exists(key):
             put("core.manifest", key, manifest)
@@ -504,7 +663,7 @@ class RefreshService:
         self.rules = load_core_rules(rules_path)
         self.clock = clock
         self.hook = hook
-        self.state = CoreState(LocalObjectStore(data_dir / "store"))
+        self.state = CoreState(LocalObjectStore(store_root(data_dir, channel)), lane_of(channel))
         self.inbox = data_dir / "inbox"
         # B0-7: calendario operativo; una zona distinta de la que liga el historial se rechaza
         # al iniciar (la web y la CLI no arrancan).
@@ -641,6 +800,12 @@ class RefreshService:
             raise PublicationRefusedError(
                 f"la generación se calculó con la zona {gen_tz}; la configuración es "
                 f"{self.calendar.name}"
+            )
+        if manifest["inputs"].get("blocked") and self.channel not in PARTIAL_CHANNELS:
+            raise PublicationRefusedError("una generación parcial solo se publica en replay")
+        if manifest.get("publication_scope") == INFORMATIVE_SCOPE and self.channel != "replay":
+            raise PublicationRefusedError(
+                "una generación informativa no se publica fuera de replay"
             )
         if self.channel == "operativo":
             if manifest["month"] != self.current_month():

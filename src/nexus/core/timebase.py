@@ -77,6 +77,17 @@ class BusinessCalendar:
         local = self._instant(instant).astimezone(self._tz)
         return f"{local.year:04d}-{local.month:02d}"
 
+    def local_date(self, instant: str | dt.datetime) -> str:
+        """Fecha local (``YYYY-MM-DD``) de un instante absoluto. Una FECHA de documento (precisión
+        fecha, Δ3) ya es local: se devuelve tal cual."""
+        if isinstance(instant, str) and len(instant) == 10:
+            return dt.date.fromisoformat(instant).isoformat()
+        return self._instant(instant).astimezone(self._tz).date().isoformat()
+
+    def business_month(self, instant: str | dt.datetime) -> str:
+        """Mes operativo de un instante completo o de una fecha de documento (Δ3)."""
+        return self.local_date(instant)[:7]
+
     def window_utc(self, month: str) -> tuple[str, str]:
         """[medianoche local del día 1 de ``month``, medianoche local del día 1 del mes siguiente),
         en UTC."""

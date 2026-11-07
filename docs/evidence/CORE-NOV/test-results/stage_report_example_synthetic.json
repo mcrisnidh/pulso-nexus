@@ -1,0 +1,76 @@
+{
+ "business_tz": "America/Mexico_City",
+ "files": [
+  {
+   "contract_file": "INV_STA289__6fc4e83b523e.csv",
+   "contract_sha256": "13e5fd127109954e5004d1612b8a961e2d4d28d1a37728b24463e8d8ae93babf",
+   "csv": "created",
+   "document_time": {
+    "business_tz": "America/Mexico_City",
+    "local": "2026-11-06T09:48:14",
+    "precision": "second",
+    "source": "document_header",
+    "value": "2026-11-06T15:48:14Z"
+   },
+   "exceptions": {
+    "WARNING:QTY_NEGATIVE:qty_physical": 1
+   },
+   "file": "INV_STA289.TXT",
+   "kind": "in092u",
+   "provenance": "created",
+   "records": 4,
+   "sha256": "6fc4e83b523edfada27f6f49278cce7c7a66dab9b891358778e0d7cddb93c98f",
+   "status": "STAGED"
+  },
+  {
+   "contract_file": "Portal_CAT_2026-11-03_0955__e0c24e2d3fa5.csv",
+   "contract_sha256": "ea76afee2fdcc1474098a31b4998e23ca1852e60e844e820210265604d0d7aa8",
+   "csv": "created",
+   "document_time": {
+    "precision": "date",
+    "source": "file_name",
+    "value": "2026-11-03"
+   },
+   "exceptions": {
+    "WARNING:DOCUMENT_DATE_FROM_FILE_NAME": 1,
+    "WARNING:SHIPPED_MISSING:shipped": 1
+   },
+   "file": "Portal_CAT_2026-11-03_0955.csv",
+   "kind": "portal",
+   "provenance": "created",
+   "records": 3,
+   "sha256": "e0c24e2d3fa51745641a61fa3851f8ff6d704919cb63d9bb123eb7f6e335d55b",
+   "status": "STAGED",
+   "unmapped_active": 0,
+   "unmapped_excluded_status_dropped": 0
+  },
+  {
+   "contract_file": "R_20261101__3e3a97939494.csv",
+   "contract_sha256": "1b8bcc0954347bdbe72bf1536d8ba79fce6fff3f4a373f93ad9d2a20d9007ad2",
+   "csv": "created",
+   "document_time": {
+    "precision": "date",
+    "source": "document_header",
+    "value": "2026-11-01"
+   },
+   "exceptions": {},
+   "file": "R_20261101.TXT",
+   "kind": "oe965",
+   "provenance": "created",
+   "records": 8,
+   "sha256": "3e3a97939494bbe76b4fa4f7d415f72c1061cb7c03260484b1e801e313c9e714",
+   "status": "STAGED"
+  }
+ ],
+ "homologation": {
+  "approved": 1,
+  "errors": [],
+  "provided": true,
+  "provisional_ignored": 1,
+  "sha256": "77aa7e222ad856b9090caaa95f07b5d9cea7080f2490985474f912577d8d47ba",
+  "warnings": []
+ },
+ "ignored": {},
+ "received_at": "2026-11-07T18:00:00Z",
+ "schema": "nexus.core.stage-report/1"
+}

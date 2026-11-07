@@ -1,0 +1,47 @@
+{
+  "schema": "nexus.core.physical-layout/1",
+  "description": "Formato FÍSICO de las fuentes reales de noviembre 2026. Posiciones verificadas sobre el Pilot-20 (OE965); encabezados y preámbulos PENDIENTES de confirmar con `nexus core probe` en ASMXC1200 (bloqueo R2). Ajustar aquí con el informe saneado, nunca con filas reales.",
+  "status": "PROVISIONAL_PENDING_PROBE",
+  "file_patterns": {
+    "oe965": "^R_\\d{8}.*\\.TXT$",
+    "portal": "^Portal_CAT_.*\\.csv$",
+    "in092u": "^INV_STA.*\\.TXT$"
+  },
+  "oe965": {
+    "encoding": "cp850",
+    "source_system": "JBA_OE965",
+    "report_id": "OE965",
+    "item_blank_until": 48,
+    "order": [48, 55],
+    "line": [56, 59],
+    "due_date": [62, 70],
+    "qty_ordered": [77, 82],
+    "qty_open": [89, 94],
+    "qty_alloc": [101, 106],
+    "customer_key": [109, 122],
+    "customer_name": [124, 164],
+    "header_fg_physical_end": 27,
+    "header_fg_available_end": 40,
+    "page_patterns": ["OE965", "Stock\\s+Versus", "Date\\s*:", "Page\\s*:?\\s*\\d+", "^[\\s\\-=_*.]+$"],
+    "trailer_patterns": ["Total", "End\\s+of\\s+report", "\\*\\*\\*"]
+  },
+  "portal": {
+    "source_system": "PORTAL_CAT",
+    "file_date_pattern": "Portal_CAT_(\\d{4}-\\d{2}-\\d{2})",
+    "columns": {
+      "item_portal": ["Item", "Part Number", "Part #", "Part"],
+      "line_id": ["Line ID", "Line Id"],
+      "status": ["Status"],
+      "ordered": ["Ordered", "Ordered Qty", "Quantity Ordered"],
+      "shipped": ["Shipped", "Shipped Qty", "Quantity Shipped"],
+      "ship_date": ["Ship Date"],
+      "delivery_date": ["Delivery Date"]
+    }
+  },
+  "in092u": {
+    "encoding": "cp850",
+    "source_system": "JBA_IN092U",
+    "page_patterns": ["IN092U", "Page\\s*:?\\s*\\d+", "Excludes", "^[\\s\\-=_*.]+$"],
+    "trailer_patterns": ["Total", "End\\s+of\\s+report", "\\*\\*\\*"]
+  }
+}

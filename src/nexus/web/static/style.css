@@ -177,6 +177,7 @@ td.n.strong { font-weight: 600; }
 .status-chip.ATRASADO { background: var(--err-bg); color: var(--err-fg); border-color: transparent; }
 .status-chip.ESPERA_CLIENTE { background: var(--info-bg); color: var(--info-fg); border-color: transparent; }
 .unknown { color: var(--warn-fg); font-weight: 600; }
+.warn-text { color: var(--warn-fg); }
 
 /* ---------- detalle del ITEM ---------- */
 .item-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr); gap: 16px; align-items: start; }

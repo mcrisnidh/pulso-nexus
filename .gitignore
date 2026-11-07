@@ -222,3 +222,14 @@ __marimo__/
 # PULSO NEXUS
 .nexus-local/
 .import_linter_cache/
+
+# Fuentes corporativas reales: NUNCA en el repositorio (noviembre 2026)
+R_*.TXT
+R_*.txt
+Portal_CAT_*
+INV_STA*
+*.xlsx
+*.xls
+MF_*
+PULSO_NEXUS_LAB/
+replay-20*/

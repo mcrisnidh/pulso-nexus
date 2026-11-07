@@ -35,9 +35,11 @@
     <div><div class="label">Último corte válido</div>
       <div class="value">Publicación #{{ pub.head.seq }} <span class="muted">· {{ pub.head.server_ts|datetime_es }}</span></div>
       <div class="small muted">{{ 'Rollback' if pub.head.action == 'ROLLBACK' else 'Publicado' }} por {{ pub.head.actor }}</div></div>
-    <div><div class="label">Corte FG y embarques</div><div class="value">{{ s.cut_ts|datetime_es }}</div></div>
-    <div><div class="label">Frozen 29 OERAS</div><div class="value">{{ m.sources.frozen.oeras_29.instant|datetime_es }}</div><div class="small muted">{{ m.sources.frozen.oeras_29.file }}</div></div>
-    <div><div class="label">Frozen Portal CAT</div><div class="value">{{ m.sources.frozen.portal_cat.instant|datetime_es }}</div><div class="small muted">{{ m.sources.frozen.portal_cat.file }}</div></div>
+    {% if m.sources.shipments %}<div><div class="label">Corte FG y embarques</div><div class="value">{{ s.cut_ts|datetime_es }}</div></div>
+    {% else %}<div><div class="label">Corte FG</div><div class="value">{{ s.cut_ts|datetime_es }}</div><div class="small warn-text">Embarques: no disponibles</div></div>{% endif %}
+    {% for sid, label in [('oeras_29', 'Frozen 29 OERAS'), ('portal_cat', 'Frozen Portal CAT')] %}{% set fz = m.sources.frozen[sid] %}
+    <div><div class="label">{{ label }}</div>{% if fz %}<div class="value">{{ fz.instant|datetime_es }}</div><div class="small muted">{{ fz.file }}{% if fz.instant_precision == 'date' %} · fecha del documento, sin hora · Frozen provisional{% endif %}</div>
+    {% else %}<div class="value"><span class="unknown">—</span></div><div class="small warn-text">No disponible</div>{% endif %}</div>{% endfor %}
     {% if show_refresh %}
     <div class="action">
       <form method="post" action="{{ url_for('refresh') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn lg" type="submit">↻ Refresh</button></form>
@@ -51,10 +53,11 @@
       <dt>Manifiesto (SHA-256)</dt><dd><code>{{ pub.head.manifest_sha256 }}</code></dd>
       <dt>Mes del Frozen</dt><dd>{{ m.month }}</dd>
       <dt>Reglas</dt><dd>{{ s.rules.version }} · {{ s.rules.approval }} · <code>{{ s.rules.sha256[:16] }}…</code></dd>
-      <dt>Frozen 29 OERAS</dt><dd><code>{{ m.sources.frozen.oeras_29.sha256 }}</code></dd>
-      <dt>Frozen Portal</dt><dd><code>{{ m.sources.frozen.portal_cat.sha256 }}</code></dd>
+      <dt>Frozen 29 OERAS</dt><dd>{% if m.sources.frozen.oeras_29 %}<code>{{ m.sources.frozen.oeras_29.sha256 }}</code>{% else %}no disponible{% endif %}</dd>
+      <dt>Frozen Portal</dt><dd>{% if m.sources.frozen.portal_cat %}<code>{{ m.sources.frozen.portal_cat.sha256 }}</code>{% else %}no disponible{% endif %}</dd>
       <dt>FG</dt><dd>{{ m.sources.fg.file }} · <code>{{ m.sources.fg.sha256 }}</code></dd>
-      <dt>Embarques</dt><dd>{{ m.sources.shipments.file }} · <code>{{ m.sources.shipments.sha256 }}</code></dd>
+      <dt>Embarques</dt><dd>{% if m.sources.shipments %}{{ m.sources.shipments.file }} · <code>{{ m.sources.shipments.sha256 }}</code>{% else %}no disponibles (BLOCKED_SOURCE){% endif %}</dd>
+      {% if m.publication_scope %}<dt>Alcance</dt><dd>{{ m.publication_scope }}</dd>{% endif %}
       <dt>Sistemas de origen</dt><dd>{{ m.sources.source_systems|join(', ') }}</dd>
     </dl>
   </details>
@@ -64,8 +67,10 @@
 {% macro notices(pub, failure=None, failure_reasons=None, alerts=()) -%}
 {% if pub.error %}<div class="notice err" role="alert"><span class="icon">!</span><p><strong>Error de integridad en el corte publicado.</strong> No se muestran cifras ({{ pub.error }}). Un administrador puede volver a una publicación anterior desde Historial.</p></div>
 {% elif not pub.head %}<div class="notice info"><span class="icon">i</span><p>Aún no hay un corte publicado en este canal. Un usuario con permiso de Refresh puede generarlo.</p></div>
-{% elif not pub.summary.rules.fully_approved %}<div class="notice prov"><span class="icon">!</span><p><strong>Cifras provisionales.</strong> Reglas {{ pub.summary.rules.version }} ({{ pub.summary.rules.approval }}): ninguna cifra es KPI oficial hasta aprobar las reglas comerciales y certificar las fuentes.</p></div>{% endif %}
+{% endif %}
+{% if pub.manifest and pub.manifest.publication_scope %}<div class="notice prov" role="note"><span class="icon">!</span><p><strong>Vista informativa (replay): no oficial y no certificada.</strong> Datos reales aislados del canal operativo.{% if pub.summary.blocked_sources %} Sin {{ pub.summary.blocked_sources|map('source_label')|join(' ni ') }}: las cifras que dependen de esa fuente se muestran como «—» (No certificado).{% endif %}</p></div>{% endif %}
+{% if pub.error or not pub.head %}{% elif not pub.summary.rules.fully_approved %}<div class="notice prov"><span class="icon">!</span><p><strong>Cifras provisionales.</strong> Reglas {{ pub.summary.rules.version }} ({{ pub.summary.rules.approval }}): ninguna cifra es KPI oficial hasta aprobar las reglas comerciales y certificar las fuentes.</p></div>{% endif %}
 {% if failure %}<div class="notice err" role="alert"><span class="icon">!</span><div><p><strong>La última actualización no se publicó</strong> ({{ failure.server_ts|datetime_es }}). Se siguen mostrando los datos del último corte válido.</p>
 <ul>{% for r in failure_reasons(failure) %}<li>{{ r }}</li>{% endfor %}</ul></div></div>{% endif %}
-{% for a in alerts %}<div class="notice err"><span class="icon">!</span><p><strong>Conflicto de precedencia del Frozen ({{ a.source_id }}).</strong> Llegó el extracto {{ a.earlier_file }} ({{ a.earlier_instant|datetime_es }}), anterior al Frozen registrado ({{ a.frozen_instant|datetime_es }}). El Frozen no se reemplaza automáticamente: requiere procedimiento con doble aprobación.</p></div>{% endfor %}
+{% for a in alerts %}<div class="notice err"><span class="icon">!</span><p><strong>{{ 'Precedencia ambigua' if a.kind == 'FROZEN_PRECEDENCE_AMBIGUOUS' else 'Conflicto de precedencia' }} del Frozen ({{ a.source_id }}).</strong> Llegó el extracto {{ a.earlier_file }} ({{ a.earlier_instant|datetime_es }}), {{ 'con la misma fecha que el' if a.kind == 'FROZEN_PRECEDENCE_AMBIGUOUS' else 'anterior al' }} Frozen registrado ({{ a.frozen_instant|datetime_es }}). El Frozen no se reemplaza automáticamente: requiere procedimiento con doble aprobación.</p></div>{% endfor %}
 {%- endmacro %}

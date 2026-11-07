@@ -35,7 +35,7 @@
       <td data-label="Pedido · línea">{{ u.order or '—' }}{% if u.line %} · {{ u.line }}{% endif %}</td>
       <td data-label="Entrega">{{ u.due|date_es }}{% if u.overdue %} <span class="badge err">Vencida</span>{% endif %}</td>
       <td class="n" data-label="Demanda">{% if u.demand is none %}<span class="unknown">—</span> <span class="badge warn">Desconocida</span>{% else %}{{ u.demand|num }}{% endif %}</td>
-      <td class="n" data-label="Embarcado">{{ u.attended_exact|num }}{% if u.attended_aggregate != '0' %} <span class="small muted">+ {{ u.attended_aggregate|num }} agreg.</span>{% endif %}</td>
+      <td class="n" data-label="Embarcado">{{ u.attended_exact|num }}{% if u.attended_aggregate is not none and u.attended_aggregate != '0' %} <span class="small muted">+ {{ u.attended_aggregate|num }} agreg.</span>{% endif %}</td>
       <td class="n" data-label="Pendiente">{{ u.pending|num }}</td>
     </tr>{% if u.reasons %}<tr><td colspan="8" class="small muted">{{ u.reasons|join('; ') }}</td></tr>{% endif %}{% endfor %}</tbody>
   </table></div>

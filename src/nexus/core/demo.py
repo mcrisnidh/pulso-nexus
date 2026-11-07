@@ -165,8 +165,10 @@ def scenario(root: Path) -> dict[str, Any]:
     inbox = root / "inbox"
     for sid in ("oeras_29", "portal_cat", "fg_inventory", "shipments"):
         (inbox / sid).mkdir(parents=True, exist_ok=True)
-    (root / "rules.json").write_text(json.dumps(RULES, indent=1, ensure_ascii=False), "utf-8")
-    (root / "users.json").write_text(json.dumps(USERS, indent=1), "utf-8")
+    # Δ6 (TZ-18): bytes LF explícitos. En Windows, ``write_text`` traduce "\n" a CRLF y cambia el
+    # SHA de las reglas (que entra en la identidad de la generación).
+    write_lf(root / "rules.json", json.dumps(RULES, indent=1, ensure_ascii=False))
+    write_lf(root / "users.json", json.dumps(USERS, indent=1))
     drop(root, "oeras_29", "R_20310101_0600.csv", oeras("2031-01-01T06:00:00Z", M1_ORDERS))
     drop(root, "portal_cat", "P_20310102_1055.csv", portal("2031-01-02T10:55:00Z", M1_PORTAL))
     drop(
@@ -218,6 +220,11 @@ def scenario(root: Path) -> dict[str, Any]:
     }
 
 
+def write_lf(path: Path, text: str) -> None:
+    """Escribe texto UTF-8 con saltos LF en cualquier plataforma (sin traducción de modo texto)."""
+    path.write_bytes(text.encode("utf-8"))
+
+
 def drop(root: Path, source_id: str, name: str, content: bytes) -> Path:
     path = root / "inbox" / source_id / name
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -244,7 +251,7 @@ def late_earlier_extract(root: Path) -> None:
 def invalid_extract(root: Path) -> None:
     """Archivo inválido (columna faltante): nunca puede ser Frozen ni Current."""
     path = root / "inbox" / "oeras_29" / "R_20310103_0600.csv"
-    path.write_text("extraction_ts,item\n2031-01-03T06:00:00Z,SYN-A\n", "utf-8")
+    write_lf(path, "extraction_ts,item\n2031-01-03T06:00:00Z,SYN-A\n")
 
 
 def new_cut_m1(root: Path) -> None:

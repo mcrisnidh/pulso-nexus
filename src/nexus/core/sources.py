@@ -20,6 +20,10 @@ from nexus.planning.adapters.tables import SourceSpec, read_table
 from nexus.planning.model import SourceRef, parse_decimal
 
 SOURCE_IDS = ("oeras_29", "portal_cat", "fg_inventory", "shipments")
+# Δ3: fuentes cuyo documento puede declarar solo una FECHA (sin hora verificable). FG y embarques
+# exigen siempre un instante completo (corte y ventana).
+DATE_PRECISION_SOURCES = frozenset({"oeras_29", "portal_cat"})
+_ISO_DATE_LEN = 10
 SHIP, REVERSAL = "SHIP", "REVERSAL"
 
 
@@ -39,6 +43,22 @@ def parse_instant(raw: str) -> str | None:
     if value.tzinfo is None:
         return None
     return value.astimezone(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def parse_source_instant(raw: str, allow_date: bool) -> str | None:
+    """Instante completo (``…Z``) o, si la fuente lo admite, una FECHA de documento
+    ``YYYY-MM-DD`` (precisión fecha: no se le inventa hora)."""
+    full = parse_instant(raw)
+    if full is not None or not allow_date:
+        return full
+    text = raw.strip()
+    return parse_date(text) if len(text) == _ISO_DATE_LEN else None
+
+
+def instant_precision(instant: str | None) -> str | None:
+    if instant is None:
+        return None
+    return "date" if len(instant) == _ISO_DATE_LEN else "second"
 
 
 def parse_date(raw: str) -> str | None:
@@ -102,6 +122,10 @@ class ParsedSource:
     errors: list[str] = field(default_factory=list)
     records: list[Any] = field(default_factory=list)
 
+    @property
+    def precision(self) -> str | None:
+        return instant_precision(self.instant)
+
     def describe(self) -> dict[str, Any]:
         return {
             "source_id": self.source_id,
@@ -143,10 +167,12 @@ def read_source(source_id: str, path: Path) -> ParsedSource:
     instant_col = str(layout()[source_id]["instant_column"])
     instants = {r[instant_col] for r in table.rows}
     systems = {r["source_system"] for r in table.rows}
-    if len(instants) != 1 or parse_instant(next(iter(instants))) is None:
+    allow_date = source_id in DATE_PRECISION_SOURCES
+    first = parse_source_instant(next(iter(instants)), allow_date)
+    if len(instants) != 1 or first is None:
         parsed.errors.append(f"{instant_col} ausente, ilegible o no único en el archivo")
     else:
-        parsed.instant = parse_instant(next(iter(instants)))
+        parsed.instant = first
     if len(systems) != 1 or not next(iter(systems)).strip():
         parsed.errors.append("source_system ausente o no único en el archivo")
     else:

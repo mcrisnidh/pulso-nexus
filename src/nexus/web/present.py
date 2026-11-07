@@ -49,6 +49,12 @@ EVENT_LABELS = {
     "REFRESH_ATTEMPT_FAILED": "Intento de Refresh fallido",
     "PUBLISH_REFUSED": "Publicación rechazada",
 }
+SOURCE_LABELS = {
+    "shipments": "embarques físicos",
+    "portal_cat": "Portal CAT",
+    "oeras_29": "29 OERAS",
+    "fg_inventory": "inventario FG",
+}
 FAILURE_EVENTS = ("REFRESH_NOT_PUBLISHED", "REFRESH_ATTEMPT_FAILED", "PUBLISH_REFUSED")
 METRICS = ("demand", "attended", "pending", "fg_assignable", "covered", "uncovered")
 
@@ -106,6 +112,10 @@ def month_es(value: Any) -> str:
 
 def status_label(code: Any) -> str:
     return STATUS_LABELS.get(str(code), str(code))
+
+
+def source_label(code: Any) -> str:
+    return SOURCE_LABELS.get(str(code), str(code))
 
 
 def kind_label(code: Any) -> str:

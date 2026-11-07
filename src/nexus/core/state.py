@@ -9,6 +9,10 @@ verificada. Dos escritores de la misma clave con distinto contenido: uno gana y 
 - Publicación: registro encadenado ``pub/<canal>/<seq>.json``; el puntero es el último registro.
   Publicar es CAS: se escribe ``seq = esperado + 1``; si ya existe, conflicto.
 - Eventos: ``events/<canal>/<instante>-<id>.json`` (historial de Refresh, fallos y rollback).
+- C2 (noviembre 2026): el canal ``replay`` vive en un almacén FÍSICO distinto
+  (``DATA/replay/store``, con su propio ``DATA/replay/cs``). Cada ``CoreState`` declara los canales
+  de su almacén y rechaza cualquier clave de otro canal: un replay no puede escribir ni leer
+  Frozen, generaciones, publicaciones ni eventos operativos, y viceversa.
 
 Pendiente (Hito B): la misma semántica sobre SQL Server aislado. No se presenta esta
 implementación como certificación de garantías SQL.
@@ -20,6 +24,7 @@ import contextlib
 import re
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from nexus.errors import ImmutableConflictError
@@ -28,6 +33,8 @@ from nexus.sealed import seal, unseal, verifier
 from nexus.storage.object_store import LocalObjectStore
 
 CHANNELS = ("operativo", "replay", "sintetico")
+MAIN_LANE = ("operativo", "sintetico")
+REPLAY_LANE = ("replay",)
 _MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
@@ -55,6 +62,20 @@ def check_month(month: str) -> str:
     return month
 
 
+def lane_of(channel: str) -> tuple[str, ...]:
+    return REPLAY_LANE if check_channel(channel) == "replay" else MAIN_LANE
+
+
+def store_root(data_dir: Path, channel: str) -> Path:
+    """Directorio físico del almacén de un canal (C2: ``replay`` separado)."""
+    return data_dir / "replay" / "store" if lane_of(channel) == REPLAY_LANE else data_dir / "store"
+
+
+def cs_root(data_dir: Path, channel: str) -> Path:
+    """Directorio físico de las notas CS de un canal (C2: ``replay`` separado)."""
+    return data_dir / "replay" / "cs" if lane_of(channel) == REPLAY_LANE else data_dir / "cs"
+
+
 def key_part(source_id: str) -> str:
     return source_id.replace("_", "-")
 
@@ -66,6 +87,19 @@ def item_key(item: str) -> str:
 @dataclass
 class CoreState:
     store: LocalObjectStore
+    lanes: tuple[str, ...] = MAIN_LANE
+
+    @classmethod
+    def for_channel(cls, data_dir: Path, channel: str) -> CoreState:
+        return cls(LocalObjectStore(store_root(data_dir, channel)), lane_of(channel))
+
+    def _ch(self, channel: str) -> str:
+        """C2: un almacén solo admite los canales de su carril físico."""
+        if check_channel(channel) not in self.lanes:
+            raise ValueError(
+                f"el canal {channel!r} no pertenece a este almacén (canales: {list(self.lanes)})"
+            )
+        return channel
 
     # -------------------------------------------------------------- documentos sellados
     def put_sealed(self, key: str, document: dict[str, Any]) -> str:
@@ -85,7 +119,7 @@ class CoreState:
 
     # -------------------------------------------------------------- C1 Frozen
     def frozen_key(self, channel: str, month: str, source_id: str) -> str:
-        return f"frozen/{check_channel(channel)}/{check_month(month)}/{key_part(source_id)}.json"
+        return f"frozen/{self._ch(channel)}/{check_month(month)}/{key_part(source_id)}.json"
 
     def get_frozen(self, channel: str, month: str, source_id: str) -> dict[str, Any] | None:
         key = self.frozen_key(channel, month, source_id)
@@ -108,11 +142,13 @@ class CoreState:
         return self.get_sealed(key)
 
     def list_frozen(self, channel: str) -> list[dict[str, Any]]:
-        return [self.get_sealed(k) for k in sorted(self.store.iter_keys(f"frozen/{channel}/"))]
+        return [
+            self.get_sealed(k) for k in sorted(self.store.iter_keys(f"frozen/{self._ch(channel)}/"))
+        ]
 
     # -------------------------------------------------------------- generaciones
     def gen_prefix(self, channel: str, gen_id: str) -> str:
-        return f"gen/{check_channel(channel)}/{gen_id}"
+        return f"gen/{self._ch(channel)}/{gen_id}"
 
     def has_generation(self, channel: str, gen_id: str) -> bool:
         return self.store.exists(f"{self.gen_prefix(channel, gen_id)}/manifest.json")
@@ -127,7 +163,7 @@ class CoreState:
 
     # -------------------------------------------------------------- publicación (CAS)
     def _pub_keys(self, channel: str) -> list[str]:
-        return sorted(self.store.iter_keys(f"pub/{check_channel(channel)}/"))
+        return sorted(self.store.iter_keys(f"pub/{self._ch(channel)}/"))
 
     def publication_head(self, channel: str) -> dict[str, Any] | None:
         keys = self._pub_keys(channel)
@@ -139,6 +175,7 @@ class CoreState:
     def append_publication(
         self, channel: str, expected_seq: int, record: dict[str, Any]
     ) -> dict[str, Any]:
+        self._ch(channel)
         head = self.publication_head(channel)
         head_seq = int(head["seq"]) if head else 0
         if head_seq != expected_seq:
@@ -162,6 +199,7 @@ class CoreState:
         return doc
 
     def verify_publication_chain(self, channel: str) -> list[str]:
+        self._ch(channel)
         problems = []
         prev_hash = None
         for i, key in enumerate(self._pub_keys(channel), start=1):
@@ -174,7 +212,7 @@ class CoreState:
 
     # -------------------------------------------------------------- B0-7 vínculo de zona horaria
     def tz_binding_key(self, channel: str) -> str:
-        return f"calendar/{check_channel(channel)}/binding.json"
+        return f"calendar/{self._ch(channel)}/binding.json"
 
     def get_tz_binding(self, channel: str) -> dict[str, Any] | None:
         key = self.tz_binding_key(channel)
@@ -182,7 +220,7 @@ class CoreState:
 
     def has_history(self, channel: str) -> bool:
         """¿Existe algún Frozen o publicación en el canal?"""
-        check_channel(channel)
+        self._ch(channel)
         return any(True for _ in self.store.iter_keys(f"frozen/{channel}/")) or any(
             True for _ in self.store.iter_keys(f"pub/{channel}/")
         )
@@ -207,20 +245,22 @@ class CoreState:
     # -------------------------------------------------------------- eventos
     def append_event(self, channel: str, server_ts: str, kind: str, detail: dict[str, Any]) -> None:
         stamp = re.sub(r"[^0-9]", "", server_ts)
-        key = f"events/{check_channel(channel)}/{stamp}-{uuid.uuid4().hex[:12]}.json"
+        key = f"events/{self._ch(channel)}/{stamp}-{uuid.uuid4().hex[:12]}.json"
         self.put_sealed(key, {"server_ts": server_ts, "kind": kind, "detail": detail})
 
     def events(self, channel: str) -> list[dict[str, Any]]:
-        return [self.get_sealed(k) for k in sorted(self.store.iter_keys(f"events/{channel}/"))]
+        return [
+            self.get_sealed(k) for k in sorted(self.store.iter_keys(f"events/{self._ch(channel)}/"))
+        ]
 
     def alerts(self, channel: str, month: str) -> list[dict[str, Any]]:
-        prefix = f"alerts/{channel}/{month}/"
+        prefix = f"alerts/{self._ch(channel)}/{month}/"
         return [self.get_sealed(k) for k in sorted(self.store.iter_keys(prefix))]
 
     def put_alert(self, channel: str, month: str, alert: dict[str, Any]) -> None:
         from nexus.hashing import digest_json  # noqa: PLC0415
 
-        key = f"alerts/{channel}/{month}/{digest_json(alert)[:32]}.json"
+        key = f"alerts/{self._ch(channel)}/{month}/{digest_json(alert)[:32]}.json"
         if not self.store.exists(key):
             with contextlib.suppress(ImmutableConflictError):  # contenido idéntico por construcción
                 self.put_sealed(key, alert)

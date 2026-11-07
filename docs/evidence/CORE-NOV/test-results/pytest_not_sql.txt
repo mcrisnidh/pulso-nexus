@@ -1,0 +1,20 @@
+........................................................................ [ 12%]
+........................................................................ [ 25%]
+........................................................................ [ 38%]
+........................................................................ [ 50%]
+...................ssssssssssss......................................... [ 63%]
+........................................................................ [ 76%]
+........................................................................ [ 89%]
+..............................................................           [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/planning/test_planning_real.py:93: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:101: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:114: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:147: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:156: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:185: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:214: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [3] tests/planning/test_planning_real.py:224: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:249: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+SKIPPED [1] tests/planning/test_planning_real.py:260: dataset real PILOT-20 no configurado (solo local; datos corporativos fuera de CI)
+554 passed, 12 skipped, 115 deselected in 51.51s

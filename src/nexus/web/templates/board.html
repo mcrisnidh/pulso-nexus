@@ -14,9 +14,9 @@
 {% for key, label, cls in [('demand', 'Demanda congelada exigible', 'frozen'), ('attended', 'Embarcado', 'shipped'), ('covered', 'Cubierto con FG', 'covered'), ('uncovered', 'Sin cubrir', 'uncovered'), ('pending', 'Pendiente', 'secondary'), ('fg_assignable', 'FG asignable', 'secondary')] %}
   <div class="kpi {{ cls }}">
     <div class="label">{{ label }}</div>
-    <div class="value">{{ t[key].known_sum|num }}</div>
-    {% if not t[key].complete %}<div class="foot warn">Parcial: {{ t[key].unknown_items|length }} ITEM sin dato (no se suman como cero)</div>
-    {% else %}<div class="foot">{{ t['items'] }} ITEM · EA</div>{% endif %}
+    {% if t[key].complete %}<div class="value">{{ t[key].known_sum|num }}</div><div class="foot">{{ t['items'] }} ITEM · EA</div>
+    {% else %}<div class="value"><span class="unknown">—</span></div>
+    <div class="foot warn">{% if t[key].blocked_by %}No certificado: fuente no disponible ({{ t[key].blocked_by|map('source_label')|join(', ') }}). {% else %}No certificado. {% endif %}{% if t[key].unknown_items %}Parcial: {{ t[key].unknown_items|length }} ITEM sin dato (no se suman como cero){% if t[key].known_sum is not none %} · suma de ITEM con dato: {{ t[key].known_sum|num }}{% endif %}{% endif %}</div>{% endif %}
   </div>
 {% endfor %}
 </section>
