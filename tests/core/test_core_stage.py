@@ -3,8 +3,10 @@ directorio privado, sin reemplazos ni publicación)."""
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
 import hashlib
+import io
 import json
 import stat
 from pathlib import Path
@@ -143,7 +145,7 @@ def test_st05_probe_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
 def test_st10_stage_writes_only_private_dir_and_keeps_source_intact(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     before = fingerprint(lab["src"])
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    report = stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     assert fingerprint(lab["src"]) == before
     status = {f["file"]: f["status"] for f in report["files"]}
     assert set(status.values()) == {"STAGED"}
@@ -161,7 +163,7 @@ def test_st10_stage_writes_only_private_dir_and_keeps_source_intact(tmp_path: Pa
 
 def test_st11_sidecar_separates_document_extraction_and_reception(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
-    stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     [side] = (lab["data"] / "provenance" / "oeras_29").glob("*.json")
     doc = json.loads(side.read_text("utf-8"))
     raw = (lab["src"] / "R_20261101.TXT").read_bytes()
@@ -187,9 +189,9 @@ def test_st11_sidecar_separates_document_extraction_and_reception(tmp_path: Path
 
 def test_st12_restage_is_idempotent_and_keeps_first_reception(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
-    stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     later = lambda: dt.datetime(2026, 11, 9, 8, 0, tzinfo=dt.UTC)  # noqa: E731
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=later)
+    report = stage(lab["src"], lab["data"], clock=later, **fx.r1(lab))
     assert {f["csv"] for f in report["files"]} == {"unchanged"}
     assert {f["provenance"] for f in report["files"]} == {"kept_first_reception"}
     [side] = (lab["data"] / "provenance" / "oeras_29").glob("*.json")
@@ -224,25 +226,31 @@ def test_st15_duplicate_content_staged_once(tmp_path: Path) -> None:
     raw = (lab["src"] / "R_20261101.TXT").read_bytes()
     (lab["src"] / "R_20261101(3).TXT").write_bytes(raw)
     (lab["src"] / "R_20261101(4).TXT").write_bytes(raw)
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    report = stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     status = [f["status"] for f in report["files"] if f["kind"] == "oe965"]
     assert sorted(status) == ["DUPLICATE_CONTENT", "DUPLICATE_CONTENT", "STAGED"]
     assert len(list((lab["data"] / "inbox" / "oeras_29").glob("*.csv"))) == 1
 
 
-def test_st16_portal_without_exact_homologation_is_quarantined(tmp_path: Path) -> None:
+def test_st16_portal_without_r1_keeps_every_line_as_pending(tmp_path: Path) -> None:
+    """[K-3] Antes: sin tabla ⇒ Portal en cuarentena. Ahora: TODAS las líneas se conservan en el
+    contrato con ``r1_status=PENDING`` e ``item`` vacío (nunca se asocia ni se descarta)."""
     lab = fx.lab(tmp_path)
     report = stage(lab["src"], lab["data"], None, clock=clock)  # sin tabla (bloqueo R1)
     portal = next(f for f in report["files"] if f["kind"] == "portal")
-    assert portal["status"] == "QUARANTINED" and "R1" in portal["reason"]
-    assert portal["unmapped_active"] == 2 and portal["unmapped_excluded_status_dropped"] == 1
-    assert not (lab["data"] / "inbox" / "portal_cat").exists()
+    assert portal["status"] == "STAGED" and portal["r1_status"] == {"PENDING": 3}
+    assert report["homologation"]["pending"] == {"NO_R1_EVIDENCE": 1}
+    [csv_path] = (lab["data"] / "inbox" / "portal_cat").glob("*.csv")
+    rows = list(csv.DictReader(io.StringIO(csv_path.read_text("utf-8"))))
+    assert len(rows) == 3 and {r["item"] for r in rows} == {""}
+    assert {r["r1_status"] for r in rows} == {"PENDING"}
+    assert {r["item_portal"] for r in rows} == {"QZX PORTAL 1"}  # identidad Portal íntegra
 
 
 def test_st17_invalid_physical_file_is_quarantined_not_staged(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     (lab["src"] / "R_20261101.TXT").write_bytes(fx.oe965_bytes(pages=False))  # sin fecha
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    report = stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     oe = next(f for f in report["files"] if f["kind"] == "oe965")
     assert oe["status"] == "QUARANTINED"
     assert "BLOCKING:DOCUMENT_DATE_MISSING" in oe["exceptions"]
@@ -252,7 +260,7 @@ def test_st17_invalid_physical_file_is_quarantined_not_staged(tmp_path: Path) ->
 def test_st18_in092u_requires_declared_zone(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     (lab["data"] / "operation.json").unlink()
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    report = stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     inv = next(f for f in report["files"] if f["kind"] == "in092u")
     assert (
         inv["status"] == "QUARANTINED" and "BLOCKING:BUSINESS_TZ_NOT_DECLARED" in inv["exceptions"]
@@ -263,7 +271,7 @@ def test_st19_out_of_scope_files_are_ignored_and_not_read(tmp_path: Path) -> Non
     lab = fx.lab(tmp_path)
     for name in ("CO 36 inventory 32INAS.xlsx", "MF_000123.xml", "Embarques Octubre.xlsx"):
         (lab["src"] / name).write_bytes(b"no se lee")
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    report = stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     assert report["ignored"] == {".xlsx": 2, ".xml": 1}
     assert "fg_inventory" in {p.name for p in (lab["data"] / "inbox").iterdir()}
     assert not any("xlsx" in p.name for p in (lab["data"] / "originals").iterdir())
@@ -283,6 +291,10 @@ def test_st20_stage_cli_does_not_publish(
         str(lab["data"]),
         "--homologation",
         str(lab["homologation"]),
+        "--ledger",
+        str(lab["ledger"]),
+        "--approvers",
+        str(lab["approvers"]),
     )
     assert code == 0 and out["schema"] == "nexus.core.stage-report/1"
     assert not (lab["data"] / "store").exists() and not (lab["data"] / "replay").exists()

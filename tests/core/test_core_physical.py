@@ -190,8 +190,11 @@ def test_oe13_staged_csv_is_valid_contract_with_date_precision(tmp_path: Path) -
 
 
 # ------------------------------------------------------------------ Portal
+MAPPING = {"QZX PORTAL 1": "QZXITEM1"}  # resolución R1 ya verificada (entrada del lector)
+
+
 def test_po01_utf16_tab_preamble_and_exact_homologation() -> None:
-    mapping, _ = parse_homologation(fx.HOMOLOGATION)
+    mapping = MAPPING
     r = read_portal(fx.portal_bytes(), L, PORTAL_NAME, mapping)
     assert r.valid and r.bom == "UTF-16LE" and r.classes["preamble"] == 4
     assert r.document_time == {"value": "2026-11-03", "precision": "date", "source": "file_name"}
@@ -202,7 +205,7 @@ def test_po01_utf16_tab_preamble_and_exact_homologation() -> None:
 
 
 def test_po02_utf16_be_reads_the_same() -> None:
-    mapping, _ = parse_homologation(fx.HOMOLOGATION)
+    mapping = MAPPING
     le = read_portal(fx.portal_bytes(), L, PORTAL_NAME, mapping).records
     assert read_portal(fx.portal_bytes(encoding="utf-16-be"), L, PORTAL_NAME, mapping).records == le
 
@@ -259,16 +262,18 @@ def test_po07_row_shape_and_duplicate_line_id_invalid() -> None:
 
 
 def test_po08_homologation_table_rules() -> None:
-    mapping, rep = parse_homologation(fx.HOMOLOGATION)
-    assert mapping == {"QZX PORTAL 1": "QZXITEM1"} and rep["provisional_ignored"] == 1
-    one_to_many = fx.HOMOLOGATION + "QZX PORTAL 1,QZXITEM2,APPROVED,otra\n"
-    bad, rep2 = parse_homologation(one_to_many)
-    assert bad == {} and rep2["errors"]  # tabla completa rechazada
-    many = fx.HOMOLOGATION + "QZX PORTAL 2,QZXITEM1,APPROVED,revision\n"
-    ok, rep3 = parse_homologation(many)
-    assert len(ok) == 2 and rep3["warnings"]
-    cols, rep4 = parse_homologation("portal,erp\nA,B\n")
-    assert cols == {} and rep4["errors"]
+    """[D-D] Tabla R1 v2 + registro autorizado. Detalle adversarial en test_cert_r1_r3.py."""
+    erp = frozenset({"QZXITEM1", "QZXITEM2"})
+    approvers = frozenset({fx.APPROVER})
+    res = parse_homologation(fx.HOMOLOGATION, fx.LEDGER, approvers, "2026-11-07", erp)
+    assert res.mapping == {"QZX PORTAL 1": "QZXITEM1"}
+    assert res.report["pending"] == {"PROVISIONAL_NOT_APPLIED": 1}
+    one_to_many = fx.HOMOLOGATION + "QZX PORTAL 1,QZXITEM2,APPROVED_MAP,R1-SYN-0002\n"
+    bad = parse_homologation(one_to_many, fx.LEDGER, approvers, "2026-11-07", erp)
+    assert bad.mapping == {} and bad.report["errors"]  # tabla completa rechazada
+    v1 = "item_portal,item_erp,status,evidence\nQZX PORTAL 1,QZXITEM1,APPROVED,acta\n"
+    old = parse_homologation(v1, fx.LEDGER, approvers, "2026-11-07", erp)
+    assert old.mapping == {} and old.report["errors"]  # la tabla v1 ya no se acepta
 
 
 # ------------------------------------------------------------------ IN092U

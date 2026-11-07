@@ -27,7 +27,7 @@ def clock() -> dt.datetime:
 @pytest.fixture
 def env(tmp_path: Path) -> dict[str, Any]:
     lab = fx.lab(tmp_path)
-    stage(lab["src"], lab["data"], lab["homologation"], clock=clock)
+    stage(lab["src"], lab["data"], clock=clock, **fx.r1(lab))
     app = create_app(lab["data"], "replay", SECRET, clock=clock, background=False)
     return {"data": lab["data"], "app": app}
 
@@ -64,8 +64,11 @@ def test_wr01_board_shows_dash_never_zero_for_unknown(env: dict[str, Any]) -> No
     kpis = kpi_values(html)
     for label in ("Embarcado", "Cubierto con FG", "Sin cubrir", "Pendiente"):
         assert kpis[label] == "—", (label, kpis[label])
-    assert kpis["Demanda congelada exigible"] == "—"  # un ITEM sin dato: el total no se presenta
-    assert "suma de ITEM con dato: 890" in html
+    # [R1/R3-v2] con el Frozen definitivo el universo es {QZXITEM1, QZXITEM2} y la demanda está
+    # completa; el total PARCIAL se comprueba ahora en FG asignable (QZXITEM2 con FG −5).
+    assert kpis["Demanda congelada exigible"] == "890"
+    assert kpis["FG asignable"] == "—"  # un ITEM sin dato: el total no se presenta
+    assert "suma de ITEM con dato: 150" in html
     assert html.count("No certificado: fuente no disponible (embarques físicos)") == 4
     assert "Indicador no disponible" in html
 
@@ -74,9 +77,9 @@ def test_wr02_rows_and_filters_treat_blocked_as_no_data(env: dict[str, Any]) -> 
     c, token = login(env["app"], "refresher")
     c.post("/refresh", data={"csrf": token})
     rows = c.get("/?cobertura=sin_dato").get_data(as_text=True)
-    assert "3 de 3 ITEM" in rows
-    assert "0 de 3 ITEM" in c.get("/?cobertura=faltante").get_data(as_text=True)
-    assert "0 de 3 ITEM" in c.get("/?cobertura=cubierto").get_data(as_text=True)
+    assert "2 de 2 ITEM" in rows  # [R1/R3-v2] QZXITEM3 (solo CAT) fuera del Frozen definitivo
+    assert "0 de 2 ITEM" in c.get("/?cobertura=faltante").get_data(as_text=True)
+    assert "0 de 2 ITEM" in c.get("/?cobertura=cubierto").get_data(as_text=True)
     body = rows.split("<tbody>")[1].split("</tbody>")[0]
     pattern = r'data-label="(?:Embarcado|Pendiente|Cubierto FG|Sin cubrir)">(.*?)</td>'
     for cell in re.findall(pattern, body, re.S):

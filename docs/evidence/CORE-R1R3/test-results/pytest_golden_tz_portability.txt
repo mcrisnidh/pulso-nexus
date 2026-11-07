@@ -1,0 +1,52 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0 -- /home/user/pulso-nexus/.venv/bin/python
+hypothesis profile 'default'
+rootdir: /home/user/pulso-nexus
+configfile: pyproject.toml
+plugins: hypothesis-6.170.14, cov-7.1.0
+collecting ... collected 42 items
+
+tests/core/test_core_timezone.py::test_tz01_month_boundary PASSED        [  2%]
+tests/core/test_core_timezone.py::test_tz02_year_boundary PASSED         [  4%]
+tests/core/test_core_timezone.py::test_tz03_leap_february_window PASSED  [  7%]
+tests/core/test_core_timezone.py::test_tz04_historical_dst_rules_are_applied PASSED [  9%]
+tests/core/test_core_timezone.py::test_tz05_independent_of_process_timezone[Pacific/Chatham] PASSED [ 11%]
+tests/core/test_core_timezone.py::test_tz05_independent_of_process_timezone[Asia/Kolkata] PASSED [ 14%]
+tests/core/test_core_timezone.py::test_tz05_independent_of_process_timezone[America/Mexico_City] PASSED [ 16%]
+tests/core/test_core_timezone.py::test_tz05_independent_of_process_timezone[UTC] PASSED [ 19%]
+tests/core/test_core_timezone.py::test_tz06_invalid_timezone_fails_closed[Mars/Olympus] PASSED [ 21%]
+tests/core/test_core_timezone.py::test_tz06_invalid_timezone_fails_closed[local] PASSED [ 23%]
+tests/core/test_core_timezone.py::test_tz06_invalid_timezone_fails_closed[] PASSED [ 26%]
+tests/core/test_core_timezone.py::test_tz06_invalid_timezone_fails_closed[../etc/passwd] PASSED [ 28%]
+tests/core/test_core_timezone.py::test_tz06_invalid_timezone_fails_closed[UTC+6] PASSED [ 30%]
+tests/core/test_core_timezone.py::test_tz06_operation_file_schema_strict PASSED [ 33%]
+tests/core/test_core_timezone.py::test_tz07_frozen_by_local_date_of_the_cut PASSED [ 35%]
+tests/core/test_core_timezone.py::test_tz08_first_extract_of_new_local_month_and_previous_intact PASSED [ 38%]
+tests/core/test_core_timezone.py::test_tz09_frozen_never_reinterpreted_even_bypassing_binding PASSED [ 40%]
+tests/core/test_core_timezone.py::test_tz10_tz11_shipment_window_from_local_midnight PASSED [ 42%]
+tests/core/test_core_timezone.py::test_tz12_reversal_crossing_the_month_boundary PASSED [ 45%]
+tests/core/test_core_timezone.py::test_tz13_night_cut_assigned_to_local_month_and_aligned PASSED [ 47%]
+tests/core/test_core_timezone.py::test_tz14_cs_monthly_validity_follows_local_month PASSED [ 50%]
+tests/core/test_core_timezone.py::test_tz14_web_uses_operational_month_without_interface_change PASSED [ 52%]
+tests/core/test_core_timezone.py::test_tz15_operativo_channel_uses_local_month PASSED [ 54%]
+tests/core/test_core_timezone.py::test_tz16_deterministic_same_zone PASSED [ 57%]
+tests/core/test_core_timezone.py::test_tz17_zone_changes_generation_identity PASSED [ 59%]
+tests/core/test_core_timezone.py::test_tz18_utc_compatibility_byte_for_byte_with_f404f96 PASSED [ 61%]
+tests/core/test_core_timezone.py::test_tz18_legacy_store_without_binding_stays_byte_identical PASSED [ 64%]
+tests/core/test_core_timezone.py::test_id01_zone_cryptographically_bound_to_generation PASSED [ 66%]
+tests/core/test_core_timezone.py::test_id02_no_reuse_of_generation_from_other_zone PASSED [ 69%]
+tests/core/test_core_timezone.py::test_id03_idempotency_key_includes_zone PASSED [ 71%]
+tests/core/test_core_timezone.py::test_rb01_removing_operation_json_is_rejected_history_intact PASSED [ 73%]
+tests/core/test_core_timezone.py::test_rb02_legacy_utc_history_rejects_new_zone PASSED [ 76%]
+tests/core/test_core_timezone.py::test_rb03_change_between_non_utc_zones_rejected PASSED [ 78%]
+tests/core/test_core_timezone.py::test_rb04_restarts_and_year_transition_keep_frozen_immutable PASSED [ 80%]
+tests/core/test_core_timezone.py::test_rb05_safe_procedure_new_data_dir_preserves_history PASSED [ 83%]
+tests/core/test_core_timezone.py::test_rb06_fresh_store_without_history_may_choose_zone PASSED [ 85%]
+tests/core/test_core_timezone.py::test_rb07_concurrent_binding_single_winner PASSED [ 88%]
+tests/core/test_core_timezone.py::test_rb08_tampered_binding_detected PASSED [ 90%]
+tests/core/test_core_portability.py::test_p01_golden_digest_with_windows_style_text_writes PASSED [ 92%]
+tests/core/test_core_portability.py::test_p02_emulation_is_effective PASSED [ 95%]
+tests/core/test_core_portability.py::test_p03_demo_files_are_lf_bytes PASSED [ 97%]
+tests/core/test_core_portability.py::test_p04_no_text_mode_writes_in_core PASSED [100%]
+
+============================== 42 passed in 4.60s ==============================

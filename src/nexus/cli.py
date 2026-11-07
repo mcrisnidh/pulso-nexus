@@ -310,6 +310,8 @@ def _cmd_core_stage(args: argparse.Namespace) -> int:
         Path(args.data),
         homologation_path=Path(args.homologation) if args.homologation else None,
         layout=_physical_layout(args.layout),
+        ledger_path=Path(args.ledger) if args.ledger else None,
+        approvers_path=Path(args.approvers) if args.approvers else None,
     )
     _emit(report)
     return EXIT_OK
@@ -433,6 +435,8 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (declaración li
     cp.add_argument("--src", required=True, help="carpeta con las copias autorizadas")
     cp.add_argument("--data", required=True, help="directorio de datos privado (fuera de git)")
     cp.add_argument("--homologation", default=None, help="tabla ITEM Portal → ERP aprobada")
+    cp.add_argument("--ledger", default=None, help="registro autorizado de aprobaciones (privado)")
+    cp.add_argument("--approvers", default=None, help="lista privada de aprobadores")
     cp.add_argument("--layout", default=None, help="layout físico ajustado (JSON)")
     cp.set_defaults(func=_cmd_core_stage)
 

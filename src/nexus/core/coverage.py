@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from nexus.core.rules import APPROVED, CoreRules
+from nexus.core.rules import APPROVED, UNKNOWN_CLASS, CoreRules
 from nexus.core.sources import REVERSAL, SHIP, FgRecord, OerasLine, Shipment
 from nexus.planning.adapters.sources import PortalLine
 from nexus.planning.engine import portal_decision
@@ -100,6 +100,124 @@ class CoverageInput:
     window_start_utc: str | None = None
     # Δ4: motivo por fuente bloqueada (solo ``portal_cat`` y ``shipments``, solo canal replay).
     blocked: dict[str, str] = field(default_factory=dict)
+    # Universo mensual: ITEM(OE965 Frozen) ∪ ITEM(Portal Frozen homologado). ``None`` = sin
+    # delimitación explícita (cálculo previo, idéntico byte a byte).
+    universe: frozenset[str] | None = None
+    # Identidades Portal Frozen con líneas activas SIN resolución R1 (se conservan íntegras).
+    pending_portal: tuple[str, ...] = ()
+    # Conteos de construcción del Frozen definitivo (solo diagnóstico; vacío = sin delimitación).
+    universe_counts: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FrozenUniverse:
+    """Frozen definitivo del mes y sus ITEM (regla comercial original de PULSO):
+
+    FROZEN = (29 OERAS Frozen − demanda CAT ERP) + Portal CAT Frozen depurado
+    UNIVERSO = ITEM distintos del FROZEN
+
+    - Una línea ERP sale SOLO si su clave está explícitamente en la clase sustituida (R3).
+    - TUPY y toda clase explícita no sustituida se conservan.
+    - Una línea ERP con clave UNKNOWN no se puede decidir: su ITEM queda en el universo con
+      pertenencia PENDIENTE (trazable y bloqueante), nunca se elimina ni se suma.
+    - Portal depurado: se excluyen solo EXCLUIDO_ESTADO y EXCLUIDO_DIF (reglas vigentes); una
+      cantidad o fecha desconocida se CONSERVA (desconocida, no cero).
+    - Una línea Portal sin resolución R1 no aporta ITEM: queda como identidad pendiente, y
+      mientras exista, los ITEM solo-CAT del ERP conservan pertenencia PENDIENTE (no se eliminan).
+    """
+
+    items: frozenset[str]
+    pending_portal: tuple[str, ...]
+    counts: dict[str, int]
+
+
+def frozen_universe(
+    oeras: list[OerasLine], portal: list[PortalLine] | None, rules: CoreRules
+) -> FrozenUniverse:
+    sub = rules.base.substitute_class
+    kept: set[str] = set()
+    cat: set[str] = set()
+    undecided: set[str] = set()
+    removed_lines = 0
+    for x in oeras:
+        cls = rules.classify(x.customer_key)
+        if cls == UNKNOWN_CLASS:
+            undecided.add(x.item)
+        elif cls == sub:
+            cat.add(x.item)
+            removed_lines += 1
+        else:
+            kept.add(x.item)
+    from_portal: set[str] = set()
+    pending: set[str] = set()
+    portal_excluded = 0
+    for p in portal or []:
+        decision, _ = portal_decision(p, rules.base)
+        if decision in ("EXCLUIDO_ESTADO", "EXCLUIDO_DIF"):
+            portal_excluded += 1
+        elif p.item:
+            from_portal.add(p.item)
+        else:
+            pending.add(p.item_portal)
+    # Con identidades Portal pendientes de R1, un ITEM solo-CAT del ERP PODRÍA ser su destino:
+    # no se elimina en silencio; queda con pertenencia pendiente (trazable y bloqueante).
+    cat_only = cat - kept - from_portal - undecided
+    held = cat_only if pending else set()
+    items = kept | from_portal | undecided | held
+    return FrozenUniverse(
+        frozenset(items),
+        tuple(sorted(pending)),
+        {
+            "erp_frozen_items": len({x.item for x in oeras}),
+            "erp_frozen_lines": len(oeras),
+            "erp_cat_lines_removed": removed_lines,
+            "erp_items_with_cat_lines": len(cat),
+            "erp_items_kept_non_cat": len(kept),
+            "erp_items_cat_only_removed": len(cat_only - held),
+            "erp_items_cat_only_pending_r1": len(held),
+            "erp_items_membership_pending_r3": len(undecided - kept - from_portal),
+            "portal_items_valid": len(from_portal),
+            "portal_lines_excluded_by_rules": portal_excluded,
+            "portal_identities_pending_r1": len(pending),
+            "items_erp_and_portal": len(kept & from_portal),
+            "items_portal_only": len(from_portal - kept - undecided),
+            "universe_items": len(items),
+        },
+    )
+
+
+def _restrict(inp: CoverageInput) -> tuple[CoverageInput, dict[str, int]]:
+    """Filtra las fuentes al universo mensual. Los registros externos NO entran al cálculo; se
+    cuentan por fuente para auditoría (los archivos originales no se tocan)."""
+    if inp.universe is None:
+        return inp, {}
+    u = inp.universe
+    portal = None if inp.portal is None else [p for p in inp.portal if p.item in u]
+    fg = [r for r in inp.fg if r.item in u]
+    ships = None if inp.shipments is None else [s for s in inp.shipments if s.item in u]
+    excluded = {
+        "oeras_29": sum(1 for x in inp.oeras if x.item not in u),
+        "portal_cat": 0 if inp.portal is None else len(inp.portal) - len(portal or []),
+        "fg_inventory": len(inp.fg) - len(fg),
+        "shipments": 0 if inp.shipments is None else len(inp.shipments) - len(ships or []),
+    }
+    oeras = [x for x in inp.oeras if x.item in u]
+    restricted = CoverageInput(
+        month=inp.month,
+        cut_ts=inp.cut_ts,
+        oeras=oeras,
+        portal=portal,
+        fg=fg,
+        shipments=ships,
+        rules=inp.rules,
+        certified=inp.certified,
+        window_start_utc=inp.window_start_utc,
+        blocked=inp.blocked,
+        universe=inp.universe,
+        pending_portal=inp.pending_portal,
+        universe_counts=inp.universe_counts,
+    )
+    return restricted, excluded
 
 
 def _units(  # noqa: PLR0915 (recorrido lineal de las dos fuentes de demanda)
@@ -116,8 +234,27 @@ def _units(  # noqa: PLR0915 (recorrido lineal de las dos fuentes de demanda)
     for x in sorted(
         inp.oeras, key=lambda r: (r.item, r.due_date or "", r.customer_key, r.order, r.line)
     ):
-        cls = rules.customer_class(x.customer_key)
+        cls = inp.rules.classify(x.customer_key)
         in_horizon = x.due_date is not None and x.due_date <= end
+        if cls == UNKNOWN_CLASS:  # V17/D-A: ninguna fecha (futura o ilegible) elude el bloqueo
+            notes["__unclassified__"].append(x.customer_key)
+            units.append(
+                Unit(
+                    key=f"L|{x.item}|{x.customer_key}|{x.order}|{x.line}",
+                    kind="LINE",
+                    item=x.item,
+                    customer_class=UNKNOWN_CLASS,
+                    customer_key=x.customer_key,
+                    order=x.order,
+                    line=x.line,
+                    due=x.due_date,
+                    overdue=bool(x.due_date and x.due_date < start),
+                    demand=None,
+                    refs=[x.ref],
+                    reasons=["clave de cliente sin clasificación comercial explícita (V17)"],
+                )
+            )
+            continue
         if cls == sub:
             if in_horizon:
                 sub_lines_in_horizon[x.item] += 1
@@ -298,6 +435,7 @@ def _attribute(inp: CoverageInput, units: list[Unit]) -> dict[str, Any]:
     allocations: list[dict[str, Any]] = []
     excess: list[dict[str, Any]] = []
     unattributed: list[dict[str, Any]] = []
+    unclassified_ships: set[str] = set()
     for entry in net:
         s: Shipment = entry["shipment"]
         qty: Decimal = entry["net"]
@@ -305,7 +443,9 @@ def _attribute(inp: CoverageInput, units: list[Unit]) -> dict[str, Any]:
             raise ValueError(f"reversas mayores que el embarque {s.movement_id}")
         if qty == 0:
             continue
-        cls = inp.rules.base.customer_class(s.customer_key)
+        cls = inp.rules.classify(s.customer_key)
+        if cls == UNKNOWN_CLASS:  # V17: no se puede decidir si consume pool CAT o línea exacta
+            unclassified_ships.add(s.customer_key)
         if cls == sub:
             pool = [u for u in units if u.kind == "POOL" and u.item == s.item]
             candidates = [(ITEM_CLASS, pool)]
@@ -354,6 +494,7 @@ def _attribute(inp: CoverageInput, units: list[Unit]) -> dict[str, Any]:
         "excess": excess,
         "unattributed": unattributed,
         "excluded": excluded,
+        **({"unclassified_customers": sorted(unclassified_ships)} if unclassified_ships else {}),
         "net": [
             {"movement_id": e["shipment"].movement_id, "item": e["shipment"].item, "net": e["net"]}
             for e in net
@@ -414,9 +555,12 @@ def _fg(
 
 def compute(inp: CoverageInput) -> dict[str, Any]:  # noqa: PLR0915 (hechos por ITEM, lineal)
     """Resultado completo por ITEM y total (estructura JSON-serializable vía ``serialize``)."""
+    inp, excluded = _restrict(inp)
     units, future, notes = _units(inp)
+    unclassified = sorted(set(notes.pop("__unclassified__", [])))
     attribution = _attribute(inp, units)
-    items = sorted({u.item for u in units})
+    # Todo ITEM del universo tiene fila, aunque no tenga líneas exigibles en el mes (no se pierde).
+    items = sorted({u.item for u in units} | set(inp.universe or ()))
     base_lim = [
         f"reglas {inp.rules.version} ({inp.rules.base.approval})",
         f"corte {inp.cut_ts}; mes {inp.month}",
@@ -503,6 +647,21 @@ def compute(inp: CoverageInput) -> dict[str, Any]:  # noqa: PLR0915 (hechos por 
         "future_lines": future,
         "attribution": attribution,
     }
+    unclassified = sorted({*unclassified, *attribution.get("unclassified_customers", [])})
+    if unclassified:  # V17: identidades conservadas íntegras para diagnóstico
+        out["unclassified_customers"] = unclassified
+    if inp.pending_portal:  # R1: identidades Portal sin resolver; nunca desaparecen
+        out["pending_r1"] = list(inp.pending_portal)
+        for name in ("demand", "pending", "covered", "uncovered"):
+            totals[name]["complete"] = False
+            totals[name]["blocked_by"] = sorted({*totals[name].get("blocked_by", []), "pending_r1"})
+    if inp.universe is not None and (inp.rules.strict or any(excluded.values()) or unclassified):
+        out["universe"] = {
+            "members": len(inp.universe),
+            "rows": len(items),
+            "excluded_records": dict(sorted(excluded.items())),
+            "frozen_construction": dict(sorted(inp.universe_counts.items())),
+        }
     if inp.blocked:  # Δ4: solo existe cuando falta una fuente (las demás salidas no cambian)
         out["blocked_sources"] = dict(sorted(inp.blocked.items()))
         for name in METRICS:

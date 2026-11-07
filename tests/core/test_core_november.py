@@ -47,7 +47,7 @@ class Clock:
 
 def staged(tmp_path: Path, homologation: bool = True) -> dict[str, Path]:
     lab = fx.lab(tmp_path)
-    stage(lab["src"], lab["data"], lab["homologation"] if homologation else None, clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **(fx.r1(lab) if homologation else {}))
     return lab
 
 
@@ -70,7 +70,7 @@ def published(service: RefreshService) -> dict[str, Any]:
 
 def restage_extra(lab: dict[str, Path], name: str, data: bytes) -> None:
     (lab["src"] / name).write_bytes(data)
-    stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
 
 
 # ------------------------------------------------------------------ Δ4 replay parcial
@@ -168,45 +168,59 @@ def test_nv10_no_unknown_becomes_zero_in_contract(tmp_path: Path) -> None:
 
 
 def test_nv11_missing_fg_item_and_negative_fg_are_unknown(tmp_path: Path) -> None:
-    lab = staged(tmp_path)
+    # [R1/R3-v2] QZXITEM3 (solo CAT en el ERP) ya no pertenece al Frozen definitivo; el ITEM
+    # sin registro IN092U se toma ahora de QZXITEM1, quitando su fila FG del inventario.
+    lab = fx.lab(tmp_path)
+    rows_in = [r for r in fx.IN_ROWS if not (r[0] == "QZXITEM1" and r[1] == "FG")]
+    (lab["src"] / "INV_STA289.TXT").write_bytes(fx.in092u_bytes(rows=rows_in))
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     service = svc(lab["data"])
     service.refresh("analista")
     rows = published(service)["summary"]["rows"]
-    assert rows["QZXITEM3"]["facts"]["fg_assignable"] == {
-        **rows["QZXITEM3"]["facts"]["fg_assignable"],
+    assert rows["QZXITEM1"]["facts"]["fg_assignable"] == {
+        **rows["QZXITEM1"]["facts"]["fg_assignable"],
         "value": None,
         "status": UNKNOWN_NOT_ZERO,
-    }  # ausente en IN092U («Excludes Zero»): no es cero
+    }  # sin FG usable en IN092U («Excludes Zero»): no es cero
     assert rows["QZXITEM2"]["facts"]["fg_assignable"]["value"] is None  # FG −5
     assert rows["QZXITEM2"]["facts"]["fg_assignable"]["status"] == NOT_CERTIFIABLE
 
 
-def test_nv12_cat_without_mapped_portal_lines_is_unknown_demand(tmp_path: Path) -> None:
+def test_nv12_cat_only_erp_item_leaves_the_definitive_frozen(tmp_path: Path) -> None:
+    """[R1/R3-v2] Antes: el ITEM solo-CAT sin Portal aparecía con demanda desconocida. Regla
+    comercial: FROZEN = (ERP − CAT) + Portal depurado ⇒ ese ITEM NO pertenece al universo (sin
+    pendientes R1). Se excluye y se CUENTA; nunca aparece como fila."""
     lab = staged(tmp_path)
     service = svc(lab["data"])
     service.refresh("analista")
-    rows = published(service)["summary"]["rows"]
-    assert rows["QZXITEM3"]["facts"]["demand"]["value"] is None  # CAT sin Portal homologado
-    assert rows["QZXITEM3"]["facts"]["demand"]["status"] == UNKNOWN_NOT_ZERO
+    s = published(service)["summary"]
+    assert "QZXITEM3" not in s["rows"]
+    construction = s["universe"]["frozen_construction"]
+    assert construction["erp_items_cat_only_removed"] == 1
+    assert construction["erp_items_cat_only_pending_r1"] == 0
 
 
-def test_nv13_portal_quarantined_blocks_only_cat_demand(tmp_path: Path) -> None:
-    lab = staged(tmp_path, homologation=False)  # R1 sin resolver: Portal en cuarentena
+def test_nv13_portal_without_r1_is_pending_and_blocking_not_quarantined(tmp_path: Path) -> None:
+    """[K-3] Antes: Portal sin homologación ⇒ archivo en cuarentena (perdía ITEM solo-Portal).
+    Ahora: líneas PENDING conservadas, no sumadas, sin duplicar; los demás ITEM válidos se
+    conservan en el diagnóstico; la publicación queda NO-GO (replay) por PENDING_R1."""
+    lab = staged(tmp_path, homologation=False)
     service = svc(lab["data"])
     out = service.refresh("analista")
-    assert out["outcomes"][0]["published"] is True
+    assert out["outcomes"][0]["published"] is True  # replay: diagnóstico NO-GO, no promovible
     pub = published(service)
-    s = pub["summary"]
-    assert s["blocked_sources"].keys() == {"portal_cat", "shipments"}
-    assert pub["manifest"]["sources"]["frozen"].get("portal_cat") is None
+    s, m = pub["summary"], pub["manifest"]
+    assert any(x.startswith("PENDING_R1") for x in m["validation"]["no_go"])
+    assert m["sources"]["frozen"]["portal_cat"] is not None  # el Frozen Portal existe y se usa
+    assert s["pending_r1"] == ["QZX PORTAL 1"]  # identidad conservada íntegra
+    assert s["blocked_sources"].keys() == {"shipments"}
     item1 = s["rows"]["QZXITEM1"]["facts"]
-    assert item1["demand"]["value"] is None  # pool CAT desconocido ⇒ demanda del ITEM desconocida
-    item2 = s["rows"]["QZXITEM2"]["facts"]
-    assert item2["demand"]["value"] == "240"  # sin líneas CAT: completo
+    assert item1["demand"]["value"] is None  # el CAT pendiente no se suma ni se inventa
+    assert s["rows"]["QZXITEM2"]["facts"]["demand"]["value"] == "240"  # otros válidos siguen
+    assert "QZXITEM3" in s["rows"]  # solo-CAT con R1 pendiente: pertenencia pendiente
+    assert s["universe"]["frozen_construction"]["erp_items_cat_only_pending_r1"] == 1
     assert s["totals"]["demand"]["complete"] is False
-    assert s["totals"]["demand"]["blocked_by"] == ["portal_cat"]
-    limitations = " ".join(item1["demand"]["limitations"])
-    assert "Portal CAT no disponible" in limitations
+    assert "pending_r1" in s["totals"]["demand"]["blocked_by"]
 
 
 def test_nv14_shipped_blank_and_ambiguous_dates_propagate_unknown(tmp_path: Path) -> None:
@@ -224,7 +238,7 @@ def test_nv14_shipped_blank_and_ambiguous_dates_propagate_unknown(tmp_path: Path
         ),
     ]
     (lab["src"] / "Portal_CAT_2026-11-03_0955.csv").write_bytes(fx.portal_bytes(rows=rows))
-    stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     service = svc(lab["data"])
     service.refresh("analista")
     item = published(service)["items"]["QZXITEM1"]["coverage"]
@@ -237,7 +251,7 @@ def test_nv15_missing_open_quantity_propagates_unknown(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     items = [("QZXITEM2", "25", "25", [("7310201", "1", "11/20/26", "120", "", fx.APTIV)])]
     (lab["src"] / "R_20261101.TXT").write_bytes(fx.oe965_bytes(items=items))
-    stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     service = svc(lab["data"])
     service.refresh("analista")
     facts = published(service)["summary"]["rows"]["QZXITEM2"]["facts"]
@@ -266,10 +280,11 @@ def test_nv21_provisional_homologation_never_applied(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     rows = [("PL-9", "QZX PORTAL 9", "Open", "80", "0", "11/18/2026", "11/20/2026")]
     (lab["src"] / "Portal_CAT_2026-11-03_0955.csv").write_bytes(fx.portal_bytes(rows=rows))
-    report = stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    report = stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     portal = next(f for f in report["files"] if f["kind"] == "portal")
-    assert portal["status"] == "QUARANTINED"  # la fila PROVISIONAL no se convierte en regla
-    assert report["homologation"]["provisional_ignored"] == 1
+    # [K-3] la fila PROVISIONAL no se convierte en regla: la línea queda PENDING (no cuarentena)
+    assert portal["status"] == "STAGED" and portal["r1_status"] == {"PENDING": 1}
+    assert report["homologation"]["pending"]["PROVISIONAL_NOT_APPLIED"] == 1
 
 
 # ------------------------------------------------------------------ C1 Frozen inmutable
@@ -330,7 +345,7 @@ def test_nv32_same_date_different_content_after_registration_alerts(tmp_path: Pa
 def test_nv33_ambiguous_precedence_before_registration_blocks(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     (lab["src"] / "R_20261101 (2).TXT").write_bytes(fx.oe965_bytes(items=fx.OE_ITEMS[:1]))
-    stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     service = svc(lab["data"])
     out = service.refresh("analista")
     assert out["head"] is None
@@ -343,7 +358,7 @@ def test_nv34_identical_duplicates_are_not_ambiguous(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     raw = (lab["src"] / "R_20261101.TXT").read_bytes()
     (lab["src"] / "R_20261101(3).TXT").write_bytes(raw)
-    stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     assert svc(lab["data"]).refresh("analista")["head"] is not None
 
 
@@ -369,7 +384,7 @@ def test_nv35_substitution_of_frozen_rejected(tmp_path: Path) -> None:
 def test_nv36_future_document_date_is_rejected(tmp_path: Path) -> None:
     lab = fx.lab(tmp_path)
     (lab["src"] / "R_20261101.TXT").write_bytes(fx.oe965_bytes(date="11/09/26"))
-    stage(lab["src"], lab["data"], lab["homologation"], clock=Clock())
+    stage(lab["src"], lab["data"], clock=Clock(), **fx.r1(lab))
     out = svc(lab["data"]).refresh("analista")
     assert out["head"] is None
     rejected = out["outcomes"][0]["validation"]["failures"]
@@ -431,8 +446,17 @@ def test_nv42_replay_generation_never_publishable_outside_replay(tmp_path: Path)
 
 
 def test_nv43_replay_rollback_does_not_touch_other_channels(tmp_path: Path) -> None:
+    # [P-STG-02] stage() ya no acepta un directorio con store/: el segundo extracto se prepara
+    # ANTES de incorporar el almacén sintético y se deja fuera de la bandeja hasta usarlo.
     lab = staged(tmp_path)
     data = lab["data"]
+    later = tmp_path / "later"
+    shutil.copytree(lab["src"], later / "src")
+    shutil.copytree(lab["data"], later / "data")
+    (later / "src" / "R_20261103.TXT").write_bytes(
+        fx.oe965_bytes(date="11/03/26", items=fx.OE_ITEMS[:2])
+    )
+    stage(later / "src", later / "data", clock=Clock(), **fx.r1(lab))
     # el MISMO directorio de datos con una publicación sintética previa en store/
     demo.scenario(tmp_path / "d")
     RefreshService(
@@ -449,7 +473,9 @@ def test_nv43_replay_rollback_does_not_touch_other_channels(tmp_path: Path) -> N
     service = svc(data)
     service.refresh("analista")
     first = service.state.publication_head("replay")["gen_id"]
-    restage_extra(lab, "R_20261103.TXT", fx.oe965_bytes(date="11/03/26", items=fx.OE_ITEMS[:2]))
+    for sid in ("oeras_29",):
+        for f in (later / "data" / "inbox" / sid).glob("R_20261103*"):
+            shutil.copy2(f, data / "inbox" / sid / f.name)
     second = service.refresh("analista")["head"]
     assert second["gen_id"] != first and second["seq"] == 2
     service.rollback(first, "admin")

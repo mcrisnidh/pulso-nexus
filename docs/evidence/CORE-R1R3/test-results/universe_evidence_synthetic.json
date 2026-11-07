@@ -1,0 +1,73 @@
+{
+ "con_externos_sembrados": {
+  "excluded_records": {
+   "fg_inventory": 2,
+   "oeras_29": 1,
+   "portal_cat": 0,
+   "shipments": 0
+  },
+  "frozen_construction": {
+   "erp_cat_lines_removed": 2,
+   "erp_frozen_items": 3,
+   "erp_frozen_lines": 8,
+   "erp_items_cat_only_pending_r1": 0,
+   "erp_items_cat_only_removed": 1,
+   "erp_items_kept_non_cat": 2,
+   "erp_items_membership_pending_r3": 0,
+   "erp_items_with_cat_lines": 2,
+   "items_erp_and_portal": 1,
+   "items_portal_only": 0,
+   "portal_identities_pending_r1": 0,
+   "portal_items_valid": 1,
+   "portal_lines_excluded_by_rules": 1,
+   "universe_items": 2
+  },
+  "rows": [
+   "QZXITEM1",
+   "QZXITEM2"
+  ],
+  "universe_members": 2,
+  "validation": {
+   "partial": [
+    "shipments"
+   ],
+   "status": "PASS"
+  }
+ },
+ "resultados_oficiales_identicos": true,
+ "sin_externos": {
+  "excluded_records": {
+   "fg_inventory": 0,
+   "oeras_29": 1,
+   "portal_cat": 0,
+   "shipments": 0
+  },
+  "frozen_construction": {
+   "erp_cat_lines_removed": 2,
+   "erp_frozen_items": 3,
+   "erp_frozen_lines": 8,
+   "erp_items_cat_only_pending_r1": 0,
+   "erp_items_cat_only_removed": 1,
+   "erp_items_kept_non_cat": 2,
+   "erp_items_membership_pending_r3": 0,
+   "erp_items_with_cat_lines": 2,
+   "items_erp_and_portal": 1,
+   "items_portal_only": 0,
+   "portal_identities_pending_r1": 0,
+   "portal_items_valid": 1,
+   "portal_lines_excluded_by_rules": 1,
+   "universe_items": 2
+  },
+  "rows": [
+   "QZXITEM1",
+   "QZXITEM2"
+  ],
+  "universe_members": 2,
+  "validation": {
+   "partial": [
+    "shipments"
+   ],
+   "status": "PASS"
+  }
+ }
+}

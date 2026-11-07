@@ -35,7 +35,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from nexus.core.coverage import ENGINE_VERSION, CoverageInput, check_invariants, compute, serialize
+from nexus.core.coverage import (
+    ENGINE_VERSION,
+    CoverageInput,
+    FrozenUniverse,
+    check_invariants,
+    compute,
+    frozen_universe,
+    serialize,
+)
 from nexus.core.rules import CoreRules, load_core_rules
 from nexus.core.sources import SOURCE_IDS, ParsedSource, read_source
 from nexus.core.state import (
@@ -365,6 +373,32 @@ class CoreJob:
         self.state.put_alert(self.channel, month, alert)
         sel.alerts.append(alert)
 
+    def _universe(self, sel: Selection) -> FrozenUniverse | None:
+        """Universo = ITEM del FROZEN DEFINITIVO ((29 OERAS − CAT ERP) + Portal depurado).
+        Solo con reglas v2 (fuentes reales). Con reglas v1 (histórico sintético aislado) no hay
+        delimitación: el cálculo es idéntico byte a byte al histórico (huella dorada)."""
+        if not self.rules.strict or "oeras_29" not in sel.frozen:
+            return None
+        portal = sel.frozen["portal_cat"]["parsed"].records if "portal_cat" in sel.frozen else None
+        return frozen_universe(sel.frozen["oeras_29"]["parsed"].records, portal, self.rules)
+
+    @staticmethod
+    def _no_go(result: dict[str, Any] | None) -> list[str]:
+        if result is None:
+            return []
+        out = []
+        if result.get("unclassified_customers"):
+            out.append(
+                f"UNCLASSIFIED_CUSTOMER: {len(result['unclassified_customers'])} claves de cliente "
+                "sin clasificación comercial explícita afectan ITEM congelados (V17/V18)"
+            )
+        if result.get("pending_r1"):
+            out.append(
+                f"PENDING_R1: {len(result['pending_r1'])} identidades Portal Frozen sin "
+                "homologación aprobada (R1)"
+            )
+        return out
+
     def _portal_blocked(self, sel: Selection, month: str) -> None:
         """Δ4 (solo replay): sin Portal válido ni Frozen Portal registrado, la demanda de la clase
         sustituida queda desconocida en lugar de impedir toda la vista informativa."""
@@ -396,6 +430,16 @@ class CoreJob:
             failures.append("publicación parcial solo admitida en el canal replay")
         if not failures and "oeras_29" not in sel.frozen:
             failures.append("BLOCKED_SOURCE: sin Frozen oeras_29")
+        # D-B: reglas v1 (OTHER implícito) solo en ejecución sintética aislada; nunca con fuentes
+        # reales ni fuera del canal sintético.
+        if not self.rules.strict and (
+            self.channel != "sintetico" or set(systems) - SYNTHETIC_SYSTEMS
+        ):
+            failures.append(
+                "REGLAS v1: solo admitidas en ejecución sintética aislada (canal sintetico y "
+                "fuentes SYNTHETIC); las fuentes reales exigen nexus.core.rules/2 (D-B)"
+            )
+        fu = self._universe(sel)
         if not failures:
             assert sel.fg is not None  # noqa: S101
             certified = not sel.blocked and all(
@@ -418,6 +462,9 @@ class CoreJob:
                 if self.calendar.is_utc
                 else self.calendar.window_utc(month)[0],
                 blocked=dict(sel.blocked),
+                universe=fu.items if fu else None,
+                pending_portal=fu.pending_portal if fu else (),
+                universe_counts=fu.counts if fu else {},
             )
             try:
                 result = compute(inp)
@@ -426,6 +473,9 @@ class CoreJob:
                 )
             except ValueError as exc:
                 failures.append(f"cálculo rechazado: {exc}")
+        no_go = self._no_go(result)
+        if no_go and self.channel not in PARTIAL_CHANNELS:
+            failures += no_go  # V18/D-A: bloqueo de la publicación oficial afectada
         self._stage("after_compute")
         inputs = {
             "engine": ENGINE_VERSION,
@@ -450,6 +500,8 @@ class CoreJob:
         }
         if sel.blocked:
             validation["partial"] = sorted(sel.blocked)
+        if no_go and self.channel in PARTIAL_CHANNELS:
+            validation["no_go"] = no_go  # replay: diagnóstico NO-GO, nunca promovible
         artifacts = self._write_generation(gen_id, month, inputs, sel, result, validation, systems)
         self._stage("after_generation")
         return {
@@ -554,11 +606,16 @@ class CoreJob:
                     },
                     "attribution": serialize(result["attribution"]),
                     "future_lines": serialize(result["future_lines"]),
-                    **(
-                        {"blocked_sources": result["blocked_sources"]}
-                        if "blocked_sources" in result
-                        else {}
-                    ),
+                    **{
+                        k: result[k]
+                        for k in (
+                            "blocked_sources",
+                            "universe",
+                            "unclassified_customers",
+                            "pending_r1",
+                        )
+                        if k in result
+                    },
                 },
             )
         manifest = {

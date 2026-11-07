@@ -81,7 +81,7 @@ uv run --frozen mypy --strict src
 uv run --frozen lint-imports
 ```
 
-- Esperado: **607 passed** y 12 skipped. Los 12 skipped son las pruebas Pilot-20 con datos reales.
+- Esperado: **736 passed** y 12 skipped. Los 12 skipped son las pruebas Pilot-20 con datos reales.
 - En Windows algunas pruebas POSIX de E1-A se omiten por diseño (`posix_only`), así que el número de omitidas puede ser mayor.
 - Si algo falla, **no continúe**: comparta la salida, que no contiene datos reales.
 
@@ -180,29 +180,46 @@ Copy-Item .\path\a\users.json $DATA      # usuarios del laboratorio (DevAuth sin
 '@ | Set-Content -Encoding ascii -NoNewline (Join-Path $DATA 'operation.json')
 ```
 
-- **`rules.json` (R3).** Lo prepara el dueño del proceso comercial a partir de `claves_cliente_nov.csv`, con las claves **exactas**, espacios incluidos:
-  - CAT, TUPY y `CAT_REVIEW`;
-  - CATPERK y `98753462 001` en revisión;
-  - APTIV y DELPHI como clases **distintas**.
+- **`rules.json` (R3), esquema `nexus.core.rules/2`, obligatorio con fuentes reales (V17, V23).** Lo prepara el dueño del proceso comercial a partir de `claves_cliente_nov.csv`.
+  - Las claves van **exactas**, espacios incluidos.
+  - Debe incluir `"unclassified_customers": "UNKNOWN"`.
+  - **Toda** clave del backlog Frozen debe estar en una clase explícita. Basta la decisión CAT / no-CAT: las claves no sustituidas pueden ir en una sola clase explícita (por ejemplo `OTHER`).
+  - Una clave sin clase es `UNKNOWN` y **bloquea** la publicación oficial (`replay`: NO-GO).
+  - Al cargar se rechazan: una clave en dos clases, claves vacías o con espacio final, y la clase sustituida marcada también como conservada.
+  - APTIV y DELPHI van como clases **distintas**.
   - Se guarda en `$DATA\rules.json`.
-  - Esquema `nexus.core.rules/1`, igual que el sintético de `src/nexus/core/demo.py`.
-- **Homologación (R1)**, opcional. Archivo `$PRIV\homologacion_portal_erp.csv` con estas columnas:
-  ```
-  item_portal,item_erp,status,evidence
-  ```
-  - Solo las filas `APPROVED` se aplican. Las `PROVISIONAL` se ignoran.
-  - La igualdad de texto es exacta, sin normalizar.
-  - Si un ITEM Portal tiene dos destinos, se invalida la tabla.
-  - Sin tabla, el Portal queda **en cuarentena**, la demanda CAT es desconocida y el resto se ve completo.
+  - El esquema v1 (`nexus.core.rules/1`) solo se acepta en la demostración sintética.
+- **Homologación (R1) v2.** Son tres archivos privados, fuera de git y sin enlaces.
+  - **Tabla** `$PRIV\homologacion_portal_erp.csv`. Estados `APPROVED_MAP`, `APPROVED_PORTAL_ONLY` y `PROVISIONAL` (este nunca se aplica). Columnas:
+    ```
+    item_portal,item_erp,status,approval_id
+    ```
+  - **Registro autorizado** `$PRIV\registro_aprobaciones.json`, independiente de la tabla:
+    ```json
+    {"schema": "nexus.core.approvals-ledger/1", "entries": [
+      {"approval_id": "...", "kind": "R1_MAP | R1_PORTAL_ONLY | R1_REVISION_EQUIVALENCE",
+       "item_portal": ["..."], "item_erp": "...", "evidence_ref": "...",
+       "evidence_sha256": "<64 hex>", "approved_by": "...", "approved_at": "AAAA-MM-DD"}]}
+    ```
+  - **Aprobadores** `$PRIV\aprobadores.json`: `{"approvers": ["..."]}`.
+  - Una fila solo homologa si su `approval_id` existe en el registro con el **mismo** tipo e identidades, evidencia, aprobador autorizado y fecha no posterior a la recepción.
+  - Muchos-a-uno exige `R1_REVISION_EQUIVALENCE`.
+  - El ITEM ERP destino debe existir **exacto** en OE965/IN092U del periodo.
+  - Una identidad inválida o ambigua invalida la tabla completa.
+  - **Sin R1 resuelto, el Portal ya no va a cuarentena:** cada línea queda `MAPPED`, `PORTAL_ONLY` o `PENDING`, y las `PENDING` se conservan íntegras y bloquean la publicación oficial.
 
 ### 2.4 Stage
 
 ```powershell
-uv run --frozen --with tzdata==2025.2 nexus core stage --src $SRC --data $DATA --homologation (Join-Path $PRIV 'homologacion_portal_erp.csv') | Out-File (Join-Path $PRIV 'stage_report.json')
+uv run --frozen --with tzdata==2025.2 nexus core stage --src $SRC --data $DATA --homologation (Join-Path $PRIV 'homologacion_portal_erp.csv') --ledger (Join-Path $PRIV 'registro_aprobaciones.json') --approvers (Join-Path $PRIV 'aprobadores.json') | Out-File (Join-Path $PRIV 'stage_report.json')
 ```
 
-Sin R1, omita `--homologation`. Revise `stage_report.json`, que no contiene filas:
+- Sin R1, omita las tres opciones: todas las líneas Portal quedan `PENDING`.
+- `$DATA` debe ser un directorio **nuevo**, sin `store/` y sin enlaces ni junctions en ninguna parte de la ruta. Si no, `stage` se niega antes de escribir.
+
+Revise `stage_report.json`, que no contiene filas:
 - Cada archivo queda `STAGED`, `QUARANTINED` (con `reason` y códigos) o `DUPLICATE_CONTENT` (por ejemplo `R_20261001(3)`/`(4)`).
+- El Portal informa `r1_status` por línea.
 - Los `.xlsx` y `MF_*` aparecen solo como **ignorados**.
 
 Repita la comparación de hashes de §2.2: el origen debe seguir intacto.

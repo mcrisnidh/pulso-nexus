@@ -219,11 +219,48 @@ def portal_bytes(
     return bom + text.encode(encoding)
 
 
+# R1 v2 (D-D): tabla editable + registro autorizado independiente + lista de aprobadores
 HOMOLOGATION = (
-    "item_portal,item_erp,status,evidence\n"
-    "QZX PORTAL 1,QZXITEM1,APPROVED,referencia cruzada sintetica\n"
-    "QZX PORTAL 9,QZXITEM3,PROVISIONAL,sin evidencia (no se aplica)\n"
+    "item_portal,item_erp,status,approval_id\n"
+    "QZX PORTAL 1,QZXITEM1,APPROVED_MAP,R1-SYN-0001\n"
+    "QZX PORTAL 9,QZXITEM3,PROVISIONAL,\n"
 )
+APPROVER = "aprobador.sintetico"
+EVIDENCE_SHA = "a" * 64
+
+
+def ledger_entry(
+    approval_id: str, kind: str, portal: list[str], erp: str = "", **over: object
+) -> dict[str, object]:
+    entry: dict[str, object] = {
+        "approval_id": approval_id,
+        "kind": kind,
+        "item_portal": portal,
+        "item_erp": erp,
+        "evidence_ref": f"DOC-{approval_id}",
+        "evidence_sha256": EVIDENCE_SHA,
+        "approved_by": APPROVER,
+        "approved_at": "2026-11-05",
+    }
+    entry.update(over)
+    return entry
+
+
+LEDGER: dict[str, object] = {
+    "schema": "nexus.core.approvals-ledger/1",
+    "entries": [ledger_entry("R1-SYN-0001", "R1_MAP", ["QZX PORTAL 1"], "QZXITEM1")],
+}
+APPROVERS: dict[str, object] = {"approvers": [APPROVER]}
+
+
+def r1(lab: dict[str, Path]) -> dict[str, Path]:
+    """Argumentos R1 de ``stage()`` del laboratorio sintético."""
+    return {
+        "homologation_path": lab["homologation"],
+        "ledger_path": lab["ledger"],
+        "approvers_path": lab["approvers"],
+    }
+
 
 # IN092U (estructura observada en el probe R2)
 IN_ROWS = [
@@ -351,14 +388,19 @@ def in092u_bytes(
 
 
 def november_rules() -> dict[str, Any]:
+    """Reglas v2 (fuentes reales sintéticas): lista CERRADA; toda clave del escenario está
+    clasificada EXPLÍCITAMENTE (OTHER también). Las pruebas de UNKNOWN quitan claves a propósito."""
     rules = json.loads(json.dumps(demo.RULES))
-    rules["version"] = "core-synthetic-nov-1"
+    rules["schema"] = "nexus.core.rules/2"
+    rules["unclassified_customers"] = "UNKNOWN"
+    rules["version"] = "core-synthetic-nov-2"
     rules["customer_classes"] = {
         "CAT": [CAT],
         "CAT_REVIEW": [REVIEW],
         "TUPY": [TUPY],
         "APTIV": [APTIV],
         "DELPHI": [DELPHI],
+        "OTHER": [OTHER, CAT_SPACED],  # explícito y aprobado (sintético), nunca implícito
     }
     rules["preserve_classes"] = ["TUPY", "CAT_REVIEW"]
     rules["customer_notes"] = {REVIEW: "pertenencia ambigua (sintético)"}
@@ -379,7 +421,15 @@ def lab(root: Path, tz: str = "America/Mexico_City") -> dict[str, Path]:
     (src / "R_20261101.TXT").write_bytes(oe965_bytes())
     (src / "Portal_CAT_2026-11-03_0955.csv").write_bytes(portal_bytes())
     (src / "INV_STA289.TXT").write_bytes(in092u_bytes())
-    homologation = root / "private" / "homologacion.csv"
-    homologation.parent.mkdir()
-    homologation.write_bytes(HOMOLOGATION.encode("utf-8"))
-    return {"data": data, "src": src, "homologation": homologation}
+    private = root / "private"
+    private.mkdir()
+    (private / "homologacion.csv").write_bytes(HOMOLOGATION.encode("utf-8"))
+    (private / "registro_aprobaciones.json").write_bytes(json.dumps(LEDGER).encode("utf-8"))
+    (private / "aprobadores.json").write_bytes(json.dumps(APPROVERS).encode("utf-8"))
+    return {
+        "data": data,
+        "src": src,
+        "homologation": private / "homologacion.csv",
+        "ledger": private / "registro_aprobaciones.json",
+        "approvers": private / "aprobadores.json",
+    }

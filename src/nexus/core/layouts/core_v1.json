@@ -12,7 +12,8 @@
       "role": "Portal CAT: Frozen CAT (primera captura cronológica válida del mes) y Current",
       "physical_format_status": "PROVISIONAL_PENDING_REAL_SAMPLE",
       "instant_column": "capture_ts",
-      "required_columns": ["capture_ts", "source_system", "item", "item_portal", "line_id", "status", "ordered_raw", "shipped_raw", "ship_date", "delivery_date"]
+      "required_columns": ["capture_ts", "source_system", "item", "item_portal", "line_id", "status", "ordered_raw", "shipped_raw", "ship_date", "delivery_date"],
+      "optional_columns": ["r1_status"]
     },
     "fg_inventory": {
       "role": "Inventario FG por stockroom en un instante de corte",

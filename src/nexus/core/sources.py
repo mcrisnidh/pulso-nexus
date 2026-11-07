@@ -239,7 +239,7 @@ def _portal(rows: list[Any], refs: list[SourceRef], out: ParsedSource) -> None:
                 shipped_raw=r["shipped_raw"],
                 ship_date=parse_date(r["ship_date"]),
                 delivery_date=parse_date(r["delivery_date"]),
-                map_status="",
+                map_status=r.get("r1_status", ""),
                 provided_decision="",
                 ref=ref,
             )
