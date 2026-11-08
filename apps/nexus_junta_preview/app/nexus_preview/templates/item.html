@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% macro fact(label, f) -%}<tr><td>{{ label }}</td><td><b>{% if f.value is not none %}{{ f.value|num }}{% else %}<span class="nd">N/D</span>{% endif %}</b></td><td>{{ f.status }}</td><td class="small-muted">{{ f.limitations|join(' · ') }}</td></tr>{%- endmacro %}
+{% macro v(label, x, why, st) -%}<tr><td>{{ label }}</td><td><b>{% if x is not none %}{{ x|num }}{% else %}<span class="nd">N/D</span>{% endif %}</b></td><td>{{ st }}</td><td class="small-muted">{{ why }}</td></tr>{%- endmacro %}
+{% block content %}
+{% if diag %}<div class="breadcrumbs"><a href="{{ url_for('escenarios') }}">← Escenarios R1/R3 (diagnóstico)</a></div>
+<div class="diag-banner">DIAGNÓSTICO NO OFICIAL — escenario {{ esc_name }}: simulación para resolver decisiones R1/R3. No es la Junta Operativa.</div>
+{% else %}<div class="breadcrumbs"><a href="{{ url_for('junta') }}#r-{{ anchor(row.item) }}">← Junta Operativa</a></div>{% endif %}
+<div class="page-head"><div><p class="eyebrow">Artículo · {% if diag %}diagnóstico escenario {{ esc_name }}{% else %}{{ vista.etiqueta }}{% endif %}</p><h1>{{ row.item }}</h1>
+<p>{% if diag %}{{ esc.nombre }} · {% endif %}origen en el universo: <b>{{ row.origen }}</b> · CS {{ row.cs or 'sin asignar' }} ({{ row.cs_origen }}) · grupo {{ row.grupo or '—' }}</p></div></div>
+<div class="detail-grid">
+<div class="panel"><h2>Cálculo</h2>
+<table><tr><th>Concepto</th><th>Valor</th><th>Estado</th><th>Base</th></tr>
+{{ fact('Frozen mensual (' ~ (gen.sources.frozen_r.document_date|fecha) ~ ')', row.frozen) }}
+{{ fact('Pendiente Current (' ~ (gen.sources.current_r.document_date|fecha) ~ ')', row.actual) }}
+{{ v('Variación Frozen − Current', row.variacion, 'informativa: no es embarque ni faltante', 'INFORMATIVA') }}
+{{ fact('FG (IN092U, stockroom FG)', row.fg) }}
+{{ v('Adelanto (CS local)', row.adelanto, 'entrada local de laboratorio', 'MANUAL_LOCAL') }}
+{{ v('Embarques', none, gen.nd.embarques, 'BLOCKED_SOURCE') }}
+{{ v('Programa v3.10', row.programa_v310, gen.nd.programa, 'max(0, Frozen + Adelanto − Embarques)') }}
+{{ v('Sobreembarque v3.10', row.sobreembarque_v310, gen.nd.sobreembarque, 'max(0, Embarques − Frozen − Adelanto)') }}
+{{ v('Faltante por producir v3.10', row.faltante_v310, gen.nd.faltante, 'max(0, Programa − FG)') }}
+{{ v('Brecha diagnóstica', row.brecha_diag, 'max(Frozen − FG, 0): NO es el faltante oficial', 'DIAGNOSTIC_ONLY') }}
+</table></div>
+<div class="panel"><h2>Clientes del Frozen (trazabilidad)</h2>
+<table><tr><th>Clave exacta</th><th>Nombre</th><th>Clase</th><th>Líneas</th><th>Frozen</th></tr>
+{% for d in row.clientes_detalle %}<tr><td class="mono">{{ d.clave }}</td><td>{{ d.nombre }}</td><td>{{ d.clase }}</td><td>{{ d.lineas }}</td><td>{{ d.frozen|num }}</td></tr>{% endfor %}</table>
+<p class="small-muted">Las líneas CAT del ERP se sustituyen por el Portal; TUPY, APTIV, DELPHI y demás clientes se conservan por clave exacta.</p></div>
+</div>
+<div class="panel"><div class="panel-head"><h2>Seis semanas</h2><span>Frozen por fecha de línea · Current por fecha de línea con cobertura FG diagnóstica</span></div>
+<table><tr><th></th>{% for w in esc.semanas %}<th>{{ w.wk }}<br><small>{{ w.start|fecha }}</small></th>{% endfor %}</tr>
+<tr><td>Frozen</td>{% for q in row.semanas_frozen %}<td>{{ q|num if row.semanas_frozen_completas else 'N/D' }}</td>{% endfor %}</tr>
+<tr><td>Current</td>{% for c in row.semanas.cells %}<td>{{ c.qty|num if c.qty is not none else 'N/D' }} <span class="small-muted">{{ c.estado }}</span></td>{% endfor %}</tr></table>
+{% if row.semanas.motivos %}<p class="small-muted">{{ row.semanas.motivos|join(' · ') }}</p>{% endif %}</div>
+<div class="panel"><div class="panel-head"><h2>Historial de seguimiento (solo se añaden versiones)</h2><span>Almacén privado de Preview</span></div>
+<table><tr><th>Versión</th><th>Tipo</th><th>Valor</th><th>Mes</th><th>Editor</th><th>Fecha</th></tr>
+{% for x in hist %}<tr><td>{{ x.version }}</td><td>{{ x.kind }}</td><td>{{ x.value.qty if x.kind == 'ADVANCE' else x.value }}</td><td>{{ x.valid_month }}</td><td>{{ x.author }}</td><td>{{ x.server_ts|fechahora }}</td></tr>
+{% else %}<tr><td colspan="6" class="empty">Sin registros.</td></tr>{% endfor %}</table></div>
+{% endblock %}

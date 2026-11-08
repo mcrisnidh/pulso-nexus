@@ -1,0 +1,46 @@
+{
+ "schema": "nexus.preview.conectores/1",
+ "_nota": "Sin contraseñas, tokens ni cookies: las credenciales viven en el Administrador de credenciales de Windows (cmdkey). Todo inactivo hasta preflight + conciliación PASS.",
+ "backlog_ssrs": {
+  "activo": false,
+  "modo": "windows_integrado",
+  "url_servidor": "http://<servidor SSRS>/ReportServer",
+  "ruta_reporte": "/<carpeta>/Month End - Backlog Detail",
+  "parametros": {},
+  "nombre_reporte": "Month End - Backlog Detail",
+  "atributo_periodo": "textbox1",
+  "entidad": "0036",
+  "moneda": "USD",
+  "cuenta_esperada": "ucbaa",
+  "formato_clave_cliente": "{num:<10}{seq}",
+  "atributos": {"nombre_cliente": ""},
+  "timeout_s": 150,
+  "politica_fallo": "CONSERVAR_ULTIMO_CORTE"
+ },
+ "fg_odbc": {
+  "activo": false,
+  "dsn": "DB2LOCAL",
+  "credencial": "PULSO_NEXUS/fg",
+  "cuenta_esperada": "remcb",
+  "biblioteca": "AULT2F2PRD",
+  "tabla": "STKBAL",
+  "columnas": {"item": "PNUM60", "stockroom": "STRC60", "fisico": "SPHY60", "compania": "CONO60"},
+  "compania": "36",
+  "filtro_cantidad": "<>",
+  "sufijo_sql": "FOR READ ONLY",
+  "consulta_identidad": "SELECT 1 FROM SYSIBM.SYSDUMMY1",
+  "timeout_s": 60,
+  "politica_fallo": "CONSERVAR_ULTIMO_CORTE"
+ },
+ "embarques": {
+  "activo": false,
+  "controlador": "ODBC Driver 18 for SQL Server",
+  "servidor": "<servidor ASBG: ver ASBG_SERVER en PULSO Web commercial/live_sources.py>",
+  "base": "ASBG",
+  "credencial": "PULSO_NEXUS/embarques",
+  "cuenta_esperada": "sm0003",
+  "atributos_conexion": {"Encrypt": "yes", "TrustServerCertificate": "no", "ApplicationIntent": "ReadOnly"},
+  "timeout_s": 60,
+  "politica_fallo": "CONSERVAR_ULTIMO_CORTE"
+ }
+}

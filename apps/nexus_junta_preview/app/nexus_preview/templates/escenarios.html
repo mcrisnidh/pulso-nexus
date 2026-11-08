@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% block content %}
+<div class="diag-banner">DIAGNÓSTICO NO OFICIAL — solo localhost (127.0.0.1). Simulaciones A/B/DIAG para resolver decisiones R1/R3. Ninguna es la Junta Operativa ni una clasificación aprobada.</div>
+<div class="page-head"><div><p class="eyebrow">Escenarios R1/R3 · diagnóstico</p><h1>Resolución de excepciones R1/R3</h1>
+<p>Generación {{ gen.gen_id[:12] }} · la Junta Operativa usa la vista <b>{{ vista.modo }}</b> ({{ vista.escenario }}) por regla de aprobaciones, no por selección. Sin autenticación por roles: este módulo solo existe en localhost.</p></div></div>
+
+<div class="panel"><div class="panel-head"><h2>Comparación de escenarios</h2><span>cada columna se calcula por separado; nada se mezcla</span></div>
+<table><tr><th>Indicador</th>{% for n in names %}<th>{{ n }}</th>{% endfor %}</tr>
+<tr><td>Descripción</td>{% for n in names %}<td class="small-muted">{{ gen.escenarios[n].nombre }}</td>{% endfor %}</tr>
+<tr><td>Universo ITEM</td>{% for n in names %}<td><b>{{ gen.escenarios[n].construccion_frozen.universe_items|num }}</b></td>{% endfor %}</tr>
+<tr><td>Líneas CAT ERP retiradas</td>{% for n in names %}<td>{{ gen.escenarios[n].construccion_frozen.erp_cat_lines_removed|num }}</td>{% endfor %}</tr>
+<tr><td>Artículos solo-CAT retenidos por R1 pendiente</td>{% for n in names %}<td>{{ gen.escenarios[n].construccion_frozen.erp_items_cat_only_pending_r1|num }}</td>{% endfor %}</tr>
+<tr><td>Identidades Portal pendientes R1</td>{% for n in names %}<td>{{ gen.escenarios[n].pendientes_r1|num }}</td>{% endfor %}</tr>
+<tr><td>Claves sin clase R3</td>{% for n in names %}<td>{{ gen.escenarios[n].claves_sin_clase|num }}</td>{% endfor %}</tr>
+<tr><td>Frozen mensual (conocido)</td>{% for n in names %}{% set k = gen.escenarios[n].kpis %}<td>{{ k.frozen.value|num }}<small class="block">conocido {{ k.frozen.known_sum|num }} · {{ k.frozen.unknown_items }} N/D</small></td>{% endfor %}</tr>
+<tr><td>Pendiente Current (conocido)</td>{% for n in names %}{% set k = gen.escenarios[n].kpis %}<td>{{ k.actual.value|num }}<small class="block">conocido {{ k.actual.known_sum|num }} · {{ k.actual.unknown_items }} N/D</small></td>{% endfor %}</tr>
+<tr><td>Completo para vista verificada</td>{% for n in names %}<td>{{ 'sí' if gen.escenarios[n].completo else 'no' }}</td>{% endfor %}</tr></table></div>
+
+<div class="panel"><div class="panel-head"><h2>Motivos de bloqueo de la vista verificada y de la certificación</h2><span>{{ 'apta para revisión' if cert.apta_para_revision else 'no apta' }} · publicación {{ cert.publicacion }}</span></div>
+<div class="pend-list">{% for m in cert.motivos %}<div class="bad">✖ {{ m }}</div>{% endfor %}</div></div>
+
+{% if diffs %}<div class="panel"><div class="panel-head"><h2>Artículos afectados: diferencias A ↔ B</h2><span>{{ diffs|length }} artículos</span></div>
+<table><tr><th>Artículo</th><th>Origen A</th><th>Frozen A</th><th>Origen B</th><th>Frozen B</th><th>Detalle</th></tr>
+{% for d in diffs %}<tr><td>{{ d.item }}</td><td>{{ d.a.origen if d.a else 'fuera del universo' }}</td><td>{{ (d.a.frozen.value|num) if d.a else '—' }}</td><td>{{ d.b.origen if d.b else 'fuera del universo' }}</td><td>{{ (d.b.frozen.value|num) if d.b else '—' }}</td>
+<td>{% if d.a %}<a class="link" href="{{ url_for('escenarios_item', id=d.item, esc='A') }}">A</a>{% endif %} {% if d.b %}<a class="link" href="{{ url_for('escenarios_item', id=d.item, esc='B') }}">B</a>{% endif %}</td></tr>{% endfor %}</table></div>{% endif %}
+
+{% for n in names %}{% set pf = gen.escenarios[n].pendientes %}
+<div class="panel"><div class="panel-head"><h2>Decisiones necesarias · escenario {{ n }}</h2><span>evidencia para resolver: claves, identidades y artículos</span></div>
+<div class="pend-grid">
+<div><h3>Claves R3 sin clase ({{ pf.claves_r3|length }})</h3><table><tr><th>Clave exacta</th><th>Líneas</th><th>Artículos</th></tr>
+{% for x in pf.claves_r3 %}<tr><td class="mono">{{ x.clave }}</td><td>{{ x.lineas }}</td><td>{{ x.items }}</td></tr>{% else %}<tr><td colspan="3" class="small-muted">Ninguna.</td></tr>{% endfor %}</table></div>
+<div><h3>Identidades Portal pendientes R1 ({{ pf.portal_r1|length }})</h3><table><tr><th>Item ID</th><th>Líneas</th><th>Candidato provisional</th></tr>
+{% for x in pf.portal_r1 %}<tr><td class="mono">{{ x.item_portal }}</td><td>{{ x.lineas }}</td><td class="mono">{{ x.candidato_provisional or '—' }}</td></tr>{% else %}<tr><td colspan="3" class="small-muted">Ninguna.</td></tr>{% endfor %}</table></div>
+<div><h3>Frozen no determinable ({{ pf.items_no_determinables|length }})</h3><table><tr><th>Artículo</th><th>Causa</th></tr>
+{% for x in pf.items_no_determinables %}<tr><td><a class="link" href="{{ url_for('escenarios_item', id=x.item, esc=n) }}">{{ x.item }}</a></td><td class="small-muted">{{ x.causa }}</td></tr>{% else %}<tr><td colspan="2" class="small-muted">Ninguno.</td></tr>{% endfor %}</table></div>
+</div></div>
+{% endfor %}
+{% endblock %}

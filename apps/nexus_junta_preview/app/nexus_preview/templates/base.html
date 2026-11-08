@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf" content="{{ csrf }}">
+  <title>{% block title %}PULSO NEXUS{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='pulso_style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='nexus.css') }}">
+  <script defer src="{{ url_for('static', filename='pulso_ui.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='junta.js') }}"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="brand"><span class="pulse">●</span><span class="brand-text">PULSO <small class="nexus-tag">NEXUS</small></span></div>
+      <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Contraer menú">☰</button>
+    </div>
+    <nav>
+      <a href="{{ url_for('junta') }}" title="Junta Operativa" class="{{ 'active' if active=='junta' else '' }}"><span class="nav-short">JO</span><span class="nav-text">Junta Operativa</span></a>
+      <span class="nav-disabled" title="Módulo futuro (no incluido en v0.2)"><span class="nav-short">DI</span><span class="nav-text">Dirección</span></span>
+      <span class="nav-disabled" title="Módulo futuro (no incluido en v0.2)"><span class="nav-short">CS</span><span class="nav-text">Customer Service</span></span>
+      <span class="nav-disabled" title="Módulo futuro (no incluido en v0.2)"><span class="nav-short">PL</span><span class="nav-text">Planeación</span></span>
+      <span class="nav-disabled" title="Módulo futuro (no incluido en v0.2)"><span class="nav-short">PR</span><span class="nav-text">Producción</span></span>
+      <div class="nav-divider"></div>
+      <a href="{{ url_for('escenarios') }}" title="Escenarios R1/R3" class="{{ 'active' if active=='escenarios' else '' }}"><span class="nav-short">ES</span><span class="nav-text">Escenarios R1/R3 <small class="nav-tag">diagnóstico</small></span></a>
+      <a href="{{ url_for('fuentes') }}" title="Fuentes y Refresh" class="{{ 'active' if active=='fuentes' else '' }}"><span class="nav-short">FR</span><span class="nav-text">Fuentes y Refresh</span></a>
+    </nav>
+    <div class="read-only">NEXUS v0.3.1 · Live Data<br><strong>PREVIEW · NO-GO COMERCIAL</strong><br>Solo 127.0.0.1</div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle top-toggle" id="sidebarToggleTop" type="button" aria-label="Contraer menú">☰</button>
+        <a class="home" href="{{ url_for('junta') }}">PULSO NEXUS</a>
+        {% if vista_global %}<span class="vista-pill {{ vista_global.modo|lower }}" id="vistaPill">{{ vista_global.etiqueta }}</span>{% else %}<span class="nogo-pill">PREVIEW / NO-GO COMERCIAL</span>{% endif %}
+      </div>
+      <div class="topbar-right">
+        {% set e = estado_refresh %}
+        <div class="refresh-widget" id="refreshWidget">
+          <div class="refresh-copy">
+            <span class="refresh-state {{ (e.estado or '')|lower }}" id="refreshState"><i></i>{{ estado_label }}</span>
+            <small id="refreshTime">{% if e.fin or e.inicio %}{{ (e.fin or e.inicio)|fechahora }}{% else %}Sin corte disponible{% endif %}</small>
+          </div>
+          <button type="button" id="refreshNow" class="refresh-button primary-refresh" title="Lee los cortes nuevos de la carpeta privada de Preview, recalcula con el motor NEXUS y conmuta la vista. No publica KPI oficiales.">Actualizar datos</button>
+        </div>
+        <span class="user-chip"><b>Editor local</b><small>sin autenticación</small></span>
+      </div>
+    </header>
+    <div id="refreshBanner" class="refresh-banner hidden" role="status" aria-live="polite"></div>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

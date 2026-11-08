@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block content %}<div class="page-head"><div><p class="eyebrow">CS · Planeación · Producción · NEXUS Preview</p><h1>Junta Operativa</h1>
+<p>Todavía no hay una generación de datos. Pulse <b>Actualizar datos</b> para leer las fuentes de la carpeta privada configurada.</p></div></div>
+{% if estado_refresh.estado == 'ERROR' %}<div class="sql-error"><b>Último Refresh con error</b>{% for m in estado_refresh.motivos %}<span>✖ {{ m }}</span>{% endfor %}</div>{% endif %}{% endblock %}

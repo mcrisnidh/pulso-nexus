@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">Refresh de Preview</p><h1>Fuentes y Refresh</h1>
+<p>Lee la carpeta privada configurada, valida todos los archivos, recalcula con el motor NEXUS y conmuta la vista. No invoca <code>stage()</code> ni el Refresh oficial, no escribe SQL y no publica.</p></div></div>
+{% set e = estado_refresh %}
+<div class="panel"><div class="panel-head"><h2>Último Refresh: {{ e.estado }} · {{ estado_label }}</h2><span>{{ (e.fin or e.inicio)|fechahora }}</span></div>
+<table><tr><td>Artículos procesados</td><td>{{ e.articulos if e.articulos is defined else '—' }}</td></tr>
+<tr><td>Fuentes utilizadas</td><td>{% for k2, v2 in (e.fuentes or {}).items() %}<div>{{ k2 }}: {{ v2 }}</div>{% endfor %}</td></tr>
+<tr><td>Motivos de bloqueo</td><td>{% for m in e.motivos or [] %}<div class="bad">✖ {{ m }}</div>{% else %}—{% endfor %}</td></tr>
+<tr><td>Advertencias</td><td>{% for m in e.advertencias or [] %}<div>⚠ {{ m }}</div>{% else %}—{% endfor %}</td></tr></table></div>
+{% if e.conectores %}<div class="panel"><div class="panel-head"><h2>Conectores corporativos (solo lectura)</h2><span>{{ 'ACTUALIZACIÓN PARCIAL' if e.parcial else 'sin fallos' }}</span></div>
+<table><tr><th>Fuente</th><th>Estado</th><th>Detalle</th><th>Captura</th></tr>
+{% for k, v in e.conectores.items() %}<tr><td>{{ k }}</td><td><b>{{ v.estado }}</b></td><td class="small-muted">{{ v.codigo or '' }} {{ v.motivo or v.aviso or v.naturaleza or '' }}{% if v.politica %} · política {{ v.politica }}{% endif %}</td>
+<td class="mono">{% if v.sha256 %}{{ v.archivo }} · {{ v.sha256[:12] }}… · {{ v.filas }} filas{% if v.reutilizada %} (sin cambios){% endif %}{% endif %}</td></tr>{% endfor %}</table></div>{% endif %}
+{% if gen and gen.embarques %}<div class="panel"><div class="panel-head"><h2>Embarques</h2><span>{{ 'ACREDITADA' if gen.embarques.acreditado else 'NO ACREDITADA: KPI en N/D' }}</span></div>
+<div class="pend-list"><div>{{ gen.embarques.naturaleza }}</div>{% for m in gen.embarques.motivos %}<div class="bad">✖ {{ m }}</div>{% endfor %}
+{% if gen.embarques.captura %}<div class="mono small-muted">Última captura {{ gen.embarques.captura.archivo }} · {{ gen.embarques.captura.sha256[:12] }}…</div>{% endif %}</div></div>{% endif %}
+{% if lock %}<div class="panel"><div class="panel-head"><h2>Frozen bloqueado de {{ lock.month }}</h2><span>no se sustituye durante el mes</span></div>
+<table><tr><td>Backlog R (29 OERAS)</td><td>{{ lock.oe965.file }}</td><td class="mono">{{ lock.oe965.sha256 }}</td></tr>
+<tr><td>Portal CAT</td><td>{{ lock.portal.file }}</td><td class="mono">{{ lock.portal.sha256 }}</td></tr>
+<tr><td>Bloqueado en</td><td colspan="2">{{ lock.bloqueado_en|fechahora }} (generación {{ lock.gen_id[:12] }})</td></tr></table></div>{% endif %}
+{% if gen %}<div class="panel"><div class="panel-head"><h2>Archivos de la generación vigente {{ gen.gen_id[:12] }}</h2></div>
+<table><tr><th>Archivo</th><th>Origen</th><th>Tipo</th><th>Fecha documento</th><th>Registros</th><th>Lectura</th><th>SHA-256</th></tr>
+{% for f in gen.archivos %}<tr><td>{{ f.file }}</td><td>{{ f.origen or 'MANUAL' }}</td><td>{{ f.kind }}</td><td>{{ f.document_date|fecha }}</td><td>{{ f.records|num }}</td><td>{{ f.acceptance }}</td><td class="mono">{{ f.sha256[:16] }}…</td></tr>{% endfor %}</table></div>{% endif %}
+<div class="panel"><div class="panel-head"><h2>Historial de Refresh</h2></div>
+<table><tr><th>Fin</th><th>Estado</th><th>Generación</th><th>Artículos</th><th>Motivos</th></tr>
+{% for x in log %}<tr><td>{{ x.fin|fechahora }}</td><td>{{ x.estado }}{% if x.parcial %} · <b>PARCIAL</b>{% endif %}</td><td class="mono">{{ (x.gen_id or x.gen_vigente_conservada or '')[:12] }}</td><td>{{ x.articulos if x.articulos is defined else '—' }}</td><td class="small-muted">{{ (x.motivos or [])|join(' · ') }}</td></tr>{% endfor %}</table></div>
+{% endblock %}

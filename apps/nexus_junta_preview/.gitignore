@@ -1,0 +1,7 @@
+# Nunca almacenar datos corporativos, capturas, secretos ni acreditaciones locales.
+/junta-data*/
+/junta-inputs*/
+/conectores.json
+/acreditacion_*.json
+*.raw
+*.sqlite

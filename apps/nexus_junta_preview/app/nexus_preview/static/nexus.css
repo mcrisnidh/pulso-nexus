@@ -1,0 +1,45 @@
+/* Complementos NEXUS sobre pulso_style.css (hoja de PULSO Web reutilizada sin cambios). */
+.nexus-tag{font-size:11px;color:#8fb3e8;margin-left:4px;letter-spacing:.5px}
+.nogo-pill{margin-left:12px;background:#fff0bc;color:#775000;padding:5px 10px;border-radius:999px;font-weight:800;font-size:11px}
+.topbar{gap:12px}.topbar-left,.topbar-right{display:flex;align-items:center;gap:12px}
+.refresh-widget{display:flex;align-items:center;gap:10px}.refresh-copy small{display:block;color:var(--muted);font-size:10px}
+.refresh-state.no_change i{background:#55a66d}.refresh-state.busy i{background:#d8a43b}
+.primary-refresh{background:var(--blue)!important;color:#fff!important;border:0!important;border-radius:9px;padding:8px 14px;font-weight:800;cursor:pointer}
+.primary-refresh:disabled{opacity:.6;cursor:wait}
+.refresh-banner{margin:14px 30px 0;padding:11px 15px;border-radius:12px;background:#eaf3fb;border:1px solid #cfe2f3;font-size:13px}
+.refresh-banner.ok{background:#e9f7ee;border-color:#b9e4ca}.refresh-banner.err{background:#fff1ef;border-color:#efbbb7;color:#922b21}.hidden{display:none}
+.nav-disabled{display:flex;gap:6px;padding:12px 13px;border-radius:9px;color:#6f89a3;font-size:14px;cursor:not-allowed}
+.cutoff-sources{min-width:420px}.cutoff-sources b{font-size:12px}
+.sql-error.soft{background:#fff8e6;border-color:#f1dda4;color:#6b4d00;padding:9px 14px;margin-bottom:10px}
+.esc-tabs{padding-top:0}.meeting-rule{margin:0 30px 16px;padding:11px 15px;border:1px solid #cfe2f3;background:#eaf3fb;border-radius:12px;font-size:13px}
+.status-kpis .kpi small{font-size:11px}.warn-kpi b{color:var(--muted)}
+.nd{color:#8a96a6;border-bottom:1px dotted #8a96a6;cursor:help;font-size:12px}.n{font-variant-numeric:tabular-nums}.strong{font-weight:800}
+.diag{font-style:italic}.diag.hot{color:var(--red);font-weight:700}
+.nexus-table{min-width:2450px}
+.nexus-table tbody .s1,.nexus-table tbody .s2,.nexus-table tbody .s3,.nexus-table tbody .s4,.nexus-table tfoot .s1{position:sticky;background:#fff;z-index:2}
+.nexus-table .s1{left:0;min-width:96px;max-width:96px}.nexus-table .s2{left:96px;min-width:86px;max-width:86px}
+.nexus-table .s3{left:182px;min-width:170px;max-width:170px}.nexus-table .s4{left:352px;min-width:150px;max-width:150px;box-shadow:2px 0 0 var(--line)}
+.nexus-table thead .s1,.nexus-table thead .s2,.nexus-table thead .s3,.nexus-table thead .s4{position:sticky;z-index:8}
+.nexus-table th small{text-transform:none;color:var(--blue);font-weight:700}
+.totals-row td{background:#f7f9fc;border-top:2px solid var(--line)}
+.note-save-status.draft{color:#a56b00;font-weight:700}.prev-note{font-size:10px;max-width:240px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.date-input,.nexus-table select{border:1px solid var(--line);border-radius:7px;padding:6px;font:inherit;background:#fff}
+.bad{color:var(--red)}
+/* v0.2.1: una sola vista operativa */
+.vista-pill{margin-left:12px;padding:6px 12px;border-radius:999px;font-weight:800;font-size:11px;letter-spacing:.3px}
+.vista-pill.provisional{background:#fdecd9;color:#8f3e00;border:1px solid #f2c9a0}
+.vista-pill.verificada{background:#e4edf6;color:#0b5cad;border:1px solid #bcd3f5}
+.vista-banner{margin:0 30px 14px;padding:13px 16px;border-radius:12px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.vista-banner.provisional{background:#fff4e8;border:1px solid #f2c9a0}.vista-banner.verificada{background:#eaf3fb;border:1px solid #cfe2f3}
+.vista-banner>div{display:flex;flex-direction:column;gap:3px}.vista-banner b{font-size:14px}.vista-banner small{color:#7a4b00}
+.determinable{min-width:360px;text-align:right;font-size:12px;color:#334}
+.pendientes-panel>summary{padding:14px 20px;cursor:pointer}.pend-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:0 20px 16px}
+.pend-grid h3{font-size:13px;margin:10px 0 6px}.pend-list{padding:12px 20px}
+.diag-banner{margin:16px 30px 0;padding:12px 16px;border-radius:12px;background:#f7eef9;border:1px solid #d9c2e3;color:#5c3aa8;font-weight:800}
+.nav-tag{display:block;font-size:10px;color:#8fb3e8}
+@media(max-width:1300px){.pend-grid{grid-template-columns:1fr}.vista-banner{flex-direction:column}.determinable{text-align:left}}
+
+/* v0.3.2 — origen del corte FG */
+.fg-corte.directa { color: #1d6b3a; }
+.fg-corte.contingencia { color: #b42318; font-weight: 600; }
+.fg-corte.contingencia b { display: inline; }
