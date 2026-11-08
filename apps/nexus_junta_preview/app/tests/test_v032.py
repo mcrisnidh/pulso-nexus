@@ -252,8 +252,23 @@ def test_a10_acreditacion_ajena_se_rechaza(tmp_path: Path, caso: str) -> None:
         _put(data, doc)
     else:
         (data / "conciliaciones").mkdir()
-        (data / "conciliaciones" / doc["carpeta"]).symlink_to(ajena / "conciliaciones" / doc["carpeta"])
-        (data / "preflight").symlink_to(ajena / "preflight")
+        enlaces = (
+            (data / "conciliaciones" / doc["carpeta"], ajena / "conciliaciones" / doc["carpeta"]),
+            (data / "preflight", ajena / "preflight"),
+        )
+        for enlace, destino in enlaces:
+            try:
+                enlace.symlink_to(destino, target_is_directory=True)
+            except OSError as exc:
+                if os.name != "nt" or getattr(exc, "winerror", None) != 1314:
+                    raise
+                # Windows sin SeCreateSymbolicLinkPrivilege: junction real, sin admin.
+                proceso = subprocess.run(
+                    ["cmd.exe", "/d", "/c", "mklink", "/J", str(enlace), str(destino)],
+                    capture_output=True, text=True, check=False,
+                )
+                assert proceso.returncode == 0, (proceso.stdout, proceso.stderr)
+                assert enlace.is_junction(), "No se pudo crear una junction real"
         _put(data, doc)
     ok, motivos, _ = _verificar(data)
     assert not ok and motivos, caso

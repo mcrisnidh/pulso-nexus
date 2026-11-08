@@ -36,10 +36,10 @@ dd198f7dbbb6ba9b9af996c8c145b45018059c94b6b38fa3881c429256aba037  ./app/tests/de
 25f36817d08c8e1222bdcc6c4f9ef22c6fae23da992fc2cbd9260a312459a932  ./app/tests/navegador.js
 5916f79fafcf0011b8f4bcdb306b16df370f91f6b168c7d0df8df68d226c5e44  ./app/tests/simuladores.py
 3480bf3015af60c32c575a1bcf2ec762ccbe9db14faf45eb1a559296fae5c411  ./app/tests/test_conectores.py
-430e21ba1a00ca47f19a6b71909b842538f99508e2d88d470aedfbec487ae2a1  ./app/tests/test_preview.py
+8a4bd27ae72671054aeb8515555d1ff5789ae89a63d821018fdeb845122424ec  ./app/tests/test_preview.py
 f72fc9d8774f36937484f3dd34ade8d9e98757f684a5c44475c0b3af9f547e7d  ./app/tests/test_repro_defectos_v031.py
 6e8db1dafe0906f987db5d801b9306264fb4f267460f68c88c5d2e0c6ff4ccb5  ./app/tests/test_v031.py
-faee5547b9b82a09425aa2ce4c263bf5b616f3ad259044a0f799639c0545a096  ./app/tests/test_v032.py
+ba837fd797304eec54fbc16fa58a82b34ec6c98a8f5e615a09fcef684d949489  ./app/tests/test_v032.py
 f81ac621a18628abe600bb55ffe3fb6ce7a0ee6d1f9c110006903d1d9d74cc51  ./app/tests/verificar_rollback.py
 26b3000f853eb1d45e55882096c0d7547ff7afcd8a8063537c35a46f44d5e003  ./CAMBIOS_v0.3.2.md
 4d35efe6b70993d3927c69207507ca5a9cef7884d4f2a1fcfeb09671aca5e561  ./DOCS/CONECTORES.md

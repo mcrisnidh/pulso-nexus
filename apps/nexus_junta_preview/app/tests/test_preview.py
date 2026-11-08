@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -335,7 +336,11 @@ def test_a12e_refresh_web_en_segundo_plano(lab: Any) -> None:
 @pytest.mark.skipif(os.environ.get("NEXUS_SKIP_BROWSER") == "1", reason="prueba de navegador desactivada")
 def test_a13_navegador_flujo_completo(tmp_path: Path) -> None:
     """Criterio final en un navegador real (Chromium headless): nota → corte nuevo → Actualizar."""
-    node = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, check=False)
+    npm_exe = shutil.which("npm.cmd") or shutil.which("npm")
+    node_exe = shutil.which("node")
+    if npm_exe is None or node_exe is None:
+        pytest.skip("Node/npm ausentes: prueba de navegador NO EJECUTADA en este host")
+    node = subprocess.run([npm_exe, "root", "-g"], capture_output=True, text=True, check=False)
     if node.returncode != 0 or not (Path(node.stdout.strip()) / "playwright").exists():
         pytest.skip("Playwright para Node no disponible en este equipo")
     paths, ref = make_lab(tmp_path)
@@ -349,12 +354,12 @@ def test_a13_navegador_flujo_completo(tmp_path: Path) -> None:
         out.mkdir()
         script = APP / "tests" / "navegador.js"
         env_node = {**os.environ, "NODE_PATH": node.stdout.strip()}
-        step1 = subprocess.run(["node", str(script), "nota", str(port), str(out)], capture_output=True, text=True, env=env_node, check=False, timeout=120)
+        step1 = subprocess.run([node_exe, str(script), "nota", str(port), str(out)], capture_output=True, text=True, env=env_node, check=False, timeout=120)
         assert step1.returncode == 0, step1.stdout + step1.stderr
         before = json.loads(step1.stdout.strip().splitlines()[-1])
         demo.corte_posterior(paths["src"])
         demo.fg_posterior(paths["src"])
-        step2 = subprocess.run(["node", str(script), "refresh", str(port), str(out), before["item"]], capture_output=True, text=True, env=env_node, check=False, timeout=120)
+        step2 = subprocess.run([node_exe, str(script), "refresh", str(port), str(out), before["item"]], capture_output=True, text=True, env=env_node, check=False, timeout=120)
         assert step2.returncode == 0, step2.stdout + step2.stderr
         after = json.loads(step2.stdout.strip().splitlines()[-1])
         assert before["visibles"] == 1  # búsqueda por ITEM sobre el conjunto completo
