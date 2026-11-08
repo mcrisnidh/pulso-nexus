@@ -46,6 +46,9 @@ packages = ["src/nexus"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests", "scripts"]
+# Componente aislado: NO se ignora; lo evalúa scripts/junta_ruff_baseline.py con estas mismas reglas
+# contra una línea base versionada (docs/quality/POLITICA_RUFF_NEXUS_JUNTA_PREVIEW.md).
+extend-exclude = ["apps/nexus_junta_preview"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "PL", "N"]

@@ -2,7 +2,7 @@ name: ci-e1
 
 on:
   push:
-    branches: ["claude/**", "main"]
+    branches: ["claude/**", "feature/**", "main"]
   pull_request:
 
 permissions:
@@ -14,17 +14,29 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # la línea base de la Junta se valida contra la del commit base
       - uses: astral-sh/setup-uv@v6
       - run: uv python install 3.12
       - run: uv sync --frozen
       - name: Bytes de fixtures (política .gitattributes)
         run: sha256sum -c --strict SHA256SUMS
         working-directory: tests/fixtures/synthetic
-      - run: uv run ruff check . && uv run ruff format --check .
+      # Ruff estricto del CORE + formato + línea base del componente aislado apps/nexus_junta_preview.
+      # Misma definición que la ejecución local (scripts/quality_gates.py; política en
+      # docs/quality/POLITICA_RUFF_NEXUS_JUNTA_PREVIEW.md).
+      - name: Ruff CORE, formato y línea base Junta (transición desde el commit base)
+        env:
+          NEXUS_BASELINE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: uv run python scripts/quality_gates.py estatico
+      - name: Pruebas adversariales de las puertas de calidad
+        run: uv run python scripts/quality_gates.py gobernanza
       - run: uv run mypy --strict src
       - run: uv run lint-imports
       # Las pruebas 'sql' se DESELECCIONAN aquí (no se omiten): se ejecutan en el job sql-ephemeral.
       - run: uv run pytest -m "not sql" -ra --tb=short --cov=nexus --cov-branch --cov-report=term
+      - name: Junta Operativa Preview (apps/nexus_junta_preview; navegador sin Playwright = SKIPPED)
+        run: uv run python scripts/quality_gates.py junta
       - name: A13 por paquete (>= 90 % de ramas en los paquetes del criterio, sin SQL)
         run: >-
           uv run coverage report --fail-under=90
@@ -58,6 +70,12 @@ jobs:
       - name: Sondas TOCTOU con estadísticas de ataque
         if: ${{ !cancelled() }}
         run: uv run pytest tests/adversarial/test_toctou.py -v -s -p no:cacheprovider
+      - name: Junta Operativa Preview en Windows (rutas, enlaces y junctions NTFS)
+        if: ${{ !cancelled() }}
+        run: uv run python scripts/quality_gates.py junta
+      - name: Pruebas adversariales de las puertas de calidad en Windows
+        if: ${{ !cancelled() }}
+        run: uv run python scripts/quality_gates.py gobernanza
 
   sql-ephemeral:
     # E1-B: SQL Server 2022 Developer Edition EFÍMERO (contenedor oficial de Microsoft, solo datos
