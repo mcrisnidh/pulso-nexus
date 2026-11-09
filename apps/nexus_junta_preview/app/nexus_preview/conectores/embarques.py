@@ -35,22 +35,33 @@ from pathlib import Path
 from typing import Any
 
 from . import ConectorError
-from .credenciales import Proveedor, obtener
-from .odbc import Fabrica, consultar
+from .credenciales import Proveedor, obtener, sanear
+from .odbc import Fabrica, cadena, consultar, fabrica_pyodbc
 
-SQL = (
-    "SELECT LTRIM(RTRIM(c.CODUPC)) AS item, SUM(c.CANTID) AS qty, COUNT(*) AS renglones, "
-    "COUNT(DISTINCT a.NUMFOL) AS documentos, SUM(CASE WHEN c.CANTID IS NULL THEN 1 ELSE 0 END) AS nulos "
-    "FROM MF_CFD AS a JOIN MF_DETCFD AS c ON a.NUMFOL = c.NUMFOL "
-    "WHERE a.FECEXP >= ? AND a.FECEXP < ? "
-    "AND EXISTS (SELECT 1 FROM MF_CUENTAS AS b WHERE b.NUMFOL = a.NUMFOL) "
-    "AND EXISTS (SELECT 1 FROM MF_RECCFD AS e WHERE e.NUMFOL = a.NUMFOL) "
+# Preserve exact ERP item spelling: UPPER applies only to the case-insensitive filters.
+_FILTROS = (
     "AND NULLIF(LTRIM(RTRIM(c.CODUPC)), '') IS NOT NULL "
     "AND UPPER(LTRIM(RTRIM(c.CODUPC))) NOT LIKE 'RM%' "
     "AND UPPER(LTRIM(RTRIM(c.CODUPC))) NOT LIKE 'SCRAP%' "
     "AND UPPER(LTRIM(RTRIM(c.CODUPC))) NOT LIKE 'SERV16%' "
-    "GROUP BY LTRIM(RTRIM(c.CODUPC))"
 )
+_DESDE = (
+    "FROM MF_CFD AS a INNER JOIN MF_DETCFD AS c ON a.NUMFOL = c.NUMFOL "
+    "WHERE a.FECEXP >= ? AND a.FECEXP < ? "
+)
+SQL = (
+    "SELECT LTRIM(RTRIM(c.CODUPC)) AS item, SUM(c.CANTID) AS qty, COUNT(*) AS renglones, "
+    "COUNT(DISTINCT a.NUMFOL) AS documentos, SUM(CASE WHEN c.CANTID IS NULL THEN 1 ELSE 0 END) AS nulos "
+    + _DESDE + _FILTROS + "GROUP BY LTRIM(RTRIM(c.CODUPC))"
+)
+# FIX4: tested live on 2026-11-09. Invoice identities are retrieved separately,
+# avoiding the slow EXISTS + per-ITEM filters plan. Never use total counts as
+# proof of complete relationships: every filtered invoice ID must be present.
+SQL_FACTURAS = "SELECT DISTINCT a.NUMFOL " + _DESDE + _FILTROS
+_SQL_CUENTAS = "SELECT DISTINCT NUMFOL FROM MF_CUENTAS WHERE NUMFOL IN ({})"
+_SQL_RECCFD = "SELECT DISTINCT NUMFOL FROM MF_RECCFD WHERE NUMFOL IN ({})"
+_LOTE_FACTURAS = 300  # below SQL Server's 2100-parameter limit
+
 IDENTIDAD = "SELECT DB_NAME(), @@SERVERNAME"
 NATURALEZA = "FACTURACION_CFDI_POR_ITEM (no acredita embarque físico)"
 CAMPOS = ("item", "facturado_cfdi", "renglones", "documentos", "nulos")
@@ -64,6 +75,69 @@ def _guardas(cfg: dict[str, Any]) -> None:
         raise ConectorError("EMBARQUES_CERTIFICADO_NO_VERIFICADO")
     if extra.get("applicationintent", "readonly") != "readonly":
         raise ConectorError("EMBARQUES_INTENCION_NO_LECTURA")
+
+
+def _clave_factura(value: Any) -> str:
+    if value is None:
+        raise ConectorError("EMBARQUES_NUMFOL_INVALIDO")
+    # Numeric and varchar invoice IDs are allowed; avoid changing spelling.
+    key = str(value)
+    if not key or not key.strip():
+        raise ConectorError("EMBARQUES_NUMFOL_INVALIDO")
+    return key
+
+
+def _validar_facturas(
+    cfg: dict[str, Any], cred: Any, fechas: list[dt.date], abrir_protegido: Fabrica,
+    base: str, rows: list[tuple[Any, ...]],
+) -> int:
+    """Prove two auxiliary relationships for EVERY invoice in filtered source.
+
+    Query identities and memberships with bound parameters. Do not print or
+    persist invoice identifiers; return only verified count for audit metadata.
+    A mismatch or ODBC failure rejects the entire capture (fail closed).
+    """
+    cn = None
+    try:
+        cn = abrir_protegido(cadena(cfg, cred), int(cfg.get("timeout_s", 60)))
+        cur = cn.cursor()
+        cur.execute(IDENTIDAD)
+        identity = tuple(cur.fetchone() or ())
+        if base and (not identity or str(identity[0]).upper() != base.upper()):
+            raise ConectorError("EMBARQUES_BASE_DISTINTA", "la validación apunta a otra base")
+        cur.execute(SQL_FACTURAS, *fechas)
+        invoices = [_clave_factura(r[0]) for r in cur.fetchall()]
+        universe = set(invoices)
+        if len(universe) != len(invoices):
+            raise ConectorError("EMBARQUES_FACTURAS_DUPLICADAS")
+        if bool(universe) != bool(rows):
+            raise ConectorError("EMBARQUES_UNIVERSOS_INCONSISTENTES")
+        # Both tables are consulted only for invoice IDs actually retrieved.
+        # Check sets, not just totals: missing invoice IDs are never accepted.
+        for table, statement in (("MF_CUENTAS", _SQL_CUENTAS), ("MF_RECCFD", _SQL_RECCFD)):
+            found: set[str] = set()
+            for i in range(0, len(invoices), _LOTE_FACTURAS):
+                batch = invoices[i:i + _LOTE_FACTURAS]
+                placeholders = ",".join("?" for _ in batch)
+                cur.execute(statement.format(placeholders), *batch)
+                found.update(_clave_factura(r[0]) for r in cur.fetchall())
+            if found != universe:
+                raise ConectorError(
+                    "EMBARQUES_RELACIONES_FALTANTES",
+                    f"tabla={table}; facturas={len(universe)}; validas={len(found & universe)}; "
+                    f"faltantes={len(universe - found)}; inesperadas={len(found - universe)}",
+                )
+        return len(universe)
+    except ConectorError:
+        raise
+    except Exception as exc:  # sanitized, never include credential or NUMFOL values
+        raise ConectorError("ODBC_CONSULTA_FALLIDA", sanear(str(exc), cred.secreto)) from None
+    finally:
+        if cn is not None:
+            try:
+                cn.rollback()
+            finally:
+                cn.close()
 
 
 def capturar(
@@ -80,10 +154,33 @@ def capturar(
                                          "ApplicationIntent": "ReadOnly", **(cfg.get("atributos_conexion") or {})}}
     cred = obtener(cfg.get("credencial", ""), cfg.get("cuenta_esperada", "sm0003"), proveedor)
     inicio = dt.date.fromisoformat(month + "-01")
-    rows, ident = consultar(cfg, cred, SQL, [inicio, hasta + dt.timedelta(days=1)], fabrica, IDENTIDAD)
+    # Query timeout is separate from ODBC login timeout. Apply only to ASBG,
+    # not to the shared FG adapter; the driver timeout is not a hard wall-clock watchdog.
+    try:
+        consulta_timeout = int(cfg.get("timeout_consulta_s", 15))
+    except (TypeError, ValueError) as exc:
+        raise ConectorError("EMBARQUES_TIMEOUT_INVALIDO") from exc
+    if not 5 <= consulta_timeout <= 30:
+        raise ConectorError("EMBARQUES_TIMEOUT_INVALIDO")
+
+    def abrir_protegido(conn_str: str, login_timeout: int) -> Any:
+        cn = (fabrica or fabrica_pyodbc)(conn_str, login_timeout)
+        try:
+            cn.timeout = consulta_timeout
+        except Exception as exc:  # fail closed instead of silently removing the timeout
+            cn.close()
+            raise ConectorError("EMBARQUES_TIMEOUT_NO_DISPONIBLE") from exc
+        return cn
+
+    fechas = [inicio, hasta + dt.timedelta(days=1)]
+    rows, ident = consultar(cfg, cred, SQL, fechas, abrir_protegido, IDENTIDAD)
     base = str(cfg.get("base") or "")
     if base and (not ident or str(ident[0]).upper() != base.upper()):
         raise ConectorError("EMBARQUES_BASE_DISTINTA", "la conexión no apunta a la base configurada")
+    # Keep monthly filters and item identities identical to the aggregate.
+    # Every invoice must be present in BOTH auxiliary tables. This is an
+    # identity check, not a count-equality shortcut.
+    facturas_verificadas = _validar_facturas(cfg, cred, fechas, abrir_protegido, base, rows)
     out: dict[str, dict[str, str]] = {}
     for n, r in enumerate(rows, start=1):
         item = "" if r[0] is None else str(r[0]).strip()
@@ -106,6 +203,7 @@ def capturar(
         "naturaleza": NATURALEZA,
         "periodo": [inicio.isoformat(), hasta.isoformat()],
         "items": len(out),
+        "facturas_verificadas": facturas_verificadas,
         "cuenta": cfg.get("cuenta_esperada", "sm0003"),
     }
 

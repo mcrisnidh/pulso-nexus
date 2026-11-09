@@ -83,6 +83,23 @@ class Cursor:
         up = sql.upper()
         if "DB_NAME()" in up:
             self._rows = [(self.conn.base, "servidor-sintetico")]
+        elif "SELECT DISTINCT A.NUMFOL" in up and "MF_DETCFD" in up:
+            if self.conn.embarques_facturas is not None:
+                ids = self.conn.embarques_facturas
+            else:
+                ids = [f"F{n:06d}" for n in range(1, 1 + sum(int(r[3]) for r in self.conn.filas))]
+            self.conn._ids_embarques_ultima = list(ids)
+            self._rows = [(v,) for v in ids]
+        elif up.startswith("SELECT DISTINCT NUMFOL FROM MF_CUENTAS") or up.startswith("SELECT DISTINCT NUMFOL FROM MF_RECCFD"):
+            tabla = "MF_CUENTAS" if "MF_CUENTAS" in up else "MF_RECCFD"
+            if self.conn.embarques_relaciones is None:
+                disponibles = self.conn._ids_embarques_ultima
+            else:
+                disponibles = self.conn.embarques_relaciones.get(tabla, [])
+            if self.conn.simular_incorrecta_respuesta_in:
+                self._rows = [(v,) for v in disponibles]
+            else:
+                self._rows = [(v,) for v in disponibles if v in params]
         elif "SYSDUMMY1" in up:
             self._rows = [(1,)]
         else:
@@ -103,6 +120,10 @@ class Conexion:
         self.rollbacks = 0
         self.cerrada = False
         self.cadenas: list[str] = []
+        self.embarques_facturas: list[str] | None = None
+        self.embarques_relaciones: dict[str, list[str]] | None = None
+        self._ids_embarques_ultima: list[str] = []
+        self.simular_incorrecta_respuesta_in = False
 
     def cursor(self) -> Cursor:
         return Cursor(self)
