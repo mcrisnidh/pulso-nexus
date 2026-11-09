@@ -210,7 +210,10 @@ def test_k10_embarques_guardas_y_nulos(tmp_path: Path) -> None:
     conn = sim.Conexion([("QZXA0016", "300", 2, 2, 0), ("QZXA0010", None, 1, 1, 1)])
     raw, meta = embarques.capturar(c, "2026-11", dt.date(2026, 11, 8), sim.proveedor, sim.fabrica(conn))
     sql, params = conn.ejecutadas[-1]
-    assert "MF_CFD" in sql and "MF_DETCFD" in sql and "UPPER" not in sql and params == (dt.date(2026, 11, 1), dt.date(2026, 11, 9))
+    assert "MF_CFD" in sql and "MF_DETCFD" in sql and params == (dt.date(2026, 11, 1), dt.date(2026, 11, 9))
+    assert "MF_CUENTAS" in sql and "MF_RECCFD" in sql
+    assert all(f"NOT LIKE '{prefix}%'" in sql for prefix in ("RM", "SCRAP", "SERV16"))
+    assert "LTRIM(RTRIM(c.CODUPC)) AS item" in sql  # ITEM exacto, sin normalizar caracteres
     assert "ApplicationIntent=ReadOnly" in conn.cadenas[0] and "Encrypt=yes" in conn.cadenas[0]
     cap = embarques.leer_captura(raw)
     assert cap["QZXA0016"]["facturado_cfdi"] == "300" and cap["QZXA0010"]["facturado_cfdi"] == ""  # nulo: desconocido
