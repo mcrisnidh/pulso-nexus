@@ -156,6 +156,37 @@ def fg_contexto(fgc: dict[str, Any], data: Path, ahora: str) -> dict[str, Any]:
     return {"estado": "MANUAL"}
 
 
+def backlog_contexto(bc: dict[str, Any], data: Path, ahora: str) -> dict[str, Any]:
+    """v0.3.3 — de dónde sale el Backlog Current de esta generación (trazabilidad del corte)."""
+    estado = bc.get("estado")
+    if estado == "CAPTURADO":
+        interactivo = bc.get("modo") == "importacion_interactiva"
+        return {
+            "estado": "IMPORTACION_INTERACTIVA" if interactivo else "CONSULTA_DIRECTA",
+            "archivo": f"backlog_ssrs:{bc['archivo']}",
+            "instante_consulta_utc": bc.get("instante_consulta_utc"),
+            "instante_corte_utc": bc.get("instante_utc"),
+            "alcance": bc.get("alcance"),
+            "acreditacion_sha256": bc.get("acreditacion_sha256"),
+        }
+    if estado == "FALLO" and bc.get("politica") == "CONSERVAR_ULTIMO_CORTE":
+        try:
+            cfg_b = orq.cargar_config(data).get("backlog_ssrs") or {}
+        except ConectorError:
+            cfg_b = {}
+        return {
+            "estado": "CONTINGENCIA",
+            "codigo": bc.get("codigo"),
+            "motivo": bc.get("motivo", ""),
+            "intento_utc": ahora,
+            "politica": "CONSERVAR_ULTIMO_CORTE",
+            "max_horas": cfg_b.get("contingencia_max_horas"),
+        }
+    if estado == "NO_ACREDITADO":
+        return {"estado": "NO_ACREDITADO", "motivo": bc.get("motivo", "")}
+    return {"estado": "MANUAL"}
+
+
 def activar(store: Almacen, gen_id: str, when: str) -> dict[str, Any]:
     """Rollback de la VISTA: vuelve a apuntar a una generación existente (verificada). No toca el
     Frozen bloqueado, las fuentes ni las notas CS."""
@@ -261,6 +292,10 @@ class PreviewRefresh:
             fallos = {k: v for k, v in conectores.items() if v["estado"] == "FALLO"}
             detener = [f"{k}: {v['codigo']} {v.get('motivo', '')}".strip() for k, v in fallos.items() if v.get("politica") == "DETENER"]
             fgc = conectores.get("fg_odbc") or {}
+            bc = conectores.get("backlog_ssrs") or {}
+            if bc.get("estado") == "NO_ACREDITADO" and bc.get("politica") == "DETENER":
+                # v0.3.3: un Backlog SSRS ACTIVO sin acreditación válida sigue su política
+                detener.append(f"backlog_ssrs: NO_ACREDITADO {bc.get('motivo', '')}".strip())
             if fgc.get("estado") == "NO_ACREDITADO" and fgc.get("politica") == "DETENER":
                 # v0.3.2: un conector FG ACTIVO sin acreditación válida sigue su política explícita
                 detener.append(f"fg_odbc: NO_ACREDITADO {fgc.get('motivo', '')}".strip())
@@ -270,6 +305,7 @@ class PreviewRefresh:
                 capturas = orq.cargar_capturas(
                     self.data, cfg.month, orq.habilitadas(conectores), self.store.frozen_lock(cfg.month),
                     fg_archivo=fgc.get("archivo") if fgc.get("estado") == "CAPTURADO" else None,
+                    backlog_archivo=bc.get("archivo") if bc.get("estado") == "CAPTURADO" else None,
                 )
             except ConectorError as exc:
                 raise RefreshError([f"captura inválida: {exc}"]) from exc
@@ -279,8 +315,12 @@ class PreviewRefresh:
             emb = orq.embarques_generacion(
                 self.data, cfg.month, aprobadores, "embarques" in orq.habilitadas(conectores)
             )
-            doc = build_generation(cfg, self.store.frozen_lock(cfg.month), work, self.code, capturas, emb,
-                                   fg_contexto(fgc, self.data, start))
+            contexto = {
+                "fg_conector": fg_contexto(fgc, self.data, start),
+                "backlog_conector": backlog_contexto(bc, self.data, start),
+            }
+            lock = self.store.frozen_lock(cfg.month)
+            doc = build_generation(cfg, lock, work, self.code, capturas, emb, **contexto)
             if self.hook:
                 self.hook("antes_de_conmutar")
             vista = doc["vista_operativa"]

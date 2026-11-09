@@ -144,6 +144,7 @@ def _contract(source_id: str, records: list[dict[str, str]], work: Path) -> Any:
 def scan_sources(
     cfg: Config, frozen_lock: dict[str, Any] | None, capturas: list[tuple[dict[str, Any], Any]] | None = None,
     fg_directo: str | None = None,
+    backlog_directo: str | None = None,
 ) -> dict[str, Any]:
     """Valida TODOS los archivos reconocidos de la carpeta y elige Frozen / Current / FG.
     Cualquier archivo reconocido e inválido detiene el Refresh (se conserva la vista vigente)."""
@@ -233,6 +234,9 @@ def scan_sources(
         current_r = frozen_r
     if current_p["document_date"] < frozen_p["document_date"]:
         current_p = frozen_p
+    if backlog_directo:  # v0.3.3: Current = consulta SSRS de ESTE Refresh
+        forzado = _forzar_current(r_files, backlog_directo, warnings, cfg.month)
+        current_r = forzado if forzado is not None else current_r
 
     def fg_key(f: dict[str, Any]) -> tuple[str, bool, str]:
         t = str(inv["parsed"][f["file"]].document_time.get("value") or "")
@@ -264,6 +268,7 @@ def scan_sources(
             "sha256": f["sha256"],
             "document_date": f["document_date"],
             "document_time": t.get("value"),
+            "instante": f.get("instante") or None,
             "records": f["records"],
         }
 
@@ -617,10 +622,15 @@ def build_generation(
     capturas: list[tuple[dict[str, Any], Any]] | None = None,
     embarques: dict[str, Any] | None = None,
     fg_conector: dict[str, Any] | None = None,
+    backlog_conector: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     fgx = dict(fg_conector or {"estado": "MANUAL"})
-    scan = scan_sources(cfg, frozen_lock, capturas, fgx.get("archivo") if fgx.get("estado") == "CONSULTA_DIRECTA" else None)
+    bkx = dict(backlog_conector or {"estado": "MANUAL"})
+    fg_dir = fgx.get("archivo") if fgx.get("estado") == "CONSULTA_DIRECTA" else None
+    bk_dir = bkx.get("archivo") if bkx.get("estado") in BACKLOG_DIRECTO else None
+    scan = scan_sources(cfg, frozen_lock, capturas, fg_dir, bk_dir)
     scan["fg"]["conector"] = fgx = _fg_traza(fgx, scan)
+    scan["current_r"]["conector"] = bkx = _backlog_traza(bkx, scan)
     emb = embarques or {"acreditado": False, "motivos": ["conector de embarques no configurado"]}
     inv = scan["inv"]
     parsed = inv["parsed"]
@@ -755,6 +765,12 @@ def build_generation(
                         "corte": scan["fg"]["document_time"] if scan["fg"]["origen"] == "CONSULTA_DIRECTA" else None},
         "private": {k: sha(read_only(v)) for k, v in sorted(cfg.private_files().items()) if v.is_file()},
         "code": code_version,
+        # v0.3.3: estado del conector Backlog SSRS y corte (instante) de la consulta directa
+        "backlog_conector": {
+            "estado": bkx["estado"],
+            "acreditacion_sha256": bkx.get("acreditacion_sha256"),
+            "corte": scan["current_r"]["instante"] if bkx["estado"] in BACKLOG_DIRECTO else None,
+        },
     }
     vista = elegir_vista(scenarios, sc["meta"])
     aprob = {
@@ -774,6 +790,7 @@ def build_generation(
         "archivos": scan["all_files"],
         "warnings": scan["warnings"]
         + fgx.pop("_avisos", [])
+        + bkx.pop("_avisos", [])
         + (
             [f"preview.json pide escenario «{cfg.escenario_por_defecto}»: se ignora; la vista operativa la fija la regla de aprobaciones"]
             if cfg.escenario_por_defecto not in ("A", vista["escenario"])
@@ -788,6 +805,82 @@ def build_generation(
         "certificacion": "PROVISIONAL / NO-GO",
         "nd": ND,
     }
+
+
+BACKLOG_DIRECTO = ("CONSULTA_DIRECTA", "IMPORTACION_INTERACTIVA")
+
+
+def _forzar_current(
+    r_files: list[dict[str, Any]], archivo: str, warnings: list[str], month: str
+) -> dict[str, Any] | None:
+    """v0.3.3: con una consulta SSRS exitosa en ESTE Refresh, el Current ERP es esa consulta;
+    ningún R manual (aunque tenga fecha igual o posterior) ni captura histórica la sustituye.
+    El Frozen no se toca (se elige antes, por la regla del primer corte y el bloqueo)."""
+    directo = [f for f in r_files if f["file"] == archivo]
+    if not directo:
+        warnings.append(
+            f"Backlog: la consulta SSRS de este Refresh no pertenece al mes {month}: "
+            "Current = último corte válido del mes"
+        )
+        return None
+    fecha = directo[0]["document_date"] or ""
+    manuales = [f for f in r_files if f["origen"] == "MANUAL"]
+    ignorados = [f["file"] for f in manuales if (f["document_date"] or "") >= fecha]
+    if ignorados:
+        warnings.append(
+            f"Backlog: {len(ignorados)} R manual(es) con fecha igual o posterior a la consulta "
+            f"SSRS ({', '.join(ignorados)}): no se usan como Current; Current = consulta de "
+            "este Refresh"
+        )
+    return directo[0]
+
+
+def _antiguedad_min(corte: str, intento: str) -> int | None:
+    try:
+        a = dt.datetime.fromisoformat(corte.replace("Z", "+00:00"))
+        b = dt.datetime.fromisoformat(intento.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if a.tzinfo is None or b.tzinfo is None:
+        return None
+    return max(0, round((b - a).total_seconds() / 60))
+
+
+def _backlog_traza(bkx: dict[str, Any], scan: dict[str, Any]) -> dict[str, Any]:
+    """v0.3.3: trazabilidad del Current ERP; en contingencia, antigüedad y límite autorizado."""
+    cur = scan["current_r"]
+    out = {**bkx, "_avisos": []}
+    if bkx["estado"] in BACKLOG_DIRECTO and cur["origen"] != "CONSULTA_DIRECTA":
+        out["estado"] = "CONTINGENCIA"
+        out.setdefault("codigo", "BACKLOG_CONSULTA_FUERA_DE_MES")
+    if out["estado"] == "CONTINGENCIA":
+        corte = str(cur.get("instante") or cur.get("document_date") or "")
+        intento = str(bkx.get("intento_utc") or bkx.get("instante_consulta_utc") or "")
+        out["antiguedad_min"] = _antiguedad_min(corte, intento)
+        limite = bkx.get("max_horas")
+        sin_tope = not isinstance(limite, (int, float)) or isinstance(limite, bool)
+        dentro = out["antiguedad_min"] is not None and out["antiguedad_min"] <= (limite or 0) * 60
+        if not sin_tope and not dentro:
+            raise RefreshError(
+                [
+                    f"Backlog: el último corte válido ({corte or 'sin instante'}) supera la "
+                    f"contingencia autorizada ({limite} h) tras el fallo del conector SSRS "
+                    f"({bkx.get('codigo')}): se conserva la generación vigente"
+                ]
+            )
+        edad = out["antiguedad_min"]
+        texto = "" if edad is None else f" (antigüedad {edad // 60} h {edad % 60:02d} min)"
+        out["_avisos"].append(
+            f"BACKLOG ANTERIOR — el conector SSRS falló ({bkx.get('codigo')}); Current usa el "
+            f"último corte válido {cur['file']} del {corte}{texto}. "
+            "Política CONSERVAR_ULTIMO_CORTE."
+        )
+    elif out["estado"] == "NO_ACREDITADO":
+        out["_avisos"].append(
+            f"Backlog: conector SSRS activo SIN acreditación válida ({bkx.get('motivo', '')}); "
+            f"Current usa {cur['file']} ({cur['origen']})."
+        )
+    return out
 
 
 def _fg_traza(fgx: dict[str, Any], scan: dict[str, Any]) -> dict[str, Any]:

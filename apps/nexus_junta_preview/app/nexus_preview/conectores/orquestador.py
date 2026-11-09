@@ -31,7 +31,7 @@ from typing import Any
 from nexus.core.physical.common import PhysicalResult
 from nexus.core.stage import contract_csv
 
-from . import ConectorError, acreditacion_fg, embarques, fg_odbc, ssrs
+from . import ConectorError, acreditacion_backlog, acreditacion_fg, embarques, fg_odbc, ssrs
 
 CONFIG = "conectores.json"
 FUENTES = ("backlog_ssrs", "fg_odbc", "embarques")
@@ -62,6 +62,10 @@ def acreditado(data: Path, fuente: str, cfg: dict[str, Any] | None = None, tz: s
     if fuente == "fg_odbc":  # v0.3.2: verificación criptográfica completa con alcance
         ok, motivos, _ = acreditacion_fg.verificar(data, cfg if cfg is not None else (cargar_config(data).get("fg_odbc") or {}), tz)
         return ok, "; ".join(motivos)
+    if fuente == "backlog_ssrs":  # v0.3.3: verificación completa (fuente y contrato)
+        cfg_b = cfg if cfg is not None else (cargar_config(data).get("backlog_ssrs") or {})
+        ok_b, mot_b, _ = acreditacion_backlog.verificar(data, cfg_b)
+        return ok_b, "; ".join(mot_b)
     p = data / f"acreditacion_{fuente}.json"
     if not p.is_file():
         return False, f"sin acreditación: ejecute la conciliación de {fuente} contra el extracto manual"
@@ -148,6 +152,7 @@ def habilitadas(conectores: dict[str, Any]) -> set[str]:
 def cargar_capturas(
     data: Path, month: str, fuentes: set[str] | None = None, frozen_lock: dict[str, Any] | None = None,
     fg_archivo: str | None = None,
+    backlog_archivo: str | None = None,
 ) -> list[tuple[dict[str, Any], PhysicalResult]]:
     """Capturas de Backlog y FG del mes como lecturas equivalentes a los lectores manuales.
 
@@ -156,13 +161,19 @@ def cargar_capturas(
     históricas se conservan en disco para auditoría, sin entrar al cálculo.
 
     v0.3.2 — FG: entra UN solo corte directo: ``fg_archivo`` (la consulta de este Refresh) o, en
-    contingencia, el último corte directo del mes. Los cortes anteriores quedan para auditoría."""
+    contingencia, el último corte directo del mes. Los cortes anteriores quedan para auditoría.
+
+    v0.3.3 — Backlog: entran solo los cortes que pueden decidir la precedencia: el primero del
+    mes (candidato a Frozen), el Frozen bloqueado y el Current (``backlog_archivo``, la consulta de
+    este Refresh, o el último corte en contingencia). Los intermedios quedan para auditoría."""
     out = []
     frozen_files = {str((frozen_lock or {}).get(k, {}).get("file", "")) for k in ("oe965", "portal")}
     for fuente, kind, sid in (("backlog_ssrs", "oe965", "oeras_29"), ("fg_odbc", "in092u", "fg_inventory")):
         docs = [d for d in listar(data, fuente) if d["fecha_documento"].startswith(month)]
         if fuente == "fg_odbc":
             docs = [d for d in docs if d["archivo"] == fg_archivo] if fg_archivo else docs[-1:]
+        else:
+            docs = _cortes_backlog(docs, backlog_archivo, frozen_files)
         for doc in docs:
             if (fuentes is None or fuente not in fuentes) and f"{fuente}:{doc['archivo']}" not in frozen_files:
                 continue
@@ -205,7 +216,8 @@ def capturar_todo(
                 ok, mot, acr = acreditacion_fg.verificar(data, c, tz)
                 why = "; ".join(mot)
             else:
-                ok, why = acreditado(data, fuente)
+                ok, mot, acr = acreditacion_backlog.verificar(data, c)
+                why = "; ".join(mot)
             if not ok:
                 out[fuente] = {"estado": "NO_ACREDITADO", "motivo": why, "politica": politica}
                 continue
@@ -213,7 +225,7 @@ def capturar_todo(
         local = now.astimezone(zone)
         try:
             if fuente == "backlog_ssrs":
-                out[fuente] = _backlog(data, c, month, zone, now, local, deps)
+                out[fuente] = {**_backlog(data, c, month, zone, now, local, deps), **_traza(acr)}
             elif fuente == "fg_odbc":
                 raw, meta = fg_odbc.capturar(c, deps.get("proveedor"), deps.get("fabrica_fg"))
                 norm = contract_csv("fg_inventory", [{**r, "cut_ts": ""} for r in fg_odbc.registros_contrato(raw)])
@@ -257,8 +269,26 @@ def _backlog(data: Path, c: dict[str, Any], month: str, zone: zoneinfo.ZoneInfo,
     records, meta = ssrs.parse(raw, c, month)
     doc = guardar(data, "backlog_ssrs", raw, contract_csv("oeras_29", records),
                   {**meta, "filas": meta["lineas"], "cuenta": c.get("cuenta_esperada", ""), "url_host": ssrs.urlparse(url).hostname},
-                  now, local.date().isoformat())
-    return {"estado": "CAPTURADO", "modo": modo, **_resumen(doc)}
+                  now, local.date().isoformat(), reutilizar=False)
+    # v0.3.3: cada consulta es un corte nuevo (aunque los bytes coincidan) con su instante
+    consulta = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"estado": "CAPTURADO", "modo": modo, **_resumen(doc), "instante_consulta_utc": consulta}
+
+
+def _traza(acr: dict[str, Any]) -> dict[str, Any]:
+    return {"alcance": acr.get("alcance"), "acreditacion_sha256": acr.get("acreditacion_sha256")}
+
+
+def _cortes_backlog(
+    docs: list[dict[str, Any]], actual: str | None, frozen: set[str]
+) -> list[dict[str, Any]]:
+    """Primer corte del mes, Frozen bloqueado y Current (este Refresh o el último), sin repetir."""
+    elegidos = docs[:1] + [d for d in docs if f"backlog_ssrs:{d['archivo']}" in frozen]
+    elegidos += [d for d in docs if d["archivo"] == actual] if actual else docs[-1:]
+    unicos: dict[str, dict[str, Any]] = {}
+    for d in elegidos:
+        unicos.setdefault(d["archivo"], d)
+    return list(unicos.values())
 
 
 def ssrs_usuario() -> str:

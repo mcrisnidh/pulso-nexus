@@ -401,18 +401,16 @@ def test_k21_conciliar_acredita_solo_con_pass(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir()
     manual = demo.corte_posterior(src, date="11/08/26", name="R_20261108.TXT")
-    from nexus.core.stage import contract_csv
-
-    records, _ = ssrs.parse(sim.xml_ssrs(sim.plan_posterior()), {}, "2026-11")
-    directa = tmp_path / "d.csv"
     data = tmp_path / "data"
     data.mkdir()
-    bad = [dict(r) for r in records]
-    bad[0]["qty_open"] = "1"
-    directa.write_bytes(contract_csv("oeras_29", bad))
+    # v0.3.3: la acreditación exige el XML ORIGINAL (preflight) y la huella del reporte configurado
+    sim.config_conectores(data)
+    plan = sim.plan_posterior()
+    mal = [{**plan[0], "lines": plan[0]["lines"][1:]}, *plan[1:]]  # una línea menos que el manual
+    directa = sim.captura_preflight_backlog(data, mal)
     assert conciliar.main(["backlog", "--data", str(data), "--manual", str(manual), "--directa", str(directa), "--acreditar"]) == 1
     assert not (data / "acreditacion_backlog_ssrs.json").exists()
-    directa.write_bytes(contract_csv("oeras_29", records))
+    directa.write_bytes(sim.xml_ssrs(plan))
     assert conciliar.main(["backlog", "--data", str(data), "--manual", str(manual), "--directa", str(directa), "--acreditar"]) == 0
     assert orq.acreditado(data, "backlog_ssrs")[0]
     ev = tmp_path / "ev.csv"

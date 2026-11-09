@@ -1,5 +1,7 @@
 # PULSO NEXUS v0.3.2 — Live Data Connectors (PREVIEW / NO-GO COMERCIAL)
 
+**Novedad de v0.3.3 (candidato offline, NO-GO operativo):** Backlog SSRS (29 OERAS) en el mismo botón «Actualizar datos», con acreditación **verificable** (alcance fuente y contrato; la equivalencia comercial OE965 ↔ 29 OERAS sigue `NOT_ESTABLISHED`), consulta nueva en cada Refresh hacia **Current** (Frozen intacto) y contingencia marcada como «BACKLOG ANTERIOR». **No activa nada.** Ver `CAMBIOS_v0.3.3.md` y `DOCS/BACKLOG_SSRS.md`.
+
 **Novedad de v0.3.2:** cierre del conector FG. Cada Refresh puede consultar el AS400 (STKBAL) directamente con una acreditación por alcance **verificable**. Si el conector falla, la contingencia queda marcada como «FG ANTERIOR». El lanzador funciona en UTF-8 y propaga los códigos de salida. **No activa nada.** Ver `CAMBIOS_v0.3.2.md` y `VALIDACION_ASMXC1200.md`.
 
 **Novedad de v0.3:** conectores de solo lectura para Backlog (SSRS), FG (ODBC) y Embarques (CFDI, no habilitado en KPI). Ver `CAMBIOS_v0.3.md`, `DOCS/CONECTORES.md`, `DOCS/EMBARQUES_CFDI.md` y **`VALIDACION_ASMXC1200.md`** (procedimiento real paso a paso).

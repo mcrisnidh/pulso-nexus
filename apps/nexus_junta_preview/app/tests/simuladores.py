@@ -140,7 +140,11 @@ def config_conectores(data: Path, **over: Any) -> dict[str, Any]:
 
 
 def acreditar(data: Path, fuente: str) -> None:
-    """Backlog: documento v0.3.1 (sin cambios). FG (v0.3.2): cadena VERIFICABLE real."""
+    """FG (v0.3.2) y Backlog SSRS (v0.3.3): cadena VERIFICABLE real (preflight + conciliación)."""
+    if fuente == "backlog_ssrs":
+        if acreditar_backlog_verificable(data) != 0:
+            raise RuntimeError("no se pudo acreditar el backlog sintético")
+        return
     if fuente == "fg_odbc":
         assert acreditar_fg_verificable(data) == 0
         return
@@ -217,3 +221,33 @@ def acreditar_embarques_verificable(data: Path, conciliar_main: Any, evidencia_q
     doc.update(over)
     (data / "acreditacion_embarques.json").write_text(json.dumps(doc), "utf-8")
     return doc
+
+
+def captura_preflight_backlog(
+    data: Path, plan: list[dict[str, Any]] | None = None, stamp: str = "20261108T150000Z"
+) -> Path:
+    """Equivalente sintético de «preflight.py --conector backlog_ssrs --nivel consulta».
+
+    Guarda el XML ORIGINAL del reporte (lo que la acreditación exige como procedencia)."""
+    out = data / "preflight" / "backlog_ssrs"
+    out.mkdir(parents=True, exist_ok=True)
+    raw = xml_ssrs(plan if plan is not None else plan_posterior())
+    (out / f"{stamp}.raw").write_bytes(raw)
+    return out / f"{stamp}.raw"
+
+
+def manual_backlog(data: Path, fecha: str = "11/08/26", nombre: str = "R_20261108.TXT") -> Path:
+    """R manual sintético FUERA de la carpeta de fuentes (evidencia de la conciliación)."""
+    ev = data.parent / "evidencia_manual"
+    ev.mkdir(exist_ok=True)
+    return demo.corte_posterior(ev, date=fecha, name=nombre)
+
+
+def acreditar_backlog_verificable(
+    data: Path, plan: list[dict[str, Any]] | None = None, stamp: str = "20261108T150000Z"
+) -> int:
+    from conciliar import main as conciliar_main  # noqa: PLC0415
+
+    directa = captura_preflight_backlog(data, plan, stamp)
+    args = ["backlog", "--data", str(data), "--manual", str(manual_backlog(data)), "--directa"]
+    return conciliar_main([*args, str(directa), "--acreditar"])

@@ -145,6 +145,14 @@ def main(argv: list[str] | None = None, deps: dict[str, Any] | None = None) -> i
                                          "activo": bool(c.get("activo"))}
         except ConectorError as exc:
             report["acreditacion_fg"] = {"valida": False, "motivos": [f"{exc.code}: {exc.detail}"]}
+    if a.conector == "backlog_ssrs" and c:
+        try:  # v0.3.3, informativo: no altera el resultado del preflight
+            ok_b, mot_b = orq.acreditado(data, "backlog_ssrs", c)
+            activo = bool(c.get("activo"))
+            report["acreditacion_backlog"] = {"valida": ok_b, "motivos": mot_b, "activo": activo}
+        except ConectorError as exc:
+            motivo = f"{exc.code}: {exc.detail}"
+            report["acreditacion_backlog"] = {"valida": False, "motivos": motivo}
     report["resultado"] = "PASS" if all(x["ok"] for x in checks) else "FAIL"
     print(json.dumps(report, ensure_ascii=False, indent=1, default=str))
     return 0 if report["resultado"] == "PASS" else 1

@@ -22,6 +22,11 @@
     {% set fgc = s.fg.conector or {} %}{% if fgc.estado == 'CONSULTA_DIRECTA' %}<small id="fgCorte" class="fg-corte directa">FG: consulta directa AS400 de este Refresh · corte {{ s.fg.document_time|fechahora }} · alcance acreditado {{ (fgc.alcance or [])|join(', ') }}</small>
     {% elif fgc.estado == 'CONTINGENCIA' %}<small id="fgCorte" class="fg-corte contingencia"><b>FG ANTERIOR</b> — el conector FG falló ({{ fgc.codigo }}); dato del corte {{ (s.fg.document_time or s.fg.document_date)|fechahora }}{% if fgc.antiguedad_min is not none %} · antigüedad {{ fgc.antiguedad_min // 60 }} h {{ '%02d'|format(fgc.antiguedad_min % 60) }} min{% endif %}</small>
     {% elif fgc.estado == 'NO_ACREDITADO' %}<small id="fgCorte" class="fg-corte contingencia">FG: conector activo sin acreditación válida · se usa {{ s.fg.file }}</small>{% endif %}
+    {% set bkc = s.current_r.conector or {} %}{% if bkc.estado == 'CONSULTA_DIRECTA' %}<small id="backlogCorte" class="fg-corte directa">Backlog Current: consulta directa SSRS de este Refresh · corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}</small>
+    {% elif bkc.estado == 'IMPORTACION_INTERACTIVA' %}<small id="backlogCorte" class="fg-corte directa">Backlog Current: importación interactiva (XML del reporte SSRS exportado en el navegador) · corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}</small>
+    {% elif bkc.estado == 'CONTINGENCIA' %}<small id="backlogCorte" class="fg-corte contingencia"><b>BACKLOG ANTERIOR</b> — el conector SSRS falló ({{ bkc.codigo }}); Current del corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}{% if bkc.antiguedad_min is not none %} · antigüedad {{ bkc.antiguedad_min // 60 }} h {{ '%02d'|format(bkc.antiguedad_min % 60) }} min{% endif %}</small>
+    {% elif bkc.estado == 'NO_ACREDITADO' %}<small id="backlogCorte" class="fg-corte contingencia">Backlog: conector SSRS activo sin acreditación válida · Current usa {{ s.current_r.file }}</small>
+    {% elif bkc %}<small id="backlogCorte" class="fg-corte">Backlog Current: archivo manual {{ s.current_r.file }}</small>{% endif %}
     <small>{{ gen.certificacion }} · Frozen bloqueado (SHA-256 {{ s.frozen_r.sha256[:8] }}…/{{ s.frozen_p.sha256[:8] }}…)</small>
   </div>
 </div>

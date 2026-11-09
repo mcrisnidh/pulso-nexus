@@ -30,7 +30,6 @@ import secrets
 import shutil
 import stat
 import sys
-from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -38,9 +37,8 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from nexus.core.physical import default_layout, read_oe965  # noqa: E402
-
 from nexus_preview.conectores import ConectorError  # noqa: E402
+from nexus_preview.conectores import acreditacion_backlog as ab  # noqa: E402
 from nexus_preview.conectores import acreditacion_fg as afg  # noqa: E402
 from nexus_preview.consola import utf8_consola  # noqa: E402
 
@@ -57,41 +55,13 @@ def leer_csv(p: Path) -> list[dict[str, str]]:
 
 
 def backlog(manual: Path, directa: Path, cfg_ssrs: dict[str, Any] | None = None) -> dict[str, Any]:
-    res = read_oe965(manual.read_bytes(), default_layout())
-    if not res.valid:
-        raise SystemExit(f"el extracto manual {manual.name} no es un backlog R válido")
-    m = {(r["item"], r["customer_key_exact"], r["order"], r["line"]): r for r in res.records}
-    if directa.suffix.lower() == ".xml":  # XML de SSRS (p. ej. archivo del primer corte del mes)
-        from nexus_preview.conectores import ssrs  # noqa: PLC0415
-
-        month = str(res.document_time.get("value", ""))[:7]
-        filas, _ = ssrs.parse(directa.read_bytes(), cfg_ssrs or {}, month)
-    else:
-        filas = leer_csv(directa)
-    d = {(r["item"], r["customer_key_exact"], r["order"], r["line"]): r for r in filas}
-    dif: list[dict[str, str]] = []
-    for k in sorted(m.keys() - d.keys()):
-        dif.append({"tipo": "SOLO_MANUAL", "item": k[0], "cliente": k[1], "pedido": k[2], "linea": k[3]})
-    for k in sorted(d.keys() - m.keys()):
-        dif.append({"tipo": "SOLO_DIRECTA", "item": k[0], "cliente": k[1], "pedido": k[2], "linea": k[3]})
-    for k in sorted(m.keys() & d.keys()):
-        for campo in ("qty_open", "qty_ordered", "due_date"):
-            a, b = m[k][campo], d[k][campo]
-            if (dec(a) != dec(b)) if campo != "due_date" else (a != b):
-                dif.append({"tipo": f"DIFERENTE_{campo}", "item": k[0], "cliente": k[1], "pedido": k[2], "linea": k[3],
-                            "manual": a, "directa": b})
-    por_item: dict[str, list[Decimal]] = defaultdict(lambda: [Decimal(0), Decimal(0)])
-    for r in res.records:
-        por_item[r["item"]][0] += dec(r["qty_open"]) or 0
-    for r in d.values():
-        por_item[r["item"]][1] += dec(r["qty_open"]) or 0
-    items = [{"item": i, "manual": str(a), "directa": str(b), "diferencia": str(b - a)} for i, (a, b) in sorted(por_item.items()) if a != b]
-    claves_m, claves_d = {k[1] for k in m}, {k[1] for k in d}
-    resumen = {"lineas_manual": len(m), "lineas_directa": len(d), "diferencias_linea": len(dif), "items_con_diferencia": len(items),
-               "claves_cliente_solo_manual": len(claves_m - claves_d), "claves_cliente_solo_directa": len(claves_d - claves_m)}
-    if claves_m != claves_d:
-        resumen["sugerencia"] = "revise formato_clave_cliente en conectores.json (relleno del número de cliente)"
-    return {"resumen": resumen, "diferencias": dif, "por_item": items}
+    """v0.3.3: misma lógica que la verificación del Refresh (``acreditacion_backlog.comparar``)."""
+    try:
+        return ab.comparar(manual.read_bytes(), directa.read_bytes(), cfg_ssrs or {})
+    except ConectorError as exc:
+        if exc.code == "BACKLOG_MANUAL_INVALIDO":
+            raise SystemExit(f"el extracto manual {manual.name} no es un backlog R válido") from exc
+        raise
 
 
 def fg(manual: Path, directa: Path, tz: str, alcance: list[str] | None = None) -> dict[str, Any]:
@@ -155,6 +125,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     resultado = "PASS" if not out["diferencias"] and not out["por_item"] else "DIFERENCIAS"
     origen = afg.origen_de(data, directa) if a.fuente == "fg" else None
+    if a.fuente == "backlog":
+        origen = ab.origen_de(data, directa)
+        if a.acreditar and (origen is None or _cfg_fg(data, "backlog_ssrs") is None):
+            print(MSG_ORIGEN_BACKLOG, file=sys.stderr)
+            return 2
     if a.fuente == "fg" and a.acreditar and origen is None:
         print("No se acredita: --directa debe ser la captura ORIGINAL en <datos>/preflight/fg_odbc o capturas/fg_odbc.", file=sys.stderr)
         return 2
@@ -175,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
         out = {**out, "evidencia": {"manual": man_name, "directa": "directa.csv"}, "origen_directa": origen,
                "cortes": afg.cortes(out["resumen"].get("instante_manual"), afg.instante_de_archivo(directa)),
                "huella_config_fg": afg.huella_config(cfg_fg) if cfg_fg is not None else None}
+    if a.fuente == "backlog":
+        out = _evidencia_backlog(data, Path(a.manual), directa, folder, out)
     privado = {"AVISO": "PRIVADO: identidades reales", "fuente": a.fuente, "resultado": resultado, **huellas, **out}
     body = json.dumps(privado, ensure_ascii=False, indent=1).encode("utf-8")
     (folder / "informe_privado.json").write_bytes(body)
@@ -194,6 +171,8 @@ def main(argv: list[str] | None = None) -> int:
                                                   "diferencias_fuera_de_alcance", "stockrooms_fuera_de_alcance")}
         saneado["alcance"]["diferencias"] = len(alc["diferencias"])
         saneado["cortes"] = out["cortes"]
+    if a.fuente == "backlog":
+        saneado.update(_saneado_backlog(out))
     (folder / "resumen_saneado.json").write_text(json.dumps(saneado, ensure_ascii=False, indent=1), "utf-8")
     print(json.dumps({**saneado, "carpeta": str(folder), "sugerencia": out["resumen"].get("sugerencia")}, ensure_ascii=False, indent=1))
     if a.acreditar:
@@ -210,12 +189,13 @@ def main(argv: list[str] | None = None) -> int:
                       " El conector NO se activa.")
             else:
                 print(f"No se acredita: el alcance {out['alcance']['stockrooms']} tiene diferencias (ver la carpeta de conciliación).", file=sys.stderr)
-        elif resultado == "PASS":
-            fuente = "backlog_ssrs"
-            acred = {"schema": "nexus.preview.acreditacion-conector/1", "fuente": fuente, "resultado": "PASS",
-                     "informe_sha256": saneado["informe_sha256"], "carpeta": folder.name, "acreditado_utc": stamp, **huellas}
-            (data / f"acreditacion_{fuente}.json").write_text(json.dumps(acred, ensure_ascii=False, indent=1), "utf-8")
-            print(f"acreditacion_{fuente}.json emitida (PASS)")
+        elif resultado == "PASS" and all(out["identidad_exacta"].values()):
+            sha_inf = saneado["informe_sha256"]
+            acred = ab.documento(privado, sha_inf, folder.name, str(origen), stamp)
+            texto = json.dumps(acred, ensure_ascii=False, indent=1)
+            (data / ab.ARCHIVO).write_text(texto, "utf-8")
+            print(f"{ab.ARCHIVO} emitida (PASS, alcance {ab.ALCANCE}). El conector NO se activa.")
+            print(ab.NOTA_V26)
         else:
             print("No se acredita: hay diferencias (ver la carpeta de conciliación).", file=sys.stderr)
     if a.fuente == "fg" and alcance:
@@ -223,14 +203,46 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if resultado == "PASS" else 1
 
 
-def _cfg_fg(data: Path) -> dict[str, Any] | None:
+def _cfg_fg(data: Path, fuente: str = "fg_odbc") -> dict[str, Any] | None:
     from nexus_preview.conectores import orquestador as orq  # noqa: PLC0415
 
     try:
-        c = orq.cargar_config(data).get("fg_odbc")
+        c = orq.cargar_config(data).get(fuente)
     except ConectorError:
         return None
     return c if isinstance(c, dict) else None
+
+
+MSG_ORIGEN_BACKLOG = (
+    "No se acredita: --directa debe ser el XML ORIGINAL de <datos>/preflight/backlog_ssrs "
+    "o capturas/backlog_ssrs, y conectores.json debe tener la sección backlog_ssrs."
+)
+
+
+def _evidencia_backlog(
+    data: Path, manual: Path, directa: Path, folder: Path, out: dict[str, Any]
+) -> dict[str, Any]:
+    """v0.3.3: evidencias inmutables y procedencia, para recalcular en cada Refresh."""
+    extra = ab.evidencia_y_cortes(data, manual, directa, out, afg.instante_de_archivo(directa))
+    if extra["origen_directa"] is not None:
+        for src, name in ((manual, extra["evidencia"]["manual"]), (directa, "directa.xml")):
+            shutil.copyfile(src, folder / name)
+            (folder / name).chmod(stat.S_IREAD | stat.S_IRGRP)
+    else:
+        extra["evidencia"] = None
+    cfg = _cfg_fg(data, "backlog_ssrs")
+    extra["huella_config_backlog"] = ab.huella_config(cfg) if cfg is not None else None
+    return {**out, **extra}
+
+
+def _saneado_backlog(out: dict[str, Any]) -> dict[str, Any]:
+    """Resumen sin identidades: conteos del diagnóstico, identidad y cortes."""
+    return {
+        "identidad_exacta": out["identidad_exacta"],
+        "diagnostico": out["diagnostico"]["conteo"],
+        "cortes": out["cortes"],
+        "equivalencia_comercial": out["equivalencia_comercial"],
+    }
 
 
 if __name__ == "__main__":
