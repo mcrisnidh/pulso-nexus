@@ -70,7 +70,7 @@
 <div class="kpis status-kpis">
   <div class="kpi"><span>Frozen mensual · {{ s.frozen_r.document_date|fecha }}</span><b>{{ k.frozen.value|num }}</b>{% if k.frozen.value is none %}<small>{{ k.frozen.causa }} · conocido {{ k.frozen.known_sum|num }}</small>{% else %}<small>{{ k['items'] }} artículos del universo</small>{% endif %}</div>
   <div class="kpi"><span>Pendiente Current · {{ s.current_r.document_date|fecha }}</span><b>{{ k.actual.value|num }}</b>{% if k.actual.value is none %}<small>{{ k.actual.causa }} · conocido {{ k.actual.known_sum|num }}</small>{% endif %}</div>
-  <div class="kpi"><span>Variación Frozen − Current</span><b>{{ k.variacion.value|num }}</b><small>{{ k.variacion.causa or '' }} {{ k.variacion.nota }}</small></div>
+  <div class="kpi"><span>Cambio Backlog (Frozen − Current)</span><b>{{ k.variacion.value|num }}</b><small>{{ k.variacion.causa or '' }} {{ k.variacion.nota }}</small></div>
   <div class="kpi"><span>FG · {{ (s.fg.document_time or s.fg.document_date)|fecha }}</span><b>{{ k.fg.value|num }}</b>{% if k.fg.value is none %}<small>{{ k.fg.causa }} · conocido {{ k.fg.known_sum|num }}</small>{% endif %}</div>
   {% for clave, titulo, causa in [('embarques', 'Embarques (CFDI)', gen.nd.embarques), ('programa_v310', 'Programa', gen.nd.programa), ('faltante_v310', 'Faltante por producir', gen.nd.faltante)] %}{% set t = indicadores[clave] %}
   <div class="kpi{{ ' warn-kpi' if t.nd }}" id="kpi-{{ clave }}"><span>{{ titulo }}</span>{% if t.conocidos and not t.nd %}<b>{{ t.suma|num }}</b><small>{{ t.conocidos }} artículos · v3.10</small>{% elif t.conocidos %}<b>N/D</b><small>conocido {{ t.suma|num }} · {{ t.nd }} artículo(s) sin dato (no se suman como 0)</small>{% else %}<b>N/D</b><small>{{ causa }}</small>{% endif %}</div>
@@ -117,21 +117,21 @@
         <tr class="group-head">
           <th colspan="4">Identificación</th>
           <th colspan="2">Acción de junta</th>
-          <th colspan="3">Lectura operacional</th>
-          <th colspan="6">Pendiente hoy</th>
-          <th colspan="4">Producción PULSO</th>
+          <th colspan="3">Demanda</th>
+          <th colspan="4">Necesidad</th>
+          <th colspan="5">Producción PULSO</th>
           <th colspan="4">Seguimiento</th>
         </tr>
         <tr>
-          <th class="s1">CS</th><th class="s2">Grupo</th><th class="s3">Cliente</th><th class="s4">Artículo</th>
+          <th class="s1">CS</th><th class="s2">Cliente</th><th class="s3">Grupo</th><th class="s4">Artículo</th>
           <th>Nota junta</th><th>Adelanto</th>
           <th data-col="frozen">Frozen<br><small>{{ s.frozen_r.document_date|fecha }}</small></th>
-          <th title="max(0, Frozen + Adelanto − Embarques)">Programa</th><th>Embarques</th>
           <th data-col="current">Pendiente Current<br><small>{{ s.current_r.document_date|fecha }}</small></th>
-          <th title="Frozen − Current: informativa, no es embarque ni faltante">Var. F−C</th>
+          <th title="Frozen − Current: cambio informativo del backlog; no equivale a embarques ni a faltante">Cambio Backlog</th>
+          <th>Embarques</th>
+          <th title="max(0, Frozen + Adelanto − Embarques)">Programa</th>
           <th data-col="fg">FG<br><small>{{ (s.fg.document_time or s.fg.document_date)|fecha }}</small></th>
           <th title="max(0, Programa − FG)">Faltante</th>
-          <th title="max(0, Frozen − FG): diagnóstica, NO es el faltante oficial">Brecha diag.</th>
           <th>Cobertura 6 sem.</th>
           <th>WO</th><th>Forecast</th><th>Recup.</th><th>Estado PULSO</th>
           <th>Solicitada</th><th>Entrega</th><th>Estatus CS</th><th>Review</th>
@@ -141,8 +141,8 @@
       {% for r in rows %}{% set c = r.cs_state %}{% set a = anchor(r.item) %}
       <tr id="r-{{ a }}" data-item="{{ r.item }}" data-version="{{ c.version }}" data-month="{{ gen.month }}" data-hoy="{{ c.hoy }}">
         <td class="s1"><b>{{ r.cs or 'Sin asignar' }}</b>{% if not r.cs %}<small class="block" title="{{ r.cs_origen }}">sin fuente</small>{% endif %}</td>
-        <td class="s2">{{ r.grupo or '—' }}</td>
-        <td class="s3"><b>{{ r.cliente_nombre or r.cliente }}</b><small class="block mono">{{ r.cliente }}</small>{% if r.clientes > 1 %}<small class="block">+{{ r.clientes - 1 }} cliente(s)</small>{% endif %}</td>
+        <td class="s2"><b>{{ r.cliente_nombre or r.cliente }}</b><small class="block mono">{{ r.cliente }}</small>{% if r.clientes > 1 %}<small class="block">+{{ r.clientes - 1 }} cliente(s)</small>{% endif %}</td>
+        <td class="s3">{{ r.grupo or '—' }}</td>
         <td class="s4 item-code-cell"><a class="link item-code-link" href="{{ url_for('item', id=r.item) }}">{{ r.item }}</a><small class="block">{{ r.origen }} · #{{ r.prioridad }}</small></td>
         <td>
           <div class="note-editor">
@@ -156,13 +156,12 @@
         </td>
         <td><input class="meeting-number slim-number" data-adelanto inputmode="decimal" value="{{ c.adelanto.value.qty if c.adelanto else '0' }}" placeholder="0" aria-label="Adelanto {{ r.item }}" title="Adelanto CS del mes: 0 por defecto; solo registrar piezas anticipadas acordadas con Producción"></td>
         <td>{{ fact(r.frozen) }}</td>
-        <td>{{ val(r.programa_v310, gen.nd.programa) }}</td>
-        <td>{% if r.embarques is not none %}<span class="n" title="Facturación CFDI ACREDITADA como embarque ({{ gen.embarques.naturaleza }})">{{ r.embarques|num }}</span>{% else %}{{ nd(gen.nd.embarques ~ ((' · ' ~ gen.embarques.motivos|join(' · ')) if gen.embarques and gen.embarques.motivos else '')) }}{% endif %}</td>
         <td>{{ fact(r.actual) }}</td>
         <td>{{ val(r.variacion, 'requiere Frozen y Current conocidos') }}</td>
+        <td>{% if r.embarques is not none %}<span class="n" title="Facturación CFDI ACREDITADA como embarque ({{ gen.embarques.naturaleza }})">{{ r.embarques|num }}</span>{% else %}{{ nd(gen.nd.embarques ~ ((' · ' ~ gen.embarques.motivos|join(' · ')) if gen.embarques and gen.embarques.motivos else '')) }}{% endif %}</td>
+        <td>{{ val(r.programa_v310, gen.nd.programa) }}</td>
         <td>{{ fact(r.fg) }}</td>
         <td>{{ val(r.faltante_v310, gen.nd.faltante, True) }}</td>
-        <td>{% if r.brecha_diag is not none %}<span class="n diag {{ 'hot' if r.flags.brecha }}" title="DIAGNÓSTICA: max(Frozen − FG, 0). NO es el faltante oficial">{{ r.brecha_diag|num }}</span>{% else %}{{ nd('requiere Frozen y FG conocidos') }}{% endif %}</td>
         <td>
           <div class="six-week-coverage">
             {% for cell in r.semanas.cells %}{% set st = {'CUBIERTA':'covered','PARCIAL':'partial','SIN_COBERTURA':'uncovered'}.get(cell.estado, 'none') %}
@@ -179,7 +178,7 @@
         <td class="review-cell">{% if r.review == 'OK' %}<span class="review-icon review-ok-icon" title="Datos completos y sin pendientes R1/R3">✓</span>{% else %}<span class="review-icon review-alert-icon" title="Revisar: datos desconocidos o pendientes R1/R3">!</span>{% endif %}</td>
       </tr>
       {% else %}
-      <tr><td colspan="23" class="empty">No hay artículos para los filtros seleccionados.</td></tr>
+      <tr><td colspan="22" class="empty">No hay artículos para los filtros seleccionados.</td></tr>
       {% endfor %}
       </tbody>
       <tfoot>
@@ -188,11 +187,10 @@
           <td class="s1" colspan="4"><b>Total {{ label }}</b> · {{ t.n }} artículos</td>
           <td colspan="2"></td>
           <td><b>{{ t.frozen.suma|num }}</b>{% if t.frozen.nd %}<small class="block">+{{ t.frozen.nd }} N/D</small>{% endif %}</td>
-          <td colspan="2"></td>
           <td><b>{{ t.actual.suma|num }}</b>{% if t.actual.nd %}<small class="block">+{{ t.actual.nd }} N/D</small>{% endif %}</td>
-          <td></td>
+          <td colspan="3"></td>
           <td><b>{{ t.fg.suma|num }}</b>{% if t.fg.nd %}<small class="block">+{{ t.fg.nd }} N/D</small>{% endif %}</td>
-          <td colspan="11"><small>Suma de valores conocidos; los N/D no se cuentan como cero.</small></td>
+          <td colspan="10"><small>Suma de valores conocidos; los N/D no se cuentan como cero. Brecha diagnóstica: ver detalle del artículo.</small></td>
         </tr>
         {% endfor %}
       </tfoot>

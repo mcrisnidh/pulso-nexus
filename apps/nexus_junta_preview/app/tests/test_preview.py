@@ -30,7 +30,7 @@ import dataset_demo as demo  # noqa: E402
 from nexus_preview.generaciones import PreviewRefresh  # noqa: E402
 from nexus_preview.webapp import create_app  # noqa: E402
 
-GROUPS = ("Identificación", "Acción de junta", "Lectura operacional", "Pendiente hoy", "Producción PULSO", "Seguimiento")
+GROUPS = ("Identificación", "Acción de junta", "Demanda", "Necesidad", "Producción PULSO", "Seguimiento")
 
 
 def fingerprint(folder: Path) -> dict[str, tuple[str, int]]:

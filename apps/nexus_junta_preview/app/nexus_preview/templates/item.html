@@ -12,7 +12,7 @@
 <table><tr><th>Concepto</th><th>Valor</th><th>Estado</th><th>Base</th></tr>
 {{ fact('Frozen mensual (' ~ (gen.sources.frozen_r.document_date|fecha) ~ ')', row.frozen) }}
 {{ fact('Pendiente Current (' ~ (gen.sources.current_r.document_date|fecha) ~ ')', row.actual) }}
-{{ v('Variación Frozen − Current', row.variacion, 'informativa: no es embarque ni faltante', 'INFORMATIVA') }}
+{{ v('Cambio Backlog', row.variacion, 'Frozen − Current: informativa, no es embarque ni faltante', 'INFORMATIVA') }}
 {{ fact('FG (IN092U, stockroom FG)', row.fg) }}
 {{ v('Adelanto (CS local)', row.adelanto, 'entrada local de laboratorio', 'MANUAL_LOCAL') }}
 {{ v('Embarques', none, gen.nd.embarques, 'BLOCKED_SOURCE') }}

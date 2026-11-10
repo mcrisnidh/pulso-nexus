@@ -27,10 +27,10 @@ Corrige la desconexión de PULSO Web, donde `STATUS_ROWS` leía un CSV fijo de o
 |---|---|---|
 | Frozen | (primer R válido − líneas CAT por clave exacta, conservando TUPY y demás clientes) + primer Portal CAT depurado. Motor `frozen_universe` + `compute` | Provisional: R1/R3 sin aprobar |
 | Pendiente Current | Último R + último Portal, con el **universo del Frozen** | Provisional |
-| Var. F−C | Frozen − Current | Informativa: no es embarque ni faltante |
+| Cambio Backlog | Frozen − Pendiente Current | Informativa: no es embarque ni faltante |
 | FG | Último IN092U, stockroom FG | Ausente o negativo: N/D |
 | Programa, Sobreembarque, Faltante | Contrato v3.10: `max(0, F+Adelanto−Emb)`, `max(0, Emb−F−Adelanto)`, `max(0, Programa−FG)` | FIX5: con acreditación `/2` vigente (regla «factura CFDI emitida = embarque», `FECEXP`), Embarques por ITEM exacto desde la consulta de **este** Refresh; sin ella, **N/D** con causa. Ver `DOCS/EMBARQUES_CFDI.md` |
-| Brecha diag. | `max(Frozen − FG, 0)` | Diagnóstica: **no** es el faltante oficial |
+| Brecha diag. (detalle del artículo) | `max(Frozen − FG, 0)` | Diagnóstica: **no** es el faltante oficial; se retira de la agenda principal |
 | Cobertura 6 sem. | Current por fecha de línea ERP contra FG (diagnóstica). «FG hasta» v3.10: N/D | Las tarjetas WK muestran Frozen por semana (pzas congeladas) |
 | WO, Forecast, Recup., Estado PULSO | — | N/D con causa (sin fuente autorizada) |
 | Nota, Adelanto, Estatus CS, Entrega | Almacén privado local, append-only | Autor `EDITOR_LOCAL_SIN_AUTENTICAR` |

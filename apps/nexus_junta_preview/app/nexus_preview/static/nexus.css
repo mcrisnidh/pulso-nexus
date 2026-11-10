@@ -43,3 +43,18 @@
 .fg-corte.directa { color: #1d6b3a; }
 .fg-corte.contingencia { color: #b42318; font-weight: 600; }
 .fg-corte.contingencia b { display: inline; }
+
+/* FIX6.2: orden operativo de Junta; solo presentación, sin alterar los datos. */
+.nexus-table.compact-flow .s2{left:96px;min-width:170px;max-width:170px}
+.nexus-table.compact-flow .s3{left:266px;min-width:86px;max-width:86px}
+.nexus-table.compact-flow td:nth-child(2){min-width:170px;max-width:170px}
+.nexus-table.compact-flow td:nth-child(3){min-width:86px;max-width:86px}
+.nexus-table.compact-flow td:nth-child(9){min-width:115px;white-space:nowrap}
+.nexus-table.compact-flow td:nth-child(10),
+.nexus-table.compact-flow td:nth-child(11){min-width:78px;white-space:nowrap}
+.nexus-table.compact-flow td:nth-child(12),
+.nexus-table.compact-flow td:nth-child(13){min-width:80px;white-space:nowrap}
+.nexus-table.compact-flow td:nth-child(14){min-width:132px;max-width:160px;width:auto;white-space:normal}
+.nexus-table.compact-flow td:nth-child(15){min-width:68px;white-space:nowrap}
+.nexus-table.compact-flow td:nth-child(16){min-width:75px;max-width:100px;width:auto}
+.nexus-table.compact-flow td:nth-child(18){min-width:126px;max-width:150px;width:auto;white-space:normal}
