@@ -269,6 +269,20 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
             vals = [dec(r[key]["value"]) for r in rows]
             return {"suma": sum((v for v in vals if v is not None), Decimal(0)), "nd": sum(1 for v in vals if v is None)}
 
+        def total_v310(rows: list[dict[str, Any]], key: str) -> dict[str, Any]:
+            """FIX5: suma por ITEM del contrato v3.10; un dato ausente NO se suma como 0."""
+            vals = [dec(r.get(key)) for r in rows]
+            conocidos = [v for v in vals if v is not None]
+            return {
+                "suma": sum(conocidos, Decimal(0)),
+                "nd": len(vals) - len(conocidos),
+                "conocidos": len(conocidos),
+            }
+
+        indicadores = {
+            k: total_v310(all_rows, k)
+            for k in ("embarques", "programa_v310", "sobreembarque_v310", "faltante_v310")
+        }
         totales = {
             "universo": {k: total(all_rows, k) for k in ("frozen", "actual", "fg")} | {"n": len(all_rows)},
             "filtro": {k: total(view, k) for k in ("frozen", "actual", "fg")} | {"n": len(view)},
@@ -282,6 +296,7 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
             esc=esc,
             rows=view,
             totales=totales,
+            indicadores=indicadores,
             filtros={"q": request.args.get("q", ""), "cs": f_cs, "grupo": f_grupo, "flag": f_flag, "week": f_week if week_idx is not None else ""},
             all_cs=sorted({r["cs"] or "Sin asignar" for r in all_rows}),
             all_grupos=sorted({r["grupo"] or "Sin grupo" for r in all_rows}),

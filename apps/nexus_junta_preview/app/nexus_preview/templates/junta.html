@@ -27,6 +27,9 @@
     {% elif bkc.estado == 'CONTINGENCIA' %}<small id="backlogCorte" class="fg-corte contingencia"><b>BACKLOG ANTERIOR</b> — el conector SSRS falló ({{ bkc.codigo }}); Current del corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}{% if bkc.antiguedad_min is not none %} · antigüedad {{ bkc.antiguedad_min // 60 }} h {{ '%02d'|format(bkc.antiguedad_min % 60) }} min{% endif %}</small>
     {% elif bkc.estado == 'NO_ACREDITADO' %}<small id="backlogCorte" class="fg-corte contingencia">Backlog: conector SSRS activo sin acreditación válida · Current usa {{ s.current_r.file }}</small>
     {% elif bkc %}<small id="backlogCorte" class="fg-corte">Backlog Current: archivo manual {{ s.current_r.file }}</small>{% endif %}
+    {% set em = gen.embarques or {} %}{% if em.acreditado and em.estado == 'CONSULTA_DIRECTA' %}<small id="embarquesCorte" class="fg-corte directa">Embarques: facturación CFDI (ASBG) consultada en este Refresh · corte {{ em.captura.instante_utc|fechahora }}</small>
+    {% elif em.acreditado and em.estado == 'CONTINGENCIA' %}<small id="embarquesCorte" class="fg-corte contingencia"><b>EMBARQUES ANTERIOR</b> — el conector falló; corte {{ em.captura.instante_utc|fechahora }}</small>
+    {% elif em %}<small id="embarquesCorte" class="fg-corte">Embarques: N/D · {{ (em.motivos or ['sin acreditación'])|join(' · ') }}</small>{% endif %}
     <small>{{ gen.certificacion }} · Frozen bloqueado (SHA-256 {{ s.frozen_r.sha256[:8] }}…/{{ s.frozen_p.sha256[:8] }}…)</small>
   </div>
 </div>
@@ -68,7 +71,9 @@
   <div class="kpi"><span>Pendiente Current · {{ s.current_r.document_date|fecha }}</span><b>{{ k.actual.value|num }}</b>{% if k.actual.value is none %}<small>{{ k.actual.causa }} · conocido {{ k.actual.known_sum|num }}</small>{% endif %}</div>
   <div class="kpi"><span>Variación Frozen − Current</span><b>{{ k.variacion.value|num }}</b><small>{{ k.variacion.causa or '' }} {{ k.variacion.nota }}</small></div>
   <div class="kpi"><span>FG · {{ (s.fg.document_time or s.fg.document_date)|fecha }}</span><b>{{ k.fg.value|num }}</b>{% if k.fg.value is none %}<small>{{ k.fg.causa }} · conocido {{ k.fg.known_sum|num }}</small>{% endif %}</div>
-  <div class="kpi warn-kpi"><span>Faltante por producir</span><b>N/D</b><small>{{ gen.nd.faltante }}</small></div>
+  {% for clave, titulo, causa in [('embarques', 'Embarques (CFDI)', gen.nd.embarques), ('programa_v310', 'Programa', gen.nd.programa), ('faltante_v310', 'Faltante por producir', gen.nd.faltante)] %}{% set t = indicadores[clave] %}
+  <div class="kpi{{ ' warn-kpi' if t.nd }}" id="kpi-{{ clave }}"><span>{{ titulo }}</span>{% if t.conocidos and not t.nd %}<b>{{ t.suma|num }}</b><small>{{ t.conocidos }} artículos · v3.10</small>{% elif t.conocidos %}<b>N/D</b><small>conocido {{ t.suma|num }} · {{ t.nd }} artículo(s) sin dato (no se suman como 0)</small>{% else %}<b>N/D</b><small>{{ causa }}</small>{% endif %}</div>
+  {% endfor %}
   <div class="kpi"><span>Desconocidos o pendientes</span><b>{{ k.desconocidos_o_pendientes }}</b><small>de {{ k['items'] }} artículos (R1/R3 o dato ausente)</small></div>
 </div>
 

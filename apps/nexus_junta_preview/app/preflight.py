@@ -30,7 +30,15 @@ sys.path.insert(0, str(HERE))
 
 from nexus.core.stage import contract_csv  # noqa: E402
 
-from nexus_preview.conectores import ConectorError, acreditacion_fg, embarques, fg_odbc, odbc, ssrs  # noqa: E402
+from nexus_preview.conectores import (  # noqa: E402
+    ConectorError,
+    acreditacion_embarques,
+    acreditacion_fg,
+    embarques,
+    fg_odbc,
+    odbc,
+    ssrs,
+)
 from nexus_preview.consola import utf8_consola  # noqa: E402
 from nexus_preview.conectores import credenciales as credmod  # noqa: E402
 from nexus_preview.conectores import orquestador as orq  # noqa: E402
@@ -125,6 +133,7 @@ def main(argv: list[str] | None = None, deps: dict[str, Any] | None = None) -> i
                 raw, meta = embarques.capturar(c, month, local if local.strftime("%Y-%m") == month else
                                                (dt.date.fromisoformat(month + "-01") + dt.timedelta(days=31)).replace(day=1) - dt.timedelta(days=1),
                                                deps.get("proveedor"), deps.get("fabrica"))
+                meta = {**meta, **acreditacion_embarques.meta_procedencia(c)}  # FIX5.1: procedencia
                 norm = raw
             (out / f"{stamp}.raw").write_bytes(raw)
             (out / f"{stamp}.csv").write_bytes(norm)

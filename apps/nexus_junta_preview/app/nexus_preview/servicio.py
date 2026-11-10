@@ -36,9 +36,16 @@ from nexus.core.timebase import BusinessCalendar
 from nexus.hashing import digest_json
 
 from . import conciliacion_nov2026 as conc
+from .conectores import acreditacion_embarques
 
 SCHEMA = "nexus.preview.generacion/1"
-SHIPMENTS_REASON = "sin fuente autorizada de embarques físicos (MF_CFD/MF_DETCFD es facturación CFDI)"
+# FIX5: la facturación CFDI ES el embarque (regla ASM). El CORE atribuye embarques por MOVIMIENTO
+# (movement_id, SHIP/REVERSAL); la captura CFDI es un agregado por ITEM, así que esa atribución no
+# aplica. Embarques, Programa, Sobreembarque y Faltante se calculan con el contrato v3.10 vigente.
+SHIPMENTS_REASON = (
+    "captura CFDI agregada por ITEM: la atribución por movimiento del CORE no aplica "
+    "(Embarques/Programa/Faltante: contrato v3.10)"
+)
 ESCENARIOS = {
     "A": "Provisional A — «en revisión» se conserva; grupos R1 de revisiones pendientes",
     "B": "Provisional B — «en revisión» se sustituye; grupos R1 de revisiones homologados",
@@ -46,11 +53,13 @@ ESCENARIOS = {
     "OFICIAL": "Oficial — reglas R3 aprobadas y registro R1 verificado",
 }
 ND = {
-    "embarques": "N/D: sin fuente autorizada de embarques físicos (CFDI no acredita salida física)",
+    "embarques": (
+        "N/D: sin acreditación vigente de la fuente CFDI (regla: factura emitida = embarque)"
+    ),
     "faltante": "N/D: Faltante = max(0, Programa − FG) requiere Programa, y Programa requiere Embarques autorizados (v3.10)",
     "programa": "N/D: Programa = max(0, Frozen + Adelanto − Embarques) requiere Embarques autorizados (v3.10)",
     "sobreembarque": "N/D: Sobreembarque = max(0, Embarques − Frozen − Adelanto) requiere Embarques (v3.10)",
-    "cobertura_v310": "N/D: «Cobertura FG hasta» v3.10 descuenta primero los Embarques: sin fuente autorizada",
+    "cobertura_v310": "N/D: «Cobertura FG hasta» v3.10 descuenta primero los Embarques acreditados",
     "wo": "N/D: sin contrato ni fuente autorizada de órdenes de trabajo para esta vista",
     "forecast": "N/D: sin fuente de forecast entregada",
     "recuperacion": "N/D: sin contrato de recuperación",
@@ -683,10 +692,14 @@ def build_generation(
         res_f = run(oeras_f, portal_f, fu.pending_portal)
         res_c = run(oeras_c, portal_c, fu_c.pending_portal)
         rows = _rows(res_f, res_c, cr, oeras_f, portal_f, weeks, month_end, assign)
-        if emb.get("acreditado") and emb.get("por_item") is not None:  # solo fuente ACREDITADA
-            for r in rows:
-                v = emb["por_item"].get(r["item"])
-                r["embarques"] = v if v not in (None, "") else ("0" if emb.get("ausencia_es_cero") and v is None else None)
+        # FIX5.1: solo fuente ACREDITADA; clasificación explícita (nulo, identidad no exacta,
+        # ausente, fuera del universo, sin consulta): ningún desconocido se convierte en 0
+        por_item = emb.get("por_item") if emb.get("acreditado") else None
+        valores, emb.setdefault("clasificacion", {})[name] = acreditacion_embarques.asignar(
+            [r["item"] for r in rows], por_item, emb.get("ausencia_es_cero") is True
+        )
+        for r in rows:
+            r["embarques"] = valores[r["item"]]
         week_summary = []
         for i, w in enumerate(weeks):
             cells = [r["semanas"]["cells"][i] for r in rows]
@@ -759,6 +772,13 @@ def build_generation(
         "tz": cfg.tz,
         "sources": {k: scan[k]["sha256"] for k in ("frozen_r", "frozen_p", "current_r", "current_p", "fg")},
         "embarques": (emb.get("captura") or {}).get("sha256") if emb.get("acreditado") else None,
+        # FIX5: estado y corte (instante) de la captura de Embarques usada
+        "embarques_conector": {
+            "estado": emb.get("estado"),
+            "corte": (emb.get("captura") or {}).get("instante_utc")
+            if emb.get("acreditado")
+            else None,
+        },
         "embarques_acreditacion": emb.get("acreditacion_sha256"),
         # v0.3.2: estado del conector FG y corte (instante) de la consulta directa
         "fg_conector": {"estado": fgx["estado"], "acreditacion_sha256": fgx.get("acreditacion_sha256"),
@@ -781,7 +801,8 @@ def build_generation(
     return {
         "schema": SCHEMA,
         "vista_operativa": vista,
-        "embarques": {k: v for k, v in emb.items() if k != "por_item"},
+        # intento_utc es del Refresh, no de la generación: no entra al contenido inmutable
+        "embarques": {k: v for k, v in emb.items() if k not in ("por_item", "intento_utc")},
         "aprobaciones": aprob,
         "gen_id": digest_json(inputs)[:24],
         "inputs": inputs,
@@ -791,6 +812,7 @@ def build_generation(
         "warnings": scan["warnings"]
         + fgx.pop("_avisos", [])
         + bkx.pop("_avisos", [])
+        + _avisos_embarques(emb)
         + (
             [f"preview.json pide escenario «{cfg.escenario_por_defecto}»: se ignora; la vista operativa la fija la regla de aprobaciones"]
             if cfg.escenario_por_defecto not in ("A", vista["escenario"])
@@ -844,6 +866,30 @@ def _antiguedad_min(corte: str, intento: str) -> int | None:
     if a.tzinfo is None or b.tzinfo is None:
         return None
     return max(0, round((b - a).total_seconds() / 60))
+
+
+def _avisos_embarques(emb: dict[str, Any]) -> list[str]:
+    """FIX5: alcance real de la fuente CFDI y captura retenida (nunca como recién consultada)."""
+    avisos = []
+    cap = emb.get("captura") or {}
+    if emb.get("acreditado") and emb.get("estado") == "CONTINGENCIA":
+        corte, intento = str(cap.get("instante_utc") or ""), str(emb.get("intento_utc") or "")
+        edad = _antiguedad_min(corte, intento)
+        texto = "" if edad is None else f" (antigüedad {edad // 60} h {edad % 60:02d} min)"
+        avisos.append(
+            f"EMBARQUES ANTERIOR — el conector de Embarques falló; se usa el último corte válido "
+            f"del {cap.get('instante_utc')}{texto}. Política CONSERVAR_ULTIMO_CORTE."
+        )
+    if emb.get("acreditado") and emb.get("alcance_ajustes"):
+        avisos.append(f"Embarques (CFDI): {emb['alcance_ajustes']}")
+    cls = (emb.get("clasificacion") or {}).get("A") or {}  # escenario operativo de referencia
+    for clase, texto in (
+        ("CANTIDAD_NULA", "con cantidad nula en la factura: desconocidos, no 0"),
+        ("IDENTIDAD_NO_EXACTA", "con identidad no exacta en la factura: desconocidos, no 0"),
+    ):
+        if emb.get("acreditado") and cls.get(clase):
+            avisos.append(f"Embarques (CFDI): {cls[clase]} ITEM {texto}")
+    return avisos
 
 
 def _backlog_traza(bkx: dict[str, Any], scan: dict[str, Any]) -> dict[str, Any]:
@@ -958,7 +1004,8 @@ def evaluar_certificacion(gen: dict[str, Any]) -> dict[str, Any]:
     motivos = list(vista.get("motivos", []))
     if vista["modo"] != "VERIFICADA":
         motivos.insert(0, "la vista operativa es PROVISIONAL: faltan aprobaciones R1/R3")
-    motivos.append("embarques físicos sin fuente autorizada: Programa y Faltante N/D")
+    if not (gen.get("embarques") or {}).get("acreditado"):
+        motivos.append("Embarques CFDI sin acreditación vigente: Programa y Faltante N/D")
     motivos.append("precedencia del primer corte del mes sin acreditación externa")
     return {
         "certificable": False,

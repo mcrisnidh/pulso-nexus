@@ -31,7 +31,15 @@ from typing import Any
 from nexus.core.physical.common import PhysicalResult
 from nexus.core.stage import contract_csv
 
-from . import ConectorError, acreditacion_backlog, acreditacion_fg, embarques, fg_odbc, ssrs
+from . import (
+    ConectorError,
+    acreditacion_backlog,
+    acreditacion_embarques,
+    acreditacion_fg,
+    embarques,
+    fg_odbc,
+    ssrs,
+)
 
 CONFIG = "conectores.json"
 FUENTES = ("backlog_ssrs", "fg_odbc", "embarques")
@@ -236,8 +244,16 @@ def capturar_todo(
                                "alcance": acr.get("alcance"), "acreditacion_sha256": acr.get("acreditacion_sha256")}
             else:
                 raw, meta = embarques.capturar(c, month, local.date(), deps.get("proveedor"), deps.get("fabrica_embarques"))
-                doc = guardar(data, fuente, raw, None, meta, now, local.date().isoformat())
-                out[fuente] = {"estado": "CAPTURADO", "naturaleza": embarques.NATURALEZA, **_resumen(doc)}
+                # FIX5.1: procedencia registrada AL CONSULTAR (sin tocar el conector FIX4)
+                meta = {**meta, **acreditacion_embarques.meta_procedencia(c)}
+                # FIX5: cada consulta es un corte nuevo con su instante (no se reutiliza la vieja)
+                fecha = local.date().isoformat()
+                doc = guardar(data, fuente, raw, None, meta, now, fecha, reutilizar=False)
+                consulta = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+                v2 = acreditacion_embarques.es_v2(data / acreditacion_embarques.ARCHIVO)
+                nat = acreditacion_embarques.NATURALEZA if v2 else embarques.NATURALEZA
+                out[fuente] = {"estado": "CAPTURADO", "naturaleza": nat,
+                               **_resumen(doc), "instante_consulta_utc": consulta}
         except ConectorError as exc:
             out[fuente] = {"estado": "FALLO", "codigo": exc.code, "motivo": exc.detail, "politica": politica}
     return out
@@ -311,25 +327,86 @@ def _importar(data: Path, c: dict[str, Any], month: str, zone: zoneinfo.ZoneInfo
     return out
 
 
-def embarques_generacion(data: Path, month: str, aprobadores: frozenset[str], habilitado: bool = True) -> dict[str, Any]:
-    """Estado de Embarques para la generación. Solo con conector habilitado y acreditación
-    VERIFICABLE se entregan cantidades por ITEM; en otro caso KPI en N/D."""
+ESQUEMA_EMBARQUES_V1 = "nexus.preview.acreditacion-embarques/1"
+CAMPOS_CAPTURA = ("archivo", "sha256", "instante_utc")
+
+
+def embarques_generacion(
+    data: Path,
+    month: str,
+    aprobadores: frozenset[str],
+    habilitado: bool = True,
+    conector: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Estado de Embarques para la generación (FIX5).
+
+    - Captura usada: la de ESTE Refresh (``conector`` CAPTURADO); si el conector falló con
+      CONSERVAR_ULTIMO_CORTE, la última del mes marcada ``CONTINGENCIA``; nunca se presenta una
+      captura antigua como recién consultada.
+    - Periodo: la captura debe cubrir el mes de la generación desde el día 1.
+    - Acreditación /2 (regla CFDI emitida = embarque) o /1 (lógica original, compatibilidad).
+    Sin acreditación válida o sin captura usable: cantidades no se entregan (KPI en N/D)."""
+    acr = data / acreditacion_embarques.ARCHIVO
+    v2 = acreditacion_embarques.es_v2(acr)
+    cfg = (cargar_config(data).get("embarques") or {}) if v2 else {}
+    estado_c = (conector or {}).get("estado")
     caps = [d for d in listar(data, "embarques") if d["fecha_documento"].startswith(month)]
-    ok, motivos = embarques.acreditacion_vigente(data / "acreditacion_embarques.json", aprobadores, data)
+    if estado_c == "CAPTURADO":
+        actual = (conector or {}).get("archivo")
+        caps = [d for d in caps if d["archivo"] == actual]
+        estado = "CONSULTA_DIRECTA"
+    else:
+        estado = "CONTINGENCIA" if estado_c == "FALLO" else "SIN_CONSULTA"
+    last = caps[-1] if caps else None
+    if v2:
+        ok, motivos, info = acreditacion_embarques.verificar(data, cfg, aprobadores)
+        naturaleza = acreditacion_embarques.NATURALEZA
+    else:
+        ok, motivos = embarques.acreditacion_vigente(acr, aprobadores, data)
+        info, naturaleza = {}, embarques.NATURALEZA
     if not habilitado:
         ok, motivos = False, ["conector de embarques inactivo o sin captura habilitada", *motivos]
-    last = caps[-1] if caps else None
-    acr = data / "acreditacion_embarques.json"
-    out: dict[str, Any] = {"acreditado": ok, "motivos": motivos, "naturaleza": embarques.NATURALEZA,
-                           # v0.3.1: la huella de la acreditación entra en la identidad de la generación
-                           "acreditacion_sha256": _sha(acr.read_bytes()) if acr.is_file() else None,
-                           "captura": None if last is None else {k: last[k] for k in ("archivo", "sha256", "instante_utc")}}
-    if ok and last is not None:
-        acred = json.loads((data / "acreditacion_embarques.json").read_text("utf-8"))
-        por_item = embarques.leer_captura(_leer(data, "embarques", last, ".raw"))
-        out["por_item"] = {k: v["facturado_cfdi"] for k, v in por_item.items()}
+    out: dict[str, Any] = {
+        "acreditado": ok,
+        "motivos": motivos,
+        "naturaleza": naturaleza,
+        "esquema": acreditacion_embarques.ESQUEMA if v2 else ESQUEMA_EMBARQUES_V1,
+        "estado": estado if last is not None else "SIN_CAPTURA",
+        # v0.3.1: la huella de la acreditación entra en la identidad de la generación
+        "acreditacion_sha256": _sha(acr.read_bytes()) if acr.is_file() else None,
+        "captura": None if last is None else {k: last[k] for k in CAMPOS_CAPTURA},
+    }
+    if v2:
+        out["regla"] = acreditacion_embarques.REGLA
+        out["alcance_ajustes"] = acreditacion_embarques.ALCANCE_AJUSTES
+    if not ok:
+        return out
+    if last is None:
+        out.update(acreditado=False, motivos=["acreditada, pero sin captura usable del mes"])
+        return out
+    periodo = (last.get("meta") or {}).get("periodo") or []
+    cubre = len(periodo) == 2 and periodo[0] == f"{month}-01" and str(periodo[1]).startswith(month)
+    if v2 and not cubre:
+        motivo = f"la captura no cubre el periodo {month} desde el día 1"
+        out.update(acreditado=False, motivos=[motivo])
+        return out
+    huella = (last.get("meta") or {}).get("huella_config_embarques")
+    if v2 and huella != acreditacion_embarques.huella_config(cfg):
+        motivo = "la captura usada no tiene procedencia corroborable (configuración acreditada)"
+        out.update(acreditado=False, motivos=[motivo])
+        return out
+    raw = _leer(data, "embarques", last, ".raw")
+    try:
+        lector = acreditacion_embarques.validar_captura if v2 else embarques.leer_captura
+        por_item = lector(raw)
+    except (ValueError, UnicodeDecodeError) as exc:
+        out.update(acreditado=False, motivos=[f"captura de embarques inválida: {exc}"])
+        return out
+    out["por_item"] = {k: v["facturado_cfdi"] for k, v in por_item.items()}
+    if v2:
+        out["ausencia_es_cero"] = info["ausencia_es_cero"] is True
+        out["periodo"] = list(periodo)
+    else:
+        acred = json.loads(acr.read_text("utf-8"))
         out["ausencia_es_cero"] = acred.get("ausencia_es_cero") is True
-    elif ok:
-        out["motivos"] = ["acreditada, pero sin captura del mes"]
-        out["acreditado"] = False
     return out

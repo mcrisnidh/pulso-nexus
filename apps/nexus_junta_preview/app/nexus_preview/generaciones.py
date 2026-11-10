@@ -313,8 +313,10 @@ class PreviewRefresh:
             if cfg.approvers and cfg.approvers.is_file():
                 aprobadores = frozenset(json.loads(cfg.approvers.read_text("utf-8")).get("approvers", []))
             emb = orq.embarques_generacion(
-                self.data, cfg.month, aprobadores, "embarques" in orq.habilitadas(conectores)
+                self.data, cfg.month, aprobadores, "embarques" in orq.habilitadas(conectores),
+                conectores.get("embarques"),
             )
+            emb["intento_utc"] = start  # FIX5: antigüedad del corte en contingencia
             contexto = {
                 "fg_conector": fg_contexto(fgc, self.data, start),
                 "backlog_conector": backlog_contexto(bc, self.data, start),

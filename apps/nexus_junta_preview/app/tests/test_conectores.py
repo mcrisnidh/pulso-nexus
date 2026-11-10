@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import pickle
 import re
@@ -31,6 +32,11 @@ from nexus_preview.conectores import orquestador as orq  # noqa: E402
 from nexus_preview.generaciones import PreviewRefresh  # noqa: E402
 
 D = Decimal
+
+
+def _exige(condicion: object, mensaje: str = "") -> None:
+    if not condicion:
+        pytest.fail(mensaje or "condición no cumplida")
 
 
 def deps(ssrs_xml: bytes | None = None, fg_rows: list[Any] | None = None, emb_rows: list[Any] | None = None, **over: Any) -> dict[str, Any]:
@@ -213,17 +219,18 @@ def test_k10_embarques_guardas_y_nulos(tmp_path: Path) -> None:
     ids_sql, ids_params = conn.ejecutadas[3]
     cuentas_sql, cuentas_params = conn.ejecutadas[4]
     reccfd_sql, reccfd_params = conn.ejecutadas[5]
-    assert "MF_CFD" in sql and "MF_DETCFD" in sql and params == (dt.date(2026, 11, 1), dt.date(2026, 11, 9))
-    assert "EXISTS" not in sql and "GROUP BY" in sql
-    assert ids_sql.startswith("SELECT DISTINCT a.NUMFOL") and ids_params == params
-    assert "MF_CUENTAS" in cuentas_sql and "MF_RECCFD" in reccfd_sql
-    assert "EXISTS" not in ids_sql + cuentas_sql + reccfd_sql
-    assert cuentas_params == reccfd_params == ("F000001", "F000002", "F000003")
+    _exige("MF_CFD" in sql and "MF_DETCFD" in sql)
+    _exige(params == (dt.date(2026, 11, 1), dt.date(2026, 11, 9)))
+    _exige("EXISTS" not in sql and "GROUP BY" in sql)
+    _exige(ids_sql.startswith("SELECT DISTINCT a.NUMFOL") and ids_params == params)
+    _exige("MF_CUENTAS" in cuentas_sql and "MF_RECCFD" in reccfd_sql)
+    _exige("EXISTS" not in ids_sql + cuentas_sql + reccfd_sql)
+    _exige(cuentas_params == reccfd_params == ("F000001", "F000002", "F000003"))
     for statement in (sql, ids_sql):
-        assert all(f"NOT LIKE '{prefix}%'" in statement for prefix in ("RM", "SCRAP", "SERV16"))
-    assert "LTRIM(RTRIM(c.CODUPC)) AS item" in sql  # ITEM exacto, sin normalizar caracteres
-    assert conn.timeout == 15  # statement timeout, independent of connection timeout
-    assert meta["facturas_verificadas"] == 3
+        _exige(all(f"NOT LIKE '{prefix}%'" in statement for prefix in ("RM", "SCRAP", "SERV16")))
+    _exige("LTRIM(RTRIM(c.CODUPC)) AS item" in sql)  # ITEM exacto, sin normalizar caracteres
+    _exige(conn.timeout == 15)  # statement timeout, independent of connection timeout
+    _exige(meta["facturas_verificadas"] == 3)
     assert "ApplicationIntent=ReadOnly" in conn.cadenas[0] and "Encrypt=yes" in conn.cadenas[0]
     cap = embarques.leer_captura(raw)
     assert cap["QZXA0016"]["facturado_cfdi"] == "300" and cap["QZXA0010"]["facturado_cfdi"] == ""  # nulo: desconocido
@@ -234,8 +241,6 @@ def test_k10_embarques_guardas_y_nulos(tmp_path: Path) -> None:
 
 
 def test_k10b_embarques_rechaza_relaciones_incompletas_y_timeout_invalido() -> None:
-    import datetime as dt
-
     c = {"controlador": "ODBC Driver 18 for SQL Server", "servidor": "s", "base": "ASBG",
          "credencial": "PULSO_NEXUS/embarques", "cuenta_esperada": "sm0003"}
     for table in ("MF_CUENTAS", "MF_RECCFD"):
@@ -245,43 +250,40 @@ def test_k10b_embarques_rechaza_relaciones_incompletas_y_timeout_invalido() -> N
         conn.embarques_relaciones[table] = ["F000001"]
         with pytest.raises(ConectorError) as e:
             embarques.capturar(c, "2026-11", dt.date(2026, 11, 8), sim.proveedor, sim.fabrica(conn))
-        assert e.value.code == "EMBARQUES_RELACIONES_FALTANTES"
-        assert "F000002" not in str(e.value)  # no leaking individual invoice identities
-        assert conn.timeout == 15
-        assert conn.rollbacks == 2
+        _exige(e.value.code == "EMBARQUES_RELACIONES_FALTANTES")
+        _exige("F000002" not in str(e.value))  # no leaking individual invoice identities
+        _exige(conn.timeout == 15)
+        _exige(conn.rollbacks == 2)
     conn = sim.Conexion([("X", "200", 2, 2, 0)])
     conn.embarques_relaciones = {"MF_CUENTAS": ["F000001", "F000003"],
                                  "MF_RECCFD": ["F000001", "F000002"]}
     conn.simular_incorrecta_respuesta_in = True
     with pytest.raises(ConectorError) as e:
         embarques.capturar(c, "2026-11", dt.date(2026, 11, 8), sim.proveedor, sim.fabrica(conn))
-    assert e.value.code == "EMBARQUES_RELACIONES_FALTANTES"  # equal totals, wrong identity
+    _exige(e.value.code == "EMBARQUES_RELACIONES_FALTANTES")  # equal totals, wrong identity
     for invalid in (0, 31, "n/a"):
         with pytest.raises(ConectorError) as e:
             embarques.capturar({**c, "timeout_consulta_s": invalid}, "2026-11",
                               dt.date(2026, 11, 8), sim.proveedor, sim.fabrica(conn))
-        assert e.value.code == "EMBARQUES_TIMEOUT_INVALIDO"
+        _exige(e.value.code == "EMBARQUES_TIMEOUT_INVALIDO")
 
 
 def test_k10c_embarques_lotes_300_y_validacion_estricta() -> None:
-    import datetime as dt
-
     cfg = {"controlador": "ODBC Driver 18 for SQL Server", "servidor": "s", "base": "ASBG",
            "credencial": "PULSO_NEXUS/embarques", "cuenta_esperada": "sm0003"}
     conn = sim.Conexion([("X", "305", 305, 305, 0)])
-    raw, meta = embarques.capturar(cfg, "2026-11", dt.date(2026, 11, 8), sim.proveedor, sim.fabrica(conn))
-    assert meta["facturas_verificadas"] == 305
+    fab = sim.fabrica(conn)
+    raw, meta = embarques.capturar(cfg, "2026-11", dt.date(2026, 11, 8), sim.proveedor, fab)
+    _exige(meta["facturas_verificadas"] == 305)
     requests = [(sql, prm) for sql, prm in conn.ejecutadas if " NUMFOL IN (" in sql]
-    assert [len(params) for _, params in requests] == [300, 5, 300, 5]
-    assert embarques.leer_captura(raw)["X"]["facturado_cfdi"] == "305"
+    _exige([len(params) for _, params in requests] == [300, 5, 300, 5])
+    _exige(embarques.leer_captura(raw)["X"]["facturado_cfdi"] == "305")
     # Filtered invoice query and aggregate both preserve every prefix exclusion.
     ids_sql = next(sql for sql, _ in conn.ejecutadas if sql.startswith("SELECT DISTINCT a.NUMFOL"))
-    assert all(f"NOT LIKE '{p}%'" in ids_sql for p in ("RM", "SCRAP", "SERV16"))
+    _exige(all(f"NOT LIKE '{p}%'" in ids_sql for p in ("RM", "SCRAP", "SERV16")))
 
 
 def test_k10d_embarques_rechaza_universos_discordantes_y_facturas_invalidas() -> None:
-    import datetime as dt
-
     cfg = {"controlador": "ODBC Driver 18 for SQL Server", "servidor": "s", "base": "ASBG",
            "credencial": "PULSO_NEXUS/embarques", "cuenta_esperada": "sm0003"}
     for invoices, error in [([], "EMBARQUES_UNIVERSOS_INCONSISTENTES"),
@@ -290,9 +292,10 @@ def test_k10d_embarques_rechaza_universos_discordantes_y_facturas_invalidas() ->
         conn = sim.Conexion([("X", "100", 1, 1, 0)])
         conn.embarques_facturas = invoices
         with pytest.raises(ConectorError) as e:
-            embarques.capturar(cfg, "2026-11", dt.date(2026, 11, 8), sim.proveedor, sim.fabrica(conn))
-        assert e.value.code == error
-        assert conn.rollbacks == 2
+            fab = sim.fabrica(conn)
+            embarques.capturar(cfg, "2026-11", dt.date(2026, 11, 8), sim.proveedor, fab)
+        _exige(e.value.code == error)
+        _exige(conn.rollbacks == 2)
 
 
 def test_k11_embarques_no_acreditados_siguen_nd(lab: Any) -> None:

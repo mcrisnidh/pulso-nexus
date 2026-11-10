@@ -1,5 +1,7 @@
 # PULSO NEXUS v0.3.2 — Live Data Connectors (PREVIEW / NO-GO COMERCIAL)
 
+**FIX5 (candidato offline, NO-GO operativo):** Embarques (ASBG/CFDI) en el mismo botón «Actualizar datos» junto con Backlog SSRS y FG. Regla comercial resuelta: la factura CFDI emitida **es** el embarque. Acreditación `/2` verificable; consulta nueva en cada Refresh; en fallo, «EMBARQUES ANTERIOR» con antigüedad. **No activa nada.** FIX5.1: procedencia de la captura verificable, decisión sobre la ausencia aprobada y referenciada, y procedimiento PowerShell 5.1 con procesos hijo controlados. Ver `CAMBIOS_FIX5.md` y `DOCS/EMBARQUES_CFDI.md`.
+
 **Novedad de v0.3.3 (candidato offline, NO-GO operativo):** Backlog SSRS (29 OERAS) en el mismo botón «Actualizar datos», con acreditación **verificable** (alcance fuente y contrato; la equivalencia comercial OE965 ↔ 29 OERAS sigue `NOT_ESTABLISHED`), consulta nueva en cada Refresh hacia **Current** (Frozen intacto) y contingencia marcada como «BACKLOG ANTERIOR». **No activa nada.** Ver `CAMBIOS_v0.3.3.md` y `DOCS/BACKLOG_SSRS.md`.
 
 **Novedad de v0.3.2:** cierre del conector FG. Cada Refresh puede consultar el AS400 (STKBAL) directamente con una acreditación por alcance **verificable**. Si el conector falla, la contingencia queda marcada como «FG ANTERIOR». El lanzador funciona en UTF-8 y propaga los códigos de salida. **No activa nada.** Ver `CAMBIOS_v0.3.2.md` y `VALIDACION_ASMXC1200.md`.
@@ -27,7 +29,7 @@ Corrige la desconexión de PULSO Web, donde `STATUS_ROWS` leía un CSV fijo de o
 | Pendiente Current | Último R + último Portal, con el **universo del Frozen** | Provisional |
 | Var. F−C | Frozen − Current | Informativa: no es embarque ni faltante |
 | FG | Último IN092U, stockroom FG | Ausente o negativo: N/D |
-| Programa, Sobreembarque, Faltante | Contrato v3.10: `max(0, F+Adelanto−Emb)`, `max(0, Emb−F−Adelanto)`, `max(0, Programa−FG)` | **N/D**: no hay Embarques autorizados (CFDI no acredita salida física) |
+| Programa, Sobreembarque, Faltante | Contrato v3.10: `max(0, F+Adelanto−Emb)`, `max(0, Emb−F−Adelanto)`, `max(0, Programa−FG)` | FIX5: con acreditación `/2` vigente (regla «factura CFDI emitida = embarque», `FECEXP`), Embarques por ITEM exacto desde la consulta de **este** Refresh; sin ella, **N/D** con causa. Ver `DOCS/EMBARQUES_CFDI.md` |
 | Brecha diag. | `max(Frozen − FG, 0)` | Diagnóstica: **no** es el faltante oficial |
 | Cobertura 6 sem. | Current por fecha de línea ERP contra FG (diagnóstica). «FG hasta» v3.10: N/D | Las tarjetas WK muestran Frozen por semana (pzas congeladas) |
 | WO, Forecast, Recup., Estado PULSO | — | N/D con causa (sin fuente autorizada) |

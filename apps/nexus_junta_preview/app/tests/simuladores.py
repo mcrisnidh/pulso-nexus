@@ -90,7 +90,9 @@ class Cursor:
                 ids = [f"F{n:06d}" for n in range(1, 1 + sum(int(r[3]) for r in self.conn.filas))]
             self.conn._ids_embarques_ultima = list(ids)
             self._rows = [(v,) for v in ids]
-        elif up.startswith("SELECT DISTINCT NUMFOL FROM MF_CUENTAS") or up.startswith("SELECT DISTINCT NUMFOL FROM MF_RECCFD"):
+        elif up.startswith(
+            ("SELECT DISTINCT NUMFOL FROM MF_CUENTAS", "SELECT DISTINCT NUMFOL FROM MF_RECCFD")
+        ):
             tabla = "MF_CUENTAS" if "MF_CUENTAS" in up else "MF_RECCFD"
             if self.conn.embarques_relaciones is None:
                 disponibles = self.conn._ids_embarques_ultima

@@ -7,6 +7,8 @@
    .\NexusJunta.ps1 -Preflight fg_odbc [-Nivel entorno|conexion|consulta] [-Autorizo]          (un conector, solo lectura)
    .\NexusJunta.ps1 -Conciliar fg -Manual <INV_STA*.TXT> -Directa <preflight\fg_odbc\*.csv> -Alcance FG [-Acreditar]
                                                                                              (backlog | fg | embarques -Evidencia)
+   .\NexusJunta.ps1 -AcreditarEmbarques <preflight\embarques\*.csv> -Aprobador <nombre> -AusenciaEsCero si|no -ReferenciaDecision <folio>
+                                                                                             (FIX5: acreditación /2, regla CFDI emitida = embarque)
  Código de salida: el de la herramienta ejecutada (0 = PASS); cualquier error del lanzador = 1.
  La acreditación NO activa ningún conector: «activo» se cambia a mano en conectores.json.
  No modifica el repositorio, PULSO Web (ASMXC1012), AMFT, MAGNUM, SQL, Python compartido ni los originales.
@@ -20,7 +22,9 @@ param(
   [ValidateSet('', 'backlog_ssrs', 'fg_odbc', 'embarques')][string]$Preflight = '',
   [ValidateSet('entorno', 'conexion', 'consulta')][string]$Nivel = 'entorno', [switch]$Autorizo,
   [ValidateSet('', 'backlog', 'fg', 'embarques')][string]$Conciliar = '',
-  [string]$Manual = '', [string]$Directa = '', [string]$Evidencia = '', [string]$Alcance = '', [switch]$Acreditar
+  [string]$Manual = '', [string]$Directa = '', [string]$Evidencia = '', [string]$Alcance = '', [switch]$Acreditar,
+  [string]$AcreditarEmbarques = '', [string]$Aprobador = '', [ValidateSet('', 'si', 'no')][string]$AusenciaEsCero = '',
+  [string]$ReferenciaDecision = ''
 )
 $ErrorActionPreference = 'Stop'
 # v0.3.2: consola y Python en UTF-8 (sin esto Windows usa cp850/cp1252 y la salida se corrompe o falla)
@@ -72,6 +76,11 @@ try {
   if ($Preflight) {
     $a = @('run','--frozen','--extra','web','--with','tzdata==2025.2','python',(Join-Path $App 'preflight.py'),'--data',$Data,'--conector',$Preflight,'--nivel',$Nivel)
     if ($Autorizo) { $a += '--autorizo' }
+    & uv @a
+    $rc = $LASTEXITCODE
+  } elseif ($AcreditarEmbarques) {
+    if (-not $Aprobador -or -not $AusenciaEsCero -or -not $ReferenciaDecision.Trim()) { throw '-AcreditarEmbarques exige -Aprobador, -AusenciaEsCero si|no y -ReferenciaDecision de la decisión comercial aprobada (sin valores por omisión).' }
+    $a = @('run','--frozen','--extra','web','--with','tzdata==2025.2','python',(Join-Path $App 'acreditar_embarques.py'),'--data',$Data,'--captura',$AcreditarEmbarques,'--aprobador',$Aprobador,'--ausencia-es-cero',$AusenciaEsCero,'--referencia-decision',$ReferenciaDecision)
     & uv @a
     $rc = $LASTEXITCODE
   } elseif ($Conciliar) {

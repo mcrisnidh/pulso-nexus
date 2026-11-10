@@ -4,7 +4,7 @@
 |---|---|---|---|---|
 | `backlog_ssrs` | `ucbaa` | Sesión Windows del usuario (`Invoke-WebRequest -UseDefaultCredentials`, Negotiate/NTLM). Sin contraseñas, cookies ni tokens | Backlog = 29 OERAS = `R_YYYYMMDD.TXT`, normalizado al contrato `oeras_29` | `ssrs_preview_core.py`, `stage50a_probe.py` («Month End - Backlog Detail», XML, campos, controles de calidad) |
 | `fg_odbc` | `remcb` | Credencial genérica `PULSO_NEXUS/fg` del Administrador de credenciales | FG por ITEM y stockroom con la semántica de IN092U, contrato `fg_inventory` | Consulta ODBC del libro «CO 36 inventory 32INAS.xlsx»: `DB2LOCAL` → `AULT2F2PRD.STKBAL` (`PNUM60`, `STRC60`, `SPHY60`, `CONO60='36'`) |
-| `embarques` | `sm0003` | Credencial genérica `PULSO_NEXUS/embarques`, Azure SQL con `Encrypt=yes` y `ApplicationIntent=ReadOnly` | Facturación CFDI por ITEM. **No** es embarque físico | `asbg_item_adapter.py` (`MF_CFD` + `MF_DETCFD`), `live_sources.py` |
+| `embarques` | `sm0003` | Credencial genérica `PULSO_NEXUS/embarques`, Azure SQL con `Encrypt=yes` y `ApplicationIntent=ReadOnly` | Facturación CFDI por ITEM. Regla comercial (FIX5): la factura emitida **es** el embarque; requiere acreditación `/2` (`DOCS/EMBARQUES_CFDI.md`) | `asbg_item_adapter.py` (`MF_CFD` + `MF_DETCFD`), `live_sources.py` |
 
 ## Seguridad
 
