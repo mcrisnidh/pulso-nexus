@@ -9,14 +9,16 @@ V3_10_RC2) y la auditoría del libro ``Status Ventas AMFT_v3_10.xlsm``:
     Cobertura FG  = embarques compensan la demanda semanal; el FG cubre semanas completas
 
 Diferencias deliberadas frente al módulo heredado (prevalecen las decisiones NEXUS):
-- Un dato ausente NUNCA se convierte en 0 (V19): sin Embarques o Adelanto ⇒ Programa ``None``.
+- Frozen o Embarques ausentes NUNCA se convierten en 0 (V19); el vacío de Adelanto CS
+  sí es 0 por decisión comercial (2026-11-10) y se resuelve en ``webapp.enrich`` antes
+  de llamar estas funciones puras. Un ``None`` explícito sigue siendo dato inválido.
 - FG negativo NO se recorta a 0 (el heredado hacía ``max(0, FG)``): NEXUS lo trata como
   NO_CERTIFICABLE ⇒ Faltante ``None``.
 - Sin normalización de claves (X15): las identidades llegan exactas desde el motor.
 - No aplica alias CAT→JBA codificados: la homologación es R1 del motor.
 
-Hoy los Embarques no tienen fuente autorizada (MF_CFD/MF_DETCFD es facturación CFDI), por lo que
-Programa, Sobreembarque, Faltante y Cobertura FG resultan ``None`` (N/D) por construcción.
+La fuente CFDI puede estar acreditada como Embarques. Si Frozen o Embarques son
+realmente desconocidos, Programa y Faltante siguen N/D; el vacío de Adelanto CS no los bloquea.
 """
 
 from __future__ import annotations

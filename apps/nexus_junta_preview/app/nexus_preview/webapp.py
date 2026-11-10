@@ -207,9 +207,9 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
         }
 
     def enrich(gen: dict[str, Any], esc: dict[str, Any], r: dict[str, Any]) -> dict[str, Any]:
-        """Aplica el contrato v3.10 con las entradas disponibles (Embarques: sin fuente)."""
+        """Aplica v3.10: sin registro de adelanto mensual equivale a 0, no N/D."""
         c = cs_state(r["item"], gen["month"])
-        adelanto = dec(c["adelanto"]["value"]["qty"]) if c["adelanto"] else None
+        adelanto = dec(c["adelanto"]["value"]["qty"]) if c["adelanto"] else Decimal(0)
         frozen, fg, emb = dec(r["frozen"]["value"]), dec(r["fg"]["value"]), dec(r.get("embarques"))
         prog = v310.programa(frozen, adelanto, emb)
         weeks = None if not r["semanas_frozen_completas"] else [
@@ -388,11 +388,16 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
         note = str(body.get("nota") or "").strip()
         if note and (state["nota_hoy"] is None or state["nota_hoy"]["value"] != note):
             changes.append(("NOTE", note))
-        adv = str(body.get("adelanto") if body.get("adelanto") is not None else "").strip()
-        if adv != "":
-            old = dec(state["adelanto"]["value"]["qty"]) if state["adelanto"] else None
-            if dec(adv) is None or old != dec(adv):
-                changes.append(("ADVANCE", {"qty": adv}))
+        # Adelanto es 0 por defecto para todo ITEM/mes. Campo vacío explícito =
+        # volver a 0; campo ausente del JSON = no modificar el seguimiento CS.
+        if "adelanto" in body:
+            adv_texto = str(body["adelanto"] if body["adelanto"] is not None else "").strip()
+            adv = Decimal(0) if adv_texto == "" else dec(adv_texto)
+            if adv is None or not adv.is_finite() or adv < 0:
+                return jsonify({"ok": False, "error": "Adelanto inválido: indique cero o una cantidad no negativa."}), 400
+            anterior = dec(state["adelanto"]["value"]["qty"]) if state["adelanto"] else Decimal(0)
+            if adv != anterior:
+                changes.append(("ADVANCE", {"qty": str(adv)}))
         status = str(body.get("estatus") or "")
         if status and (state["estatus"] is None or state["estatus"]["value"] != status):
             changes.append(("CS_STATUS", status))

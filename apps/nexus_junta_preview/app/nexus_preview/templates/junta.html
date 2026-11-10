@@ -154,7 +154,7 @@
             {% if c.nota_anterior %}<small class="block prev-note" title="{{ c.nota_anterior.value }}">Última: {{ c.nota_anterior.server_ts|fecha }} · {{ c.nota_anterior.value[:40] }}</small>{% endif %}
           </div>
         </td>
-        <td><input class="meeting-number slim-number" data-adelanto inputmode="decimal" value="{{ c.adelanto.value.qty if c.adelanto else '' }}" placeholder="—" aria-label="Adelanto {{ r.item }}" title="Adelanto CS del mes (v3.10 lo suma al Programa cuando hay Embarques)"></td>
+        <td><input class="meeting-number slim-number" data-adelanto inputmode="decimal" value="{{ c.adelanto.value.qty if c.adelanto else '0' }}" placeholder="0" aria-label="Adelanto {{ r.item }}" title="Adelanto CS del mes: 0 por defecto; solo registrar piezas anticipadas acordadas con Producción"></td>
         <td>{{ fact(r.frozen) }}</td>
         <td>{{ val(r.programa_v310, gen.nd.programa) }}</td>
         <td>{% if r.embarques is not none %}<span class="n" title="Facturación CFDI ACREDITADA como embarque ({{ gen.embarques.naturaleza }})">{{ r.embarques|num }}</span>{% else %}{{ nd(gen.nd.embarques ~ ((' · ' ~ gen.embarques.motivos|join(' · ')) if gen.embarques and gen.embarques.motivos else '')) }}{% endif %}</td>
