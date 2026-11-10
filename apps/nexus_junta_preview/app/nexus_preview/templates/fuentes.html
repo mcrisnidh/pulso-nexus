@@ -15,7 +15,7 @@
 <div class="pend-list"><div>{{ gen.embarques.naturaleza }}</div>{% for m in gen.embarques.motivos %}<div class="bad">✖ {{ m }}</div>{% endfor %}
 {% if gen.embarques.captura %}<div class="mono small-muted">Última captura {{ gen.embarques.captura.archivo }} · {{ gen.embarques.captura.sha256[:12] }}…</div>{% endif %}</div></div>{% endif %}
 {% if lock %}<div class="panel"><div class="panel-head"><h2>Frozen bloqueado de {{ lock.month }}</h2><span>no se sustituye durante el mes</span></div>
-<table><tr><td>Backlog R (29 OERAS)</td><td>{{ lock.oe965.file }}</td><td class="mono">{{ lock.oe965.sha256 }}</td></tr>
+<table><tr><td>Backlog Frozen (SSRS o ERP histórico)</td><td>{{ lock.oe965.file }}</td><td class="mono">{{ lock.oe965.sha256 }}</td></tr>
 <tr><td>Portal CAT</td><td>{{ lock.portal.file }}</td><td class="mono">{{ lock.portal.sha256 }}</td></tr>
 <tr><td>Bloqueado en</td><td colspan="2">{{ lock.bloqueado_en|fechahora }} (generación {{ lock.gen_id[:12] }})</td></tr></table></div>{% endif %}
 {% if gen %}<div class="panel"><div class="panel-head"><h2>Archivos de la generación vigente {{ gen.gen_id[:12] }}</h2></div>

@@ -46,6 +46,19 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("--escenario", default="A", choices=["A", "B", "DIAG", "OFICIAL"])
     r = sub.add_parser("refresh")
     r.add_argument("--data", required=True)
+    r.add_argument("--erp-urgente", default=None,
+                   help="Solo para un Refresh: TXT OE965 reciente; no cambia Frozen ni configuración")
+    r.add_argument("--aprobador", default="")
+    r.add_argument("--motivo", default="")
+    a6 = sub.add_parser("activar-fix6")
+    a6.add_argument("--data", required=True)
+    cs = sub.add_parser("confirmar-ssrs-mensual")
+    cs.add_argument("--data", required=True)
+    cs.add_argument("--mes", required=True)
+    cs.add_argument("--sha256", required=True)
+    cs.add_argument("--archivo", required=True)
+    cs.add_argument("--aprobador", required=True)
+    cs.add_argument("--referencia-lote", required=True)
     g = sub.add_parser("generaciones")
     g.add_argument("--data", required=True)
     v = sub.add_parser("activar")
@@ -85,6 +98,18 @@ def main(argv: list[str] | None = None) -> int:
             json.dump(body, fh, indent=1, ensure_ascii=False)
         print(f"configuración creada: {cfg}")
         return 0
+    if a.cmd == "activar-fix6":
+        from nexus_preview.migracion_fix6 import activar  # noqa: PLC0415
+
+        print(json.dumps(activar(data), ensure_ascii=False, indent=2))
+        return 0
+    if a.cmd == "confirmar-ssrs-mensual":
+        from nexus_preview.conectores.confirmacion_ssrs import emitir  # noqa: PLC0415
+
+        result = emitir(data, a.mes, a.archivo, a.sha256, a.aprobador, a.referencia_lote)
+        print(json.dumps({"confirmacion": str(result), "mes": a.mes, "estado": "CONFIRMADO"},
+                         ensure_ascii=False))
+        return 0
     refresher = PreviewRefresh(data, _code())
     if a.cmd == "generaciones":
         ptr = refresher.store.vigente()
@@ -114,7 +139,11 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"gen_id": gen["gen_id"], "vista": vista_de(gen), **ev, "resultado": "RECHAZADA"}, indent=1, ensure_ascii=False))
         return 3  # Preview nunca certifica: siempre rechaza e informa los motivos
     if a.cmd == "refresh":
-        st = refresher.ejecutar("cli-local")
+        if a.erp_urgente and (not a.aprobador or not a.motivo):
+            ap.error("--erp-urgente exige --aprobador y --motivo")
+        st = refresher.ejecutar("cli-erp-urgente" if a.erp_urgente else "cli-local",
+                               erp_urgente=Path(a.erp_urgente) if a.erp_urgente else None,
+                               aprobador=a.aprobador, motivo=a.motivo)
         print(json.dumps(st, indent=1, ensure_ascii=False))
         return 0 if st["estado"] in ("PASS", "NO_CHANGE") else 1
     if a.host != "127.0.0.1":

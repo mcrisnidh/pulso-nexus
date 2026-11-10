@@ -16,14 +16,15 @@
   </div>
   <div class="cutoff cutoff-sources">
     <span>Generación {{ gen.gen_id[:12] }} · vigente desde {{ gen._puntero.vigente_desde|fechahora }}</span>
-    <b>Frozen ERP {{ s.frozen_r.document_date|fecha }} · Portal Frozen {{ s.frozen_p.document_date|fecha }}</b>
-    <b>Current ERP {{ s.current_r.document_date|fecha }} · Portal {{ s.current_p.document_date|fecha }} · FG {{ (s.fg.document_time or s.fg.document_date)|fechahora }}</b>
+    <b>Frozen {{ "SSRS" if s.frozen_r.origen == "CONSULTA_DIRECTA" else "ERP heredado" }} {{ s.frozen_r.document_date|fecha }} · Portal Frozen {{ s.frozen_p.document_date|fecha }}</b>
+    <b>Current {{ "ERP URGENTE" if s.current_r.origen == "ERP_EXCEPCIONAL" else "SSRS" if s.current_r.origen == "CONSULTA_DIRECTA" else "ERP heredado" }} {{ s.current_r.document_date|fecha }} · Portal {{ s.current_p.document_date|fecha }} · FG {{ (s.fg.document_time or s.fg.document_date)|fechahora }}</b>
     <small>{{ s.frozen_r.file }} · {{ s.frozen_p.file }} · {{ s.current_r.file }} ({{ s.current_r.origen or 'MANUAL' }}) · {{ s.fg.file }} ({{ s.fg.origen or 'MANUAL' }})</small>
     {% set fgc = s.fg.conector or {} %}{% if fgc.estado == 'CONSULTA_DIRECTA' %}<small id="fgCorte" class="fg-corte directa">FG: consulta directa AS400 de este Refresh · corte {{ s.fg.document_time|fechahora }} · alcance acreditado {{ (fgc.alcance or [])|join(', ') }}</small>
     {% elif fgc.estado == 'CONTINGENCIA' %}<small id="fgCorte" class="fg-corte contingencia"><b>FG ANTERIOR</b> — el conector FG falló ({{ fgc.codigo }}); dato del corte {{ (s.fg.document_time or s.fg.document_date)|fechahora }}{% if fgc.antiguedad_min is not none %} · antigüedad {{ fgc.antiguedad_min // 60 }} h {{ '%02d'|format(fgc.antiguedad_min % 60) }} min{% endif %}</small>
     {% elif fgc.estado == 'NO_ACREDITADO' %}<small id="fgCorte" class="fg-corte contingencia">FG: conector activo sin acreditación válida · se usa {{ s.fg.file }}</small>{% endif %}
     {% set bkc = s.current_r.conector or {} %}{% if bkc.estado == 'CONSULTA_DIRECTA' %}<small id="backlogCorte" class="fg-corte directa">Backlog Current: consulta directa SSRS de este Refresh · corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}</small>
     {% elif bkc.estado == 'IMPORTACION_INTERACTIVA' %}<small id="backlogCorte" class="fg-corte directa">Backlog Current: importación interactiva (XML del reporte SSRS exportado en el navegador) · corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}</small>
+    {% elif bkc.estado == 'ERP_EXCEPCIONAL' %}<small id="backlogCorte" class="fg-corte contingencia"><b>ERP URGENTE · SOLO ESTE CORTE</b> — aprobado por {{ bkc.aprobador }} · {{ bkc.motivo }} · hash {{ bkc.sha256[:12] }}… · Frozen intacto. Próximo clic ordinario: SSRS.</small>
     {% elif bkc.estado == 'CONTINGENCIA' %}<small id="backlogCorte" class="fg-corte contingencia"><b>BACKLOG ANTERIOR</b> — el conector SSRS falló ({{ bkc.codigo }}); Current del corte {{ (s.current_r.instante or s.current_r.document_date)|fechahora }}{% if bkc.antiguedad_min is not none %} · antigüedad {{ bkc.antiguedad_min // 60 }} h {{ '%02d'|format(bkc.antiguedad_min % 60) }} min{% endif %}</small>
     {% elif bkc.estado == 'NO_ACREDITADO' %}<small id="backlogCorte" class="fg-corte contingencia">Backlog: conector SSRS activo sin acreditación válida · Current usa {{ s.current_r.file }}</small>
     {% elif bkc %}<small id="backlogCorte" class="fg-corte">Backlog Current: archivo manual {{ s.current_r.file }}</small>{% endif %}

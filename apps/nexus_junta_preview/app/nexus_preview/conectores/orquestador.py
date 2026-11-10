@@ -181,7 +181,16 @@ def cargar_capturas(
         if fuente == "fg_odbc":
             docs = [d for d in docs if d["archivo"] == fg_archivo] if fg_archivo else docs[-1:]
         else:
-            docs = _cortes_backlog(docs, backlog_archivo, frozen_files)
+            # FIX6: incluir el primer corte SSRS CONFIRMADO aunque hubo intentos
+            # previos al overnight. Un intento anterior nunca se congela por accidente.
+            confirmacion = data / "confirmaciones_ssrs" / f"{month}.json"
+            aprobado = None
+            if confirmacion.is_file():
+                try:
+                    aprobado = json.loads(confirmacion.read_text("utf-8")).get("archivo")
+                except (ValueError, UnicodeError) as exc:
+                    raise ConectorError("SSRS_CONFIRMACION_INVALIDA", type(exc).__name__) from exc
+            docs = _cortes_backlog(docs, backlog_archivo, frozen_files, aprobado)
         for doc in docs:
             if (fuentes is None or fuente not in fuentes) and f"{fuente}:{doc['archivo']}" not in frozen_files:
                 continue
@@ -202,7 +211,8 @@ def cargar_capturas(
 
 # ---------------------------------------------------------------- ejecución de conectores
 def capturar_todo(
-    data: Path, month: str, tz: str, ahora: Callable[[], dt.datetime], deps: dict[str, Any] | None = None
+    data: Path, month: str, tz: str, ahora: Callable[[], dt.datetime], deps: dict[str, Any] | None = None,
+    ssrs_automatico: bool = False,
 ) -> dict[str, Any]:
     deps = deps or {}
     cfg = cargar_config(data)
@@ -216,11 +226,15 @@ def capturar_todo(
                            "motivo": f"politica_fallo inválida: {politica}"}
             continue
         if not c.get("activo"):
-            out[fuente] = {"estado": "INACTIVO", "motivo": "conector no activado: se usan los archivos manuales"}
+            out[fuente] = {"estado": "INACTIVO", "motivo": "conector no activado"}
             continue
         if fuente != "embarques":
             acr: dict[str, Any] = {}
-            if fuente == "fg_odbc":
+            if fuente == "backlog_ssrs" and ssrs_automatico:
+                # FIX6: validación técnica en ssrs.parse(), SIN conciliar contra ERP manual.
+                ok, mot, acr = True, [], {"alcance": "SSRS_CONTRATO_TECNICO", "acreditacion_sha256": None}
+                why = ""
+            elif fuente == "fg_odbc":
                 ok, mot, acr = acreditacion_fg.verificar(data, c, tz)
                 why = "; ".join(mot)
             else:
@@ -233,7 +247,8 @@ def capturar_todo(
         local = now.astimezone(zone)
         try:
             if fuente == "backlog_ssrs":
-                out[fuente] = {**_backlog(data, c, month, zone, now, local, deps), **_traza(acr)}
+                out[fuente] = {**_backlog(data, c, month, zone, now, local, deps,
+                                                   solo_automatico=ssrs_automatico), **_traza(acr)}
             elif fuente == "fg_odbc":
                 raw, meta = fg_odbc.capturar(c, deps.get("proveedor"), deps.get("fabrica_fg"))
                 norm = contract_csv("fg_inventory", [{**r, "cut_ts": ""} for r in fg_odbc.registros_contrato(raw)])
@@ -265,11 +280,14 @@ def _resumen(doc: dict[str, Any]) -> dict[str, Any]:
 
 
 def _backlog(data: Path, c: dict[str, Any], month: str, zone: zoneinfo.ZoneInfo, now: dt.datetime,
-             local: dt.datetime, deps: dict[str, Any]) -> dict[str, Any]:
+             local: dt.datetime, deps: dict[str, Any], solo_automatico: bool = False) -> dict[str, Any]:
     modo = c.get("modo", "windows_integrado")
+    if solo_automatico and modo != "windows_integrado":
+        raise ConectorError("SSRS_MODO_NO_AUTOMATICO", "FIX6 exige consulta directa al reporte corporativo")
     if (cuenta := c.get("cuenta_esperada")) and deps.get("usuario", ssrs_usuario()).lower() != cuenta.lower():
         raise ConectorError("SSRS_USUARIO_DISTINTO", f"la sesión Windows no es «{cuenta}»: no se usa otra identidad")
-    imports = _importar(data, c, month, zone, deps)
+    # FIX6 jamás usa importación interactiva o archivo XML de contingencia como Current.
+    imports = [] if solo_automatico else _importar(data, c, month, zone, deps)
     if modo == "importacion_interactiva":
         if not imports:
             raise ConectorError("SSRS_SIN_IMPORTACION", "no hay XML nuevo en la carpeta ssrs-import")
@@ -296,10 +314,11 @@ def _traza(acr: dict[str, Any]) -> dict[str, Any]:
 
 
 def _cortes_backlog(
-    docs: list[dict[str, Any]], actual: str | None, frozen: set[str]
+    docs: list[dict[str, Any]], actual: str | None, frozen: set[str], confirmado: str | None = None
 ) -> list[dict[str, Any]]:
-    """Primer corte del mes, Frozen bloqueado y Current (este Refresh o el último), sin repetir."""
-    elegidos = docs[:1] + [d for d in docs if f"backlog_ssrs:{d['archivo']}" in frozen]
+    """Intento más temprano, primer SSRS confirmado, Frozen sellado y Current; sin repetir."""
+    elegidos = docs[:1] + [d for d in docs if f"backlog_ssrs:{d['archivo']}" in frozen
+                           or (confirmado is not None and d['archivo'] == confirmado)]
     elegidos += [d for d in docs if d["archivo"] == actual] if actual else docs[-1:]
     unicos: dict[str, dict[str, Any]] = {}
     for d in elegidos:

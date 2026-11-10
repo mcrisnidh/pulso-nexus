@@ -88,6 +88,9 @@ class Config:
     approvers: Path | None = None
     asignaciones: Path | None = None
     escenario_por_defecto: str = "A"
+    # FIX6: se activa una vez por migración controlada, sin modificar el Frozen de noviembre.
+    ssrs_automatico: bool = False
+    data_dir: Path | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -106,6 +109,9 @@ class Config:
         src = p("src")
         if src is None:
             raise ValueError("preview.json: falta 'src'")
+        auto = raw.get("ssrs_automatico", False)
+        if not isinstance(auto, bool):
+            raise ValueError("preview.json: ssrs_automatico debe ser booleano")
         return cls(
             month=raw["month"],
             tz=raw.get("tz", "America/Mexico_City"),
@@ -118,6 +124,8 @@ class Config:
             approvers=p("approvers"),
             asignaciones=p("asignaciones"),
             escenario_por_defecto=raw.get("escenario_por_defecto", "A"),
+            ssrs_automatico=auto,
+            data_dir=path.parent,
         )
 
     def private_files(self) -> dict[str, Path]:
@@ -180,6 +188,18 @@ def scan_sources(
     errors: list[str] = []
     warnings: list[str] = []
     files = inv["files"]
+    if cfg.ssrs_automatico:
+        # FIX6: el TXT ERP solo puede participar como Frozen del lock heredado (noviembre).
+        # Ningún R manual adicional ni IN092U manual entra en el Refresh automático.
+        legacy_frozen = str((frozen_lock or {}).get("oe965", {}).get("file", ""))
+        ignored = [f for f in files if f["origen"] == "MANUAL" and (
+            f["kind"] == "in092u" or (f["kind"] == "oe965" and f["file"] != legacy_frozen)
+        )]
+        files = [f for f in files if f not in ignored]
+        inv["files"] = files
+        if ignored:
+            warnings.append(f"FIX6: {len(ignored)} extracto(s) ERP/FG manuales ignorados; "
+                            "no son fuentes operativas")
     for f in files:
         if f["acceptance"] != "PASS":
             errors.append(f"{f['file']}: lectura estructural inválida (archivo rechazado)")
@@ -198,11 +218,13 @@ def scan_sources(
 
     r_files, p_files, fg_files = by_kind("oe965"), by_kind("portal"), by_kind("in092u")
     if not r_files:
-        errors.append(f"sin backlog R válido del mes {cfg.month}")
+        errors.append(f"sin Backlog SSRS válido del mes {cfg.month}" if cfg.ssrs_automatico
+                      else f"sin backlog R válido del mes {cfg.month}")
     if not p_files:
         errors.append(f"sin Portal CAT válido del mes {cfg.month}")
     if not fg_files:
-        errors.append(f"sin IN092U válido del mes {cfg.month}")
+        errors.append(f"sin FG ODBC válido del mes {cfg.month}" if cfg.ssrs_automatico
+                      else f"sin IN092U válido del mes {cfg.month}")
     if errors:
         raise RefreshError(errors)
 
@@ -235,17 +257,40 @@ def scan_sources(
             )
         return first
 
-    frozen_r = pick_frozen("oe965", r_files, "Backlog R")
+    # ERP excepcional jamás puede construir ni reemplazar un Frozen.
+    frozen_candidates = [f for f in r_files if f["origen"] != "ERP_EXCEPCIONAL"]
+    if not frozen_candidates:
+        raise RefreshError(["FIX6: sin captura SSRS elegible para Frozen"])
+    if cfg.ssrs_automatico and not frozen_lock:
+        from .conectores import confirmacion_ssrs  # noqa: PLC0415
+
+        frozen_r, evidencia = confirmacion_ssrs.confirmar_frozen(
+            cfg.data_dir, cfg.month, frozen_candidates
+        )
+        frozen_r["confirmacion_ssrs"] = evidencia
+    else:
+        frozen_r = pick_frozen("oe965", frozen_candidates, "Backlog Frozen")
+        if cfg.ssrs_automatico and frozen_r["origen"] == "CONSULTA_DIRECTA":
+            from .conectores import confirmacion_ssrs  # noqa: PLC0415
+
+            confirmacion_ssrs.verificar_bloqueo(cfg.data_dir, cfg.month, frozen_lock)
     frozen_p = pick_frozen("portal", p_files, "Portal CAT")
-    current_r = r_files[-1]
+    ssrs_current = [f for f in r_files if f["origen"] == "CONSULTA_DIRECTA"]
+    exception_present = bool(backlog_directo and backlog_directo.startswith("erp_urgente:"))
+    if cfg.ssrs_automatico and not ssrs_current and not exception_present:
+        raise RefreshError(["FIX6: no hay Backlog Current SSRS para el mes; "
+                            "prohibido usar TXT ERP como contingencia"])
+    current_r = (ssrs_current[-1] if ssrs_current else r_files[-1]) if cfg.ssrs_automatico else r_files[-1]
     current_p = p_files[-1]
-    if current_r["document_date"] < frozen_r["document_date"]:
+    if current_r["document_date"] < frozen_r["document_date"] and not cfg.ssrs_automatico:
         current_r = frozen_r
     if current_p["document_date"] < frozen_p["document_date"]:
         current_p = frozen_p
-    if backlog_directo:  # v0.3.3: Current = consulta SSRS de ESTE Refresh
+    if backlog_directo:  # FIX6: consulta SSRS de este Refresh u override ERP explícito
         forzado = _forzar_current(r_files, backlog_directo, warnings, cfg.month)
         current_r = forzado if forzado is not None else current_r
+    if cfg.ssrs_automatico and current_r["origen"] not in ("CONSULTA_DIRECTA", "ERP_EXCEPCIONAL"):
+        raise RefreshError(["FIX6: Current no proviene de SSRS ni de excepción ERP explícita"])
 
     def fg_key(f: dict[str, Any]) -> tuple[str, bool, str]:
         t = str(inv["parsed"][f["file"]].document_time.get("value") or "")
@@ -267,7 +312,9 @@ def scan_sources(
     if current_p["file"] == frozen_p["file"]:
         warnings.append("sin Portal posterior al Frozen: el pendiente actual conserva el último corte Portal disponible")
     if current_r["file"] == frozen_r["file"]:
-        warnings.append("sin backlog R posterior al Frozen: el pendiente actual usa el mismo corte")
+        warnings.append("sin backlog posterior al Frozen: Current utiliza el mismo corte")
+    if cfg.ssrs_automatico:
+        warnings.append("SSRS: el Refresh lee el último corte publicado; el origen se actualiza overnight")
 
     def describe(f: dict[str, Any]) -> dict[str, Any]:
         t = inv["parsed"][f["file"]].document_time
@@ -279,6 +326,7 @@ def scan_sources(
             "document_time": t.get("value"),
             "instante": f.get("instante") or None,
             "records": f["records"],
+            **({"confirmacion_ssrs": f["confirmacion_ssrs"]} if f.get("confirmacion_ssrs") else {}),
         }
 
     return {
@@ -829,7 +877,7 @@ def build_generation(
     }
 
 
-BACKLOG_DIRECTO = ("CONSULTA_DIRECTA", "IMPORTACION_INTERACTIVA")
+BACKLOG_DIRECTO = ("CONSULTA_DIRECTA", "IMPORTACION_INTERACTIVA", "ERP_EXCEPCIONAL")
 
 
 def _forzar_current(
@@ -896,7 +944,9 @@ def _backlog_traza(bkx: dict[str, Any], scan: dict[str, Any]) -> dict[str, Any]:
     """v0.3.3: trazabilidad del Current ERP; en contingencia, antigüedad y límite autorizado."""
     cur = scan["current_r"]
     out = {**bkx, "_avisos": []}
-    if bkx["estado"] in BACKLOG_DIRECTO and cur["origen"] != "CONSULTA_DIRECTA":
+    if bkx["estado"] in BACKLOG_DIRECTO and cur["origen"] not in (
+        "CONSULTA_DIRECTA", "ERP_EXCEPCIONAL"
+    ):
         out["estado"] = "CONTINGENCIA"
         out.setdefault("codigo", "BACKLOG_CONSULTA_FUERA_DE_MES")
     if out["estado"] == "CONTINGENCIA":
@@ -920,6 +970,11 @@ def _backlog_traza(bkx: dict[str, Any], scan: dict[str, Any]) -> dict[str, Any]:
             f"BACKLOG ANTERIOR — el conector SSRS falló ({bkx.get('codigo')}); Current usa el "
             f"último corte válido {cur['file']} del {corte}{texto}. "
             "Política CONSERVAR_ULTIMO_CORTE."
+        )
+    elif out["estado"] == "ERP_EXCEPCIONAL":
+        out["_avisos"].append(
+            "ERP URGENTE — Current de UNA sola generación, con aprobación y huella; "
+            "el siguiente Refresh ordinario vuelve a SSRS. Frozen sin cambios."
         )
     elif out["estado"] == "NO_ACREDITADO":
         out["_avisos"].append(

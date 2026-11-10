@@ -23,10 +23,13 @@ import tempfile
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from nexus.core.stage import check_private_output
+from nexus.core.stage import check_private_output, contract_csv
+from nexus.core.physical import default_layout, read_oe965
+from nexus.core.physical.common import PhysicalResult
 
 from .conectores import ConectorError
 from .conectores import orquestador as orq
@@ -128,6 +131,8 @@ class Almacen:
                 "portal": doc["sources"]["frozen_p"],
                 "bloqueado_en": committed_at,
                 "gen_id": gen_id,
+                **({"confirmacion_ssrs_sha256": doc["sources"]["frozen_r"]["confirmacion_ssrs"]}
+                   if doc["sources"]["frozen_r"].get("confirmacion_ssrs") else {}),
             }
             with lock.open("xb") as fh:  # una sola vez: nunca se reemplaza
                 fh.write(_dumps(body))
@@ -159,6 +164,11 @@ def fg_contexto(fgc: dict[str, Any], data: Path, ahora: str) -> dict[str, Any]:
 def backlog_contexto(bc: dict[str, Any], data: Path, ahora: str) -> dict[str, Any]:
     """v0.3.3 — de dónde sale el Backlog Current de esta generación (trazabilidad del corte)."""
     estado = bc.get("estado")
+    if estado == "ERP_EXCEPCIONAL":
+        return {"estado": "ERP_EXCEPCIONAL", "archivo": bc["archivo"],
+                "instante_consulta_utc": bc.get("instante_consulta_utc"),
+                "aprobador": bc["aprobador"], "motivo": bc["motivo"],
+                "sha256": bc["sha256"]}
     if estado == "CAPTURADO":
         interactivo = bc.get("modo") == "importacion_interactiva"
         return {
@@ -258,13 +268,14 @@ class PreviewRefresh:
         threading.Thread(target=self._run_locked, args=(actor,), daemon=True).start()
         return True
 
-    def ejecutar(self, actor: str) -> dict[str, Any]:
-        """Síncrono (CLI y pruebas)."""
+    def ejecutar(self, actor: str, erp_urgente: Path | None = None,
+                 aprobador: str = "", motivo: str = "") -> dict[str, Any]:
+        """Síncrono (CLI y pruebas). Override ERP SOLO en esta invocación."""
         with self._thread_lock:
             if not self._acquire():
                 return {"estado": "BUSY", "motivos": ["otro Refresh está en curso"]}
             self._write_status({"estado": "RUNNING", "inicio": _utc(self.clock), "actor": actor})
-            return self._run(actor)
+            return self._run(actor, erp_urgente, aprobador, motivo)
 
     def _run_locked(self, actor: str) -> None:
         try:
@@ -272,25 +283,83 @@ class PreviewRefresh:
         finally:
             self._thread_lock.release()
 
-    def _run(self, actor: str) -> dict[str, Any]:
+    def _validar_erp_urgente(self, cfg: Config, source: Path, aprobador: str,
+                            motivo: str) -> tuple[bytes, Any, str, str, str]:
+        if not source.is_file() or source.is_symlink() or source.stat().st_size > 25 * 1024 * 1024:
+            raise RefreshError(["FIX6: TXT ERP urgente inexistente, enlace o demasiado grande"])
+        if not aprobador.strip() or not motivo.strip() or len(motivo) > 240:
+            raise RefreshError(["FIX6: ERP urgente requiere identidad y motivo explícitos"])
+        if not cfg.approvers or not cfg.approvers.is_file():
+            raise RefreshError(["FIX6: falta lista privada de aprobadores"])
+        personas = json.loads(cfg.approvers.read_text("utf-8")).get("approvers", [])
+        if aprobador not in personas:
+            raise RefreshError(["FIX6: aprobador ERP urgente no autorizado"])
+        raw = source.read_bytes()
+        result = read_oe965(raw, default_layout())
+        if not result.valid or not str(result.document_time.get("value", "")).startswith(cfg.month):
+            raise RefreshError(["FIX6: ERP urgente inválido o de otro mes"])
+        return raw, result, source.name, aprobador, motivo
+
+    def _guardar_erp_urgente(self, cfg: Config, urgent: tuple[bytes, Any, str, str, str]
+                            ) -> tuple[dict[str, Any], PhysicalResult, dict[str, Any]]:
+        raw, parsed, filename, aprobador, motivo = urgent
+        now = self.clock().astimezone(dt.UTC)
+        parsed_records = list(parsed.records)
+        normalizado = contract_csv("oeras_29", parsed_records)
+        doc = orq.guardar(self.data, "erp_urgente", raw, normalizado,
+                          {"filas": len(parsed_records), "nombre_origen": filename,
+                           "aprobador": aprobador, "motivo": motivo},
+                          now, str(parsed.document_time.get("value")), reutilizar=False)
+        key = f"erp_urgente:{doc['archivo']}"
+        physical = PhysicalResult(kind="oe965", source_id="oeras_29", records=parsed_records,
+                                  document_time=dict(parsed.document_time))
+        evidence = {"file": key, "kind": "oe965", "sha256": doc["sha256"],
+                    "document_date": doc["fecha_documento"], "instante": doc["instante_utc"],
+                    "origen": "ERP_EXCEPCIONAL", "records": len(parsed_records)}
+        evento = {"estado": "ERP_EXCEPCIONAL", "archivo": key,
+                  "instante_consulta_utc": doc["instante_utc"], "sha256": doc["sha256"],
+                  "aprobador": aprobador, "motivo": motivo, "filas": len(parsed_records)}
+        return evidence, physical, evento
+
+    def _run(self, actor: str, erp_urgente: Path | None = None,
+             aprobador: str = "", motivo: str = "") -> dict[str, Any]:
         start = _utc(self.clock)
         previous = None
         status: dict[str, Any]
         work = Path(tempfile.mkdtemp(prefix="_work_", dir=self.data))
         try:
             cfg = self.config()
+            if cfg.ssrs_automatico:
+                local_month = self.clock().astimezone(__import__("zoneinfo").ZoneInfo(cfg.tz)).strftime("%Y-%m")
+                if local_month < cfg.month:
+                    raise RefreshError(["FIX6: reloj local anterior al mes inicial; no retroceder Frozen"])
+                cfg = replace(cfg, month=local_month)
+                con = orq.cargar_config(self.data)
+                if not (con.get("backlog_ssrs") or {}).get("activo"):
+                    raise RefreshError(["FIX6: SSRS inactivo; NO usar R manual como Current"])
+            elif erp_urgente is not None:
+                raise RefreshError(["FIX6: ERP excepcional exige migración SSRS automática"])
             check_private_output(self.data, cfg.src)
             try:
                 previous = self.store.vigente()
             except Exception as exc:  # noqa: BLE001 (se informa)
                 raise RefreshError([f"generación vigente ilegible: {exc}"]) from exc
+            # Prevalidar ERP urgente ANTES de tocar conectores corporativos.
+            urgent = None
+            if erp_urgente is not None:
+                if self.store.frozen_lock(cfg.month) is None:
+                    raise RefreshError(["FIX6: ERP urgente prohibido sin Frozen mensual sellado"])
+                urgent = self._validar_erp_urgente(cfg, erp_urgente, aprobador, motivo)
             # v0.3: conectores corporativos de solo lectura (cada uno con su identidad y política)
             try:
-                conectores = orq.capturar_todo(self.data, cfg.month, cfg.tz, self.clock, self.deps)
+                conectores = orq.capturar_todo(self.data, cfg.month, cfg.tz, self.clock, self.deps,
+                                                ssrs_automatico=cfg.ssrs_automatico)
             except ConectorError as exc:
                 raise RefreshError([f"configuración de conectores: {exc}"]) from exc
             fallos = {k: v for k, v in conectores.items() if v["estado"] == "FALLO"}
-            detener = [f"{k}: {v['codigo']} {v.get('motivo', '')}".strip() for k, v in fallos.items() if v.get("politica") == "DETENER"]
+            detener = [f"{k}: {v['codigo']} {v.get('motivo', '')}".strip()
+                       for k, v in fallos.items() if v.get("politica") == "DETENER"
+                       and not (urgent is not None and k == "backlog_ssrs")]
             fgc = conectores.get("fg_odbc") or {}
             bc = conectores.get("backlog_ssrs") or {}
             if bc.get("estado") == "NO_ACREDITADO" and bc.get("politica") == "DETENER":
@@ -309,6 +378,10 @@ class PreviewRefresh:
                 )
             except ConectorError as exc:
                 raise RefreshError([f"captura inválida: {exc}"]) from exc
+            if urgent is not None:
+                extra, parsed, evento = self._guardar_erp_urgente(cfg, urgent)
+                capturas.append((extra, parsed))
+                conectores["erp_urgente"] = evento
             aprobadores: frozenset[str] = frozenset()
             if cfg.approvers and cfg.approvers.is_file():
                 aprobadores = frozenset(json.loads(cfg.approvers.read_text("utf-8")).get("approvers", []))
@@ -319,7 +392,9 @@ class PreviewRefresh:
             emb["intento_utc"] = start  # FIX5: antigüedad del corte en contingencia
             contexto = {
                 "fg_conector": fg_contexto(fgc, self.data, start),
-                "backlog_conector": backlog_contexto(bc, self.data, start),
+                "backlog_conector": backlog_contexto(
+                    conectores.get("erp_urgente", bc), self.data, start
+                ),
             }
             lock = self.store.frozen_lock(cfg.month)
             doc = build_generation(cfg, lock, work, self.code, capturas, emb, **contexto)

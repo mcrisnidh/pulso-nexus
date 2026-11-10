@@ -24,7 +24,9 @@ param(
   [ValidateSet('', 'backlog', 'fg', 'embarques')][string]$Conciliar = '',
   [string]$Manual = '', [string]$Directa = '', [string]$Evidencia = '', [string]$Alcance = '', [switch]$Acreditar,
   [string]$AcreditarEmbarques = '', [string]$Aprobador = '', [ValidateSet('', 'si', 'no')][string]$AusenciaEsCero = '',
-  [string]$ReferenciaDecision = ''
+  [string]$ReferenciaDecision = '',
+  [switch]$ActivarFIX6, [string]$ConfirmarSSRS = '', [string]$ShaSSRS = '', [string]$ArchivoSSRS = '',
+  [string]$ReferenciaLote = '', [string]$RefreshERP = '', [string]$MotivoERP = ''
 )
 $ErrorActionPreference = 'Stop'
 # v0.3.2: consola y Python en UTF-8 (sin esto Windows usa cp850/cp1252 y la salida se corrompe o falla)
@@ -42,6 +44,13 @@ if (-not $Originales) { $Originales = Join-Path $Lab 'inputs\2026-11' }
 $env:PYTHONDONTWRITEBYTECODE = '1'
 
 if ($Desinstalar) {
+  $cfgPath = Join-Path $Data 'preview.json'
+  if (Test-Path $cfgPath) {
+    $cfg = Get-Content -LiteralPath $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($cfg.ssrs_automatico -eq $true -and (Test-Path (Join-Path $Data 'frozen_2026-12.json'))) {
+      throw 'NO-GO: downgrade de FIX6 con Frozen SSRS diciembre sellado; no ejecutar rollback legacy sin plan de migración.'
+    }
+  }
   if (Test-Path $App) { Remove-Item -Recurse -Force $App; Write-Host "Aplicación retirada: $App" }
   $prev = Get-ChildItem $Lab -Directory -Filter 'nexus_junta_v02.anterior_*' -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
   if ($prev) { Move-Item $prev.FullName $App; Write-Host "Restaurada la instalación anterior: $($prev.Name)" }
@@ -73,7 +82,21 @@ try {
   }
   $plantilla = Join-Path $Data 'conectores.json'
   if ((Test-Path $Data) -and -not (Test-Path $plantilla)) { Copy-Item (Join-Path $App 'conectores.plantilla.json') $plantilla; Write-Host "Plantilla de conectores (todo inactivo): $plantilla" }
-  if ($Preflight) {
+  if ($ActivarFIX6) {
+    $a = @('run','--frozen','--extra','web','--with','tzdata==2025.2','python',(Join-Path $App 'preview.py'),'activar-fix6','--data',$Data)
+    & uv @a
+    $rc = $LASTEXITCODE
+  } elseif ($ConfirmarSSRS) {
+    if (-not $ShaSSRS -or -not $ArchivoSSRS -or -not $Aprobador -or -not $ReferenciaLote.Trim()) { throw 'Confirme SSRS con -ConfirmarSSRS AAAA-MM -ArchivoSSRS ID -ShaSSRS 64HEX -Aprobador nombre -ReferenciaLote evidencia_ETL.' }
+    $a = @('run','--frozen','--extra','web','--with','tzdata==2025.2','python',(Join-Path $App 'preview.py'),'confirmar-ssrs-mensual','--data',$Data,'--mes',$ConfirmarSSRS,'--archivo',$ArchivoSSRS,'--sha256',$ShaSSRS,'--aprobador',$Aprobador,'--referencia-lote',$ReferenciaLote)
+    & uv @a
+    $rc = $LASTEXITCODE
+  } elseif ($RefreshERP) {
+    if (-not $Aprobador -or -not $MotivoERP.Trim()) { throw 'ERP excepcional requiere -RefreshERP ruta -Aprobador nombre -MotivoERP motivo; no afecta Frozen.' }
+    $a = @('run','--frozen','--extra','web','--with','tzdata==2025.2','python',(Join-Path $App 'preview.py'),'refresh','--data',$Data,'--erp-urgente',$RefreshERP,'--aprobador',$Aprobador,'--motivo',$MotivoERP)
+    & uv @a
+    $rc = $LASTEXITCODE
+  } elseif ($Preflight) {
     $a = @('run','--frozen','--extra','web','--with','tzdata==2025.2','python',(Join-Path $App 'preflight.py'),'--data',$Data,'--conector',$Preflight,'--nivel',$Nivel)
     if ($Autorizo) { $a += '--autorizo' }
     & uv @a
