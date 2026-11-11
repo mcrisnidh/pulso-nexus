@@ -1,0 +1,37 @@
+/* R3: administración provisional de cartera Portal CAT (sin autoridad operativa). */
+.r3-shell{padding:20px 30px 50px;max-width:1700px;margin:auto;color:#1d3046}
+.r3-heading{display:flex;justify-content:space-between;gap:18px;align-items:start;margin-bottom:15px}
+.r3-heading h1{margin:4px 0 6px;font-size:25px;line-height:1.15}
+.r3-heading small{letter-spacing:.12em;font-size:10px;font-weight:800;color:#5078a6}
+.r3-heading p{margin:0;color:#557088;font-size:13px}
+.r3-state{padding:8px 12px;background:#fff0d9;color:#834000;border-radius:100px;border:1px solid #e6c89b;font-size:10px;font-weight:800;white-space:nowrap}
+.r3-banner{border-radius:12px;background:#eaf3fc;border:1px solid #c4def4;padding:13px 16px;font-size:13px;margin-bottom:16px;line-height:1.45}
+.r3-ok,.r3-error{padding:12px 15px;border-radius:10px;margin:12px 0;font-size:13px}
+.r3-ok{background:#e6f6e9;color:#155a2e}.r3-error{background:#fff0ed;color:#902a1e}
+.r3-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.r3-kpis article{background:white;border:1px solid #dce5ef;padding:16px;border-radius:12px;display:flex;flex-direction:column;gap:3px}
+.r3-kpis span{color:#637a94;font-size:11px;font-weight:700}.r3-kpis b{font-size:28px;font-variant-numeric:tabular-nums}.r3-kpis small{color:#7b8b9e;font-size:11px}
+.r3-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:16px;align-items:start}
+.r3-card{border:1px solid #d9e5ee;background:#fff;border-radius:13px;padding:18px;min-width:0}
+.r3-card-head{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:12px}
+.r3-card-head h2{font-size:16px;margin:0}.r3-card-head span{font-size:11px;color:#6e859c}
+.r3-card p{font-size:12px;color:#617588;line-height:1.55;margin:0 0 14px}
+.r3-filter{display:flex;gap:8px;align-items:end;margin-bottom:12px;flex-wrap:wrap}
+.r3-filter label,.r3-form label{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:11px;color:#46617d}
+.r3-filter input,.r3-filter select,.r3-form input,.r3-form select,.r3-form textarea{background:#fff;border:1px solid #ccd9e6;border-radius:8px;padding:9px 11px;font:inherit;color:#142d45;box-sizing:border-box;width:100%}
+.r3-filter label:first-child{flex:2;min-width:140px}.r3-filter label:nth-child(2){flex:1;min-width:140px}
+.r3-filter button,.r3-submit{padding:10px 13px;background:#174e89;color:#fff;border:0;border-radius:8px;font-weight:800;cursor:pointer}
+.r3-table-wrap{overflow:auto;max-height:640px;border:1px solid #e6ecf3;border-radius:9px}
+.r3-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:12px;text-align:left}
+.r3-table th{background:#edf3f9;position:sticky;top:0;z-index:1;color:#395875;font-size:11px}
+.r3-table th,.r3-table td{padding:10px 12px;border-bottom:1px solid #edf0f5}
+.r3-table td:nth-child(2){white-space:normal;min-width:165px}.r3-table td.r3-key{white-space:pre}
+.r3-key code{font-size:12px;white-space:pre;font-family:Consolas,'Courier New',monospace}
+.r3-pill{border-radius:100px;padding:4px 8px;display:inline-block;font-weight:800;font-size:10px}
+.r3-pill.portal{background:#e9f4ee;color:#24623e}.r3-pill.ssrs{background:#eaf1fc;color:#245c93}.r3-pill.pending{background:#fff1df;color:#935a16}
+.r3-muted,.r3-foot{color:#73869b;font-size:11px!important}
+.r3-form{display:grid;gap:12px}.r3-form textarea{min-height:75px;resize:vertical}
+.r3-note{font-size:11px;color:#7a5a2b;background:#fff8ec;border:1px solid #f0dcb9;border-radius:9px;padding:10px;margin-top:12px;line-height:1.5}
+.r3-history{margin-top:16px}.r3-history .r3-table-wrap{max-height:350px}
+@media(max-width:1150px){.r3-grid{grid-template-columns:1fr}.r3-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.r3-shell{padding:14px}.r3-heading{flex-direction:column}.r3-kpis{grid-template-columns:1fr}}

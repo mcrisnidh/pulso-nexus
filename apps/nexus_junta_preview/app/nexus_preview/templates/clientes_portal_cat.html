@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Clientes Portal CAT · PULSO NEXUS{% endblock %}
+{% block content %}
+<section class="r3-shell">
+  <div class="r3-heading">
+    <div><small>GOBERNANZA COMERCIAL / R3</small><h1>Clientes Portal CAT</h1>
+      <p>Administración de solicitudes. La clasificación comercial NO está activada y el Refresh no consulta estas propuestas.</p>
+    </div>
+    <span class="r3-state">PREAPROBACIÓN · NO PUBLICABLE</span>
+  </div>
+  <div class="r3-banner" role="status"><strong>Modo seguro:</strong> aquí puedes solicitar altas o bajas de cuentas Portal CAT. Ninguna solicitud modifica SSRS, Portal CAT, Frozen, reglas ejecutables ni las generaciones vigentes. Todavía no existe autenticación corporativa ni función de aprobación.</div>
+  {% if registrada %}<div class="r3-ok" role="status">Solicitud registrada localmente: <code>{{ registrada }}</code>. Estado: PENDIENTE_APROBACION.</div>{% endif %}
+  {% if error %}<div class="r3-error" role="alert">{{ error }}</div>{% endif %}
+  <div class="r3-kpis">
+    <article><span>Inventario histórico</span><b>{{ total }}</b><small>Identidades exactas</small></article>
+    <article><span>Portal CAT</span><b>{{ confirmadas_portal }}</b><small>Criterios confirmados, aún no formalizados</small></article>
+    <article><span>Conservar SSRS</span><b>{{ confirmadas_ssrs }}</b><small>Criterios confirmados, aún no formalizados</small></article>
+    <article><span>Sin decisión</span><b>{{ pendientes }}</b><small>Requieren revisión comercial</small></article>
+  </div>
+  <div class="r3-grid">
+    <section class="r3-card r3-lista">
+      <div class="r3-card-head"><h2>Catálogo de identidades</h2><span>{{ clientes|length }} visibles</span></div>
+      <form method="get" action="{{ url_for('clientes_portal_cat') }}" class="r3-filter">
+        <label>Buscar cuenta o nombre<input type="search" name="q" value="{{ q }}" placeholder="Ej. 170577 o Caterpillar" maxlength="80"></label>
+        <label>Criterio comercial<select name="fuente">
+          <option value="" {% if not fuente %}selected{% endif %}>Todos</option>
+          <option value="PORTAL_CAT" {% if fuente == 'PORTAL_CAT' %}selected{% endif %}>Portal CAT confirmado</option>
+          <option value="SSRS" {% if fuente == 'SSRS' %}selected{% endif %}>SSRS confirmado</option>
+          <option value="PENDIENTE" {% if fuente == 'PENDIENTE' %}selected{% endif %}>Por validar</option>
+        </select></label><button type="submit">Filtrar</button>
+      </form>
+      <div class="r3-table-wrap"><table class="r3-table"><thead><tr>
+        <th>Identidad exacta</th><th>Nombre histórico</th><th>Criterio comercial</th><th>Validación R3</th>
+      </tr></thead><tbody>
+      {% for c in clientes %}
+      <tr><td class="r3-key"><code>{{ c.customer_key_exact }}</code></td><td>{{ c.customer_name }}</td>
+      <td>{% if c.commercial_criterion == 'PORTAL_CAT' %}<span class="r3-pill portal">Portal CAT</span>
+      {% elif c.commercial_criterion == 'SSRS' %}<span class="r3-pill ssrs">SSRS</span>
+      {% else %}<span class="r3-pill pending">Por validar</span>{% endif %}</td>
+      <td class="r3-muted">Pendiente de formalización</td></tr>
+      {% else %}<tr><td colspan="4">No hay cuentas para estos filtros.</td></tr>{% endfor %}
+      </tbody></table></div>
+      <p class="r3-foot">Los nombres pueden estar truncados. Los espacios de las identidades son significativos. El inventario histórico no acredita la pertenencia al Portal.</p>
+    </section>
+    <section class="r3-card r3-proposal">
+      <div class="r3-card-head"><h2>Solicitar alta o baja</h2><span>Solo propuesta</span></div>
+      <p>Usa el número de cliente y su secuencia ERP. El sistema conserva exactamente los 13 caracteres, incluidos espacios de relleno, sin aproximaciones.</p>
+      <form method="post" action="{{ url_for('solicitar_cambio_portal_cat') }}" class="r3-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label>Número de cliente ERP<input required name="numero_cliente" maxlength="10" pattern="[A-Za-z0-9]{1,10}" placeholder="17057704" autocomplete="off"></label>
+        <label>Secuencia ERP (3 dígitos)<input required name="secuencia" maxlength="3" minlength="3" pattern="[0-9]{3}" placeholder="205" autocomplete="off"></label>
+        <label>Solicitud<select name="accion" required>
+          <option value="AGREGAR_PORTAL_CAT">Agregar a Portal CAT</option>
+          <option value="RETIRAR_PORTAL_CAT">Retirar de Portal CAT / conservar SSRS</option>
+        </select></label>
+        <label>Mes efectivo propuesto<input type="month" name="mes_efectivo" required value="{{ mes_propuesto }}" min="{{ mes_propuesto }}"></label>
+        <label>Motivo comercial<textarea required name="motivo" rows="3" minlength="12" maxlength="500" placeholder="Describir quién administra la demanda y por qué corresponde cambiar la fuente"></textarea></label>
+        <label>Referencia de evidencia<input required name="evidencia" maxlength="250" minlength="5" placeholder="Folio, correo de Customer Service o referencia del contrato"></label>
+        <button type="submit" class="r3-submit">Registrar solicitud pendiente</button>
+      </form>
+      <div class="r3-note">No se permite activar ni aprobar reglas desde esta página. Una cuenta SSRS expresamente protegida no puede solicitarse como Portal CAT sin una excepción comercial formal.</div>
+    </section>
+  </div>
+  <section class="r3-card r3-history">
+    <div class="r3-card-head"><h2>Historial inmutable de solicitudes</h2><span>{{ propuestas|length }} registradas</span></div>
+    {% if propuestas %}<div class="r3-table-wrap"><table class="r3-table"><thead><tr><th>Fecha UTC</th><th>Identidad</th><th>Acción</th><th>Mes propuesto</th><th>Motivo</th><th>Estado</th></tr></thead><tbody>
+    {% for p in propuestas %}<tr><td>{{ p.created_utc }}</td><td class="r3-key"><code>{{ p.customer_key_exact }}</code></td><td>{{ 'Alta Portal CAT' if p.action == 'AGREGAR_PORTAL_CAT' else 'Retiro Portal CAT' }}</td><td>{{ p.effective_month }}</td><td>{{ p.reason }}</td><td><span class="r3-pill pending">Pendiente · no operativa</span></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p>No hay solicitudes. Ningún cliente se ha agregado o retirado mediante este módulo.</p>{% endif %}
+  </section>
+</section>
+{% endblock %}

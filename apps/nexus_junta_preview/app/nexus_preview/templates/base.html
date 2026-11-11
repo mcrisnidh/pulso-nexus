@@ -7,6 +7,7 @@
   <title>{% block title %}PULSO NEXUS{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='pulso_style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='nexus.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='r3_portal_cat.css') }}">
   <script defer src="{{ url_for('static', filename='pulso_ui.js') }}"></script>
   <script defer src="{{ url_for('static', filename='junta.js') }}"></script>
 </head>
@@ -24,6 +25,7 @@
       <span class="nav-disabled" title="Módulo futuro (no incluido en v0.2)"><span class="nav-short">PR</span><span class="nav-text">Producción</span></span>
       <div class="nav-divider"></div>
       <a href="{{ url_for('escenarios') }}" title="Escenarios R1/R3" class="{{ 'active' if active=='escenarios' else '' }}"><span class="nav-short">ES</span><span class="nav-text">Escenarios R1/R3 <small class="nav-tag">diagnóstico</small></span></a>
+      <a href="{{ url_for('clientes_portal_cat') }}" title="Clientes Portal CAT (solicitudes no operativas)" class="{{ 'active' if active=='clientes_cat' else '' }}"><span class="nav-short">CAT</span><span class="nav-text">Clientes Portal CAT <small class="nav-tag">solicitudes · R3</small></span></a>
       <a href="{{ url_for('fuentes') }}" title="Fuentes y Refresh" class="{{ 'active' if active=='fuentes' else '' }}"><span class="nav-short">FR</span><span class="nav-text">Fuentes y Refresh</span></a>
     </nav>
     <div class="read-only">NEXUS v0.3.1 · Live Data<br><strong>PREVIEW · NO-GO COMERCIAL</strong><br>Solo 127.0.0.1</div>

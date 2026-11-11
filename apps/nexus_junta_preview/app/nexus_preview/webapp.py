@@ -29,6 +29,7 @@ from nexus.storage.object_store import LocalObjectStore
 
 from . import status_v310 as v310
 from .generaciones import PreviewRefresh
+from .r3_admin import R3Admin, R3AdminError, next_month_utc
 from .servicio import evaluar_certificacion, vista_de
 
 EDITOR = "EDITOR_LOCAL_SIN_AUTENTICAR"
@@ -95,6 +96,7 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
     refresher = refresher or PreviewRefresh(data_dir, code)
     vocabulary = tuple(demo.RULES["cs_status_vocabulary"])
     cs = CsStore(LocalObjectStore(data_dir / "cs"), vocabulary)
+    r3 = R3Admin(Path(__file__).with_name("r3_catalogo_visual.json"), data_dir / "r3_admin")
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     app = Flask(__name__)
     app.config.update(
@@ -367,6 +369,52 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
         gen = current()
         lock = refresher.store.frozen_lock(gen["month"]) if gen else None
         return render_template("fuentes.html", active="fuentes", gen=gen, lock=lock, log=refresher.store.historial()[:30])
+
+    # ---------------------------------------------------------------- R3: propuestas privadas, NUNCA reglas operativas
+    def _r3_page(error: str | None = None, status: int = 200) -> Any:
+        try:
+            all_customers = r3.catalog()
+            history = r3.proposals()
+        except R3AdminError as exc:
+            return _error(409, str(exc))
+        q = (request.args.get("q") or "").strip().upper()[:80]
+        fuente = request.args.get("fuente") or ""
+        if fuente not in ("", "PORTAL_CAT", "SSRS", "PENDIENTE"):
+            fuente = ""
+        shown = [c for c in all_customers if
+                 (not q or q in (c["customer_key_exact"] + " " + c["customer_name"]).upper())
+                 and (not fuente or fuente == c["commercial_criterion"])]
+        registered = request.args.get("registrada", "")
+        if registered and registered not in {x["id"] for x in history}:
+            registered = ""
+        return render_template(
+            "clientes_portal_cat.html", active="clientes_cat", clientes=shown,
+            total=len(all_customers),
+            confirmadas_portal=sum(c["commercial_criterion"] == "PORTAL_CAT" for c in all_customers),
+            confirmadas_ssrs=sum(c["commercial_criterion"] == "SSRS" for c in all_customers),
+            pendientes=sum(c["commercial_criterion"] == "PENDIENTE" for c in all_customers),
+            propuestas=history, registrada=registered, error=error,
+            mes_propuesto=next_month_utc(), q=q, fuente=fuente,
+        ), status
+
+    @app.get("/clientes-portal-cat")
+    def clientes_portal_cat() -> Any:
+        return _r3_page()
+
+    @app.post("/clientes-portal-cat/solicitudes")
+    def solicitar_cambio_portal_cat() -> Any:
+        try:
+            record = r3.submit(
+                number=request.form.get("numero_cliente", ""),
+                sequence=request.form.get("secuencia", ""),
+                action=request.form.get("accion", ""),
+                effective_month=request.form.get("mes_efectivo", ""),
+                reason=request.form.get("motivo", ""),
+                evidence_ref=request.form.get("evidencia", ""), author=EDITOR,
+            )
+        except R3AdminError as exc:
+            return _r3_page(str(exc), 400)
+        return redirect(url_for("clientes_portal_cat", registrada=record["id"]), code=303)
 
     # ---------------------------------------------------------------- notas y seguimiento (privado)
     @app.post("/api/cs")

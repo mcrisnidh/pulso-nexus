@@ -1,0 +1,766 @@
+{
+  "schema": "nexus.r3.catalog.preview/1",
+  "source_sha256": "34c8a2097fed5d8a9d2c0ae5aeb003dd34d73ba1f3dbe12f968a8c24fc0550e7",
+  "source_date": "2026-11-01",
+  "decisions_cutoff": "2026-11-11",
+  "authority": "COMERCIAL_PENDIENTE_FORMALIZACION",
+  "operational": false,
+  "customers": [
+    {
+      "customer_key_exact": "00201000  001",
+      "customer_name": "ATC DRIVETRAIN S9901 WEST",
+      "historical_lines": 13,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "11628500  018",
+      "customer_name": "Bosch Rexroth Corp., Foun",
+      "historical_lines": 6,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "12395500  001",
+      "customer_name": "B BRAUN MEDICAL INC",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "1705483   001",
+      "customer_name": "Caterpillar Industrias Mé",
+      "historical_lines": 9,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "1705488   001",
+      "customer_name": "CATERPILLAR AMERICAS MEXI",
+      "historical_lines": 336,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "170577    001",
+      "customer_name": "Caterpillar, Inc.",
+      "historical_lines": 83,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "170577    004",
+      "customer_name": "Caterpillar, Inc. 68-00",
+      "historical_lines": 226,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "170577    029",
+      "customer_name": "Caterpillar Logistics 92-",
+      "historical_lines": 114,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "170577    037",
+      "customer_name": "Caterpillar, Inc. 47-03",
+      "historical_lines": 21,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "170577    183",
+      "customer_name": "CATEPILLAR LOGISTICS SERV",
+      "historical_lines": 273,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057700  012",
+      "customer_name": "CATEPILLAR 92-4S",
+      "historical_lines": 10,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057700  013",
+      "customer_name": "CATERPILLAR LOGISTICS 92",
+      "historical_lines": 6,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057700  021",
+      "customer_name": "CATERPILLAR, LOGISTICS DT",
+      "historical_lines": 21,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057700  036",
+      "customer_name": "CATERPILLAR INC 40-59",
+      "historical_lines": 26,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057700  038",
+      "customer_name": "CATERPILLAR INC 40-17",
+      "historical_lines": 148,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057703  001",
+      "customer_name": "CATERPILLAR INC 88-52",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057704  205",
+      "customer_name": "CATERPILLAR REMANUFACTURI",
+      "historical_lines": 15,
+      "commercial_criterion": "PORTAL_CAT",
+      "criterion_evidence": "Usuario, 2026-11-11: Shanghai Remanufacturing",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057705  001",
+      "customer_name": "CATERPILLAR LOGISTIC INC",
+      "historical_lines": 82,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057706  242",
+      "customer_name": "CATERPILLAR TIANJIN LIMIT",
+      "historical_lines": 138,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "1705771   000",
+      "customer_name": "Caterpillar China Mach Co",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057791  000",
+      "customer_name": "CATEPILLAR INC WACO INBOU",
+      "historical_lines": 195,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "17057799  001",
+      "customer_name": "CATERPILLAR INDIA PVT. LT",
+      "historical_lines": 104,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_170_19"
+    },
+    {
+      "customer_key_exact": "18571001  039",
+      "customer_name": "FCA US LLC MOPAR",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "199300    000",
+      "customer_name": "Borg Warner Morse TEC",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "200128    001",
+      "customer_name": "ATD AAM MAQUILADORA MEXIC",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "23709300  000",
+      "customer_name": "INDUSTRIAS JOHN DEERE ARG",
+      "historical_lines": 3,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "23829300  000",
+      "customer_name": "Motores John Deere S.A. d",
+      "historical_lines": 36,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "24062000  041",
+      "customer_name": "BORGWARNER ETTS MEXICO S",
+      "historical_lines": 3,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "240625    001",
+      "customer_name": "APTIV DURANGO II FV55 EDS",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "APTIV_INDEPENDIENTE_1"
+    },
+    {
+      "customer_key_exact": "240630    001",
+      "customer_name": "BORGWARNER PROPULSION SYS",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "28840900  000",
+      "customer_name": "ELGIN INDUSTRIES",
+      "historical_lines": 5,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "31885100  001",
+      "customer_name": "FORD LIVONIA TRANSMISSION",
+      "historical_lines": 10,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "328694    000",
+      "customer_name": "ZF Suspension Technology",
+      "historical_lines": 71,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "4948401   000",
+      "customer_name": "ZF POWERTRAIN MODULES SAL",
+      "historical_lines": 4,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "753984    000",
+      "customer_name": "INTERNATIONAL MOTORS, LLC",
+      "historical_lines": 29,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "792861    001",
+      "customer_name": "Valeo Kapec SA de CV",
+      "historical_lines": 5,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "813538    001",
+      "customer_name": "PIONNER AUTOMOTIVE INDUST",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "960118    001",
+      "customer_name": "FEDERAL MOGUL MOTOPARTS,",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "98753462  001",
+      "customer_name": "CATERPILLAR INC",
+      "historical_lines": 2,
+      "commercial_criterion": "PORTAL_CAT",
+      "criterion_evidence": "Usuario, 2026-11-11: Caterpillar",
+      "formal_approval": false,
+      "source_triaje": "CAT_NOMBRE_EXTRA_1"
+    },
+    {
+      "customer_key_exact": "AAM       001",
+      "customer_name": "AMERICAN AXLE & MANUFACTU",
+      "historical_lines": 5,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "AAM       002",
+      "customer_name": "AMERICAN AXLE & MANUFACTU",
+      "historical_lines": 3,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ADVAN     001",
+      "customer_name": "MONROE MEXICO S DE RL DE",
+      "historical_lines": 230,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "BOLZONI   001",
+      "customer_name": "BOLZONI AURAMO",
+      "historical_lines": 4,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "CATPERK   000",
+      "customer_name": "PERKINS INDIA PRIVATE LIM",
+      "historical_lines": 43,
+      "commercial_criterion": "SSRS",
+      "criterion_evidence": "Gabriel Elizande, reportado 2026-11-11",
+      "formal_approval": false,
+      "source_triaje": "CAT_PERKINS_ESPECIAL_4"
+    },
+    {
+      "customer_key_exact": "CATPERK   001",
+      "customer_name": "PERKINS INDIA PRIVATE LIM",
+      "historical_lines": 2,
+      "commercial_criterion": "SSRS",
+      "criterion_evidence": "Gabriel Elizande, reportado 2026-11-11",
+      "formal_approval": false,
+      "source_triaje": "CAT_PERKINS_ESPECIAL_4"
+    },
+    {
+      "customer_key_exact": "CELS      000",
+      "customer_name": "CELS INC",
+      "historical_lines": 23,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "EATON     002",
+      "customer_name": "EATON TRUCK COMPONENTS S",
+      "historical_lines": 70,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "EATON     300",
+      "customer_name": "Eaton Truck Components S",
+      "historical_lines": 278,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ENGINE00  000",
+      "customer_name": "GENERAL ENGINE PRODUCTS,",
+      "historical_lines": 8,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ETNBIEL   000",
+      "customer_name": "EATON AUTOMOTIVE SYSTEMS",
+      "historical_lines": 12,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ETNCEN    000",
+      "customer_name": "EATON LOGISTIC CENTER C /",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ETNCORP   256",
+      "customer_name": "EATON CORPORATION",
+      "historical_lines": 129,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ETNCUM    001",
+      "customer_name": "Eaton Cummins Automated",
+      "historical_lines": 26,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ETNXI     000",
+      "customer_name": "FAST EATON (XI'AN) DRIVET",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "GMLUSA    001",
+      "customer_name": "GM DAVISON ROAD 17177 PLA",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "GMMLLC    002",
+      "customer_name": "GENERAL MOTORS LLC",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "JACOBS    001",
+      "customer_name": "JACOBS VEHICLE SYSTEMS, I",
+      "historical_lines": 10,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "JASPER    000",
+      "customer_name": "JASPER ENGINES & TRANSP-J",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "KIBBLE    000",
+      "customer_name": "KIBBLEWHITE PRECISION MAC",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "LIB       000",
+      "customer_name": "LIBERTY ENGINE PARTS, INC",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "LINAMAR   000",
+      "customer_name": "LINAMAR ESTON MANUFACTURI",
+      "historical_lines": 3,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "MAGNA     000",
+      "customer_name": "MAGNA POWERTRAIN DE MEXIC",
+      "historical_lines": 29,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "MAGNEMX   001",
+      "customer_name": "MARELLI TOLUCA MEXICO S D",
+      "historical_lines": 19,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "MARSH     000",
+      "customer_name": "MARSHALL ENGINES, INC",
+      "historical_lines": 2,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "MERC      001",
+      "customer_name": "MERCURY",
+      "historical_lines": 4,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "MILWAUKE  001",
+      "customer_name": "Associated Spring Milwauk",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "MTUAIKEN  001",
+      "customer_name": "ROLLS-ROYCE SOLUTIONS AME",
+      "historical_lines": 6,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "PARKMOS   001",
+      "customer_name": "PARKER INDUSTRIAL",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "PECL      001",
+      "customer_name": "CANNON PACKAGING & LOGIST",
+      "historical_lines": 3,
+      "commercial_criterion": "PORTAL_CAT",
+      "criterion_evidence": "Usuario, 2026-11-11: Portal CAT",
+      "formal_approval": false,
+      "source_triaje": "PECL_NOMBRE_CRUZADO_1"
+    },
+    {
+      "customer_key_exact": "PEREZLOG  000",
+      "customer_name": "INTERNATIONAL MOTORS, LLC",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "PERK1     001",
+      "customer_name": "Caterpillar Reman service",
+      "historical_lines": 1,
+      "commercial_criterion": "SSRS",
+      "criterion_evidence": "Gabriel Elizande, reportado 2026-11-11",
+      "formal_approval": false,
+      "source_triaje": "CAT_PERKINS_ESPECIAL_4"
+    },
+    {
+      "customer_key_exact": "PERK2     001",
+      "customer_name": "Cannon Group Ldf",
+      "historical_lines": 3,
+      "commercial_criterion": "PORTAL_CAT",
+      "criterion_evidence": "Usuario, 2026-11-11: Portal CAT",
+      "formal_approval": false,
+      "source_triaje": "CAT_PERKINS_ESPECIAL_4"
+    },
+    {
+      "customer_key_exact": "REXR      001",
+      "customer_name": "BOSCH REXROTH",
+      "historical_lines": 11,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "SHIELD    000",
+      "customer_name": "Shield Restraint Systems",
+      "historical_lines": 12,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "SUMITOMO  000",
+      "customer_name": "SUMITOMO NACCO FORKLIFT V",
+      "historical_lines": 1,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "TECMOSA   002",
+      "customer_name": "Tecnología Modificada SA",
+      "historical_lines": 53,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "TECMOSA   003",
+      "customer_name": "TECNOLOGIA MODIFICADA / D",
+      "historical_lines": 15,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "TEMX      001",
+      "customer_name": "MONROE MEXICO S DE RL DE",
+      "historical_lines": 5,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "THYSSEN   000",
+      "customer_name": "THYSSENKRUPP BILSTEIN",
+      "historical_lines": 30,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "TREMEC    000",
+      "customer_name": "TRANSMISIONES Y EQUIPOS M",
+      "historical_lines": 4,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "TUPY      000",
+      "customer_name": "TECHNOCAST, SA DE CV",
+      "historical_lines": 29,
+      "commercial_criterion": "SSRS",
+      "criterion_evidence": "Regla de negocio TUPY confirmada",
+      "formal_approval": false,
+      "source_triaje": "TUPY_CONSERVAR_1"
+    },
+    {
+      "customer_key_exact": "VAL       001",
+      "customer_name": "VALEO NORTH AMERICA, INC",
+      "historical_lines": 3,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "VEGE      000",
+      "customer_name": "VEGE DE MEXICO",
+      "historical_lines": 45,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    },
+    {
+      "customer_key_exact": "ZFSLO     001",
+      "customer_name": "ZF SLOVAKIA, A.S.",
+      "historical_lines": 5,
+      "commercial_criterion": "PENDIENTE",
+      "criterion_evidence": "",
+      "formal_approval": false,
+      "source_triaje": "RESTANTES_SIN_INDICIO_57"
+    }
+  ]
+}
