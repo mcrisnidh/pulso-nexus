@@ -29,7 +29,7 @@ from nexus.storage.object_store import LocalObjectStore
 
 from . import status_v310 as v310
 from .generaciones import PreviewRefresh
-from .r3_admin import R3Admin, R3AdminError, next_month_utc
+from .r3_admin import R3Admin, R3AdminError, PROTECTED_SSRS, next_month_utc
 from .servicio import evaluar_certificacion, vista_de
 
 EDITOR = "EDITOR_LOCAL_SIN_AUTENTICAR"
@@ -394,6 +394,8 @@ def create_app(data_dir: Path, port: int = 8877, code: str = "dev", refresher: P
             confirmadas_ssrs=sum(c["commercial_criterion"] == "SSRS" for c in all_customers),
             pendientes=sum(c["commercial_criterion"] == "PENDIENTE" for c in all_customers),
             propuestas=history, registrada=registered, error=error,
+            criterio_por_clave={c["customer_key_exact"]: c["commercial_criterion"] for c in all_customers},
+            ssrs_protegidos=sorted(PROTECTED_SSRS),
             mes_propuesto=next_month_utc(), q=q, fuente=fuente,
         ), status
 

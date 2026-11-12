@@ -22,7 +22,11 @@ from typing import Any
 
 SCHEMA = "nexus.r3.propuesta/1"
 CATALOG_SCHEMA = "nexus.r3.catalog.preview/1"
-ACTIONS = {"AGREGAR_PORTAL_CAT", "RETIRAR_PORTAL_CAT"}
+# Four business-intent actions, always proposals, never effective rules.
+ACTIONS = frozenset({
+    "AGREGAR_PORTAL_CAT", "RETIRAR_PORTAL_CAT",
+    "CLASIFICAR_INICIAL_PORTAL_CAT", "CLASIFICAR_INICIAL_SSRS",
+})
 PROTECTED_SSRS = frozenset({"TUPY      000", "CATPERK   000", "CATPERK   001", "PERK1     001"})
 CONFIRMED_PORTAL = frozenset({"98753462  001", "PERK2     001", "PECL      001", "17057704  205"})
 EXPECTED_HISTORICAL_SHA = "34c8a2097fed5d8a9d2c0ae5aeb003dd34d73ba1f3dbe12f968a8c24fc0550e7"
@@ -98,6 +102,29 @@ class R3Admin:
     def catalog(self) -> tuple[dict[str, Any], ...]:
         return tuple(self._catalog["customers"])
 
+    def criterion_for(self, key: str) -> str:
+        """Visual criterion only; NEVER an operative R3 approval."""
+        split_key(key)
+        for row in self._catalog["customers"]:
+            if row["customer_key_exact"] == key:
+                return row["commercial_criterion"]
+        return "NO_EN_INVENTARIO"
+
+    def allowed_actions(self, key: str) -> tuple[str, ...]:
+        """Fail closed on protected SSRS identities and nonsensical transitions.
+
+        Unknown accounts may be proposed for initial classification; this is
+        not evidence that they exist in ERP. Approvers must verify identity.
+        """
+        criterion = self.criterion_for(key)
+        if key in PROTECTED_SSRS:
+            return ()
+        if criterion == "PORTAL_CAT":
+            return ("RETIRAR_PORTAL_CAT",)
+        if criterion == "SSRS":
+            return ("AGREGAR_PORTAL_CAT",)
+        return ("CLASIFICAR_INICIAL_PORTAL_CAT", "CLASIFICAR_INICIAL_SSRS")
+
     def _load_event(self, path: Path) -> dict[str, Any]:
         if path.is_symlink():
             raise R3AdminError("Archivo de propuesta simbólico no permitido.")
@@ -124,8 +151,11 @@ class R3Admin:
         key = exact_key(number, sequence)
         if action not in ACTIONS:
             raise R3AdminError("Acción no permitida.")
-        if key in PROTECTED_SSRS and action == "AGREGAR_PORTAL_CAT":
-            raise R3AdminError("Cuenta SSRS protegida por decisión comercial. Requiere expediente de excepción formal.")
+        allowed = self.allowed_actions(key)
+        if action not in allowed:
+            if key in PROTECTED_SSRS:
+                raise R3AdminError("Cuenta SSRS protegida por decisión comercial. Requiere expediente de excepción formal.")
+            raise R3AdminError("Acción incompatible con la clasificación actual; use clasificación inicial o el cambio permitido.")
         if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", effective_month):
             raise R3AdminError("Mes propuesto inválido (AAAA-MM).")
         # Solo propuestas a futuro; jamás hay cambios retroactivos al Frozen.
@@ -139,30 +169,56 @@ class R3Admin:
             raise R3AdminError("Referencia de evidencia obligatoria: 5 a 250 caracteres.")
         if self.proposals_dir.exists() and self.proposals_dir.is_symlink():
             raise R3AdminError("Ruta de propuestas no permitida.")
-        for prev in self.proposals():
-            if (prev["customer_key_exact"] == key and prev["action"] == action
-                    and prev["effective_month"] == effective_month):
-                raise R3AdminError("Ya existe una solicitud para esta cuenta, acción y mes; no duplicar.")
-        record = {
-            "schema": SCHEMA,
-            "id": secrets.token_hex(16),
-            "created_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "customer_key_exact": key,
-            "action": action,
-            "effective_month": effective_month,
-            "reason": reason,
-            "evidence_reference": evidence_ref,
-            "author": author,
-            "status": "PENDIENTE_APROBACION",
-            "approved": False,
-            "applies_to_refresh": False,
-            "applies_to_frozen": False,
-        }
-        record["record_sha256"] = hashlib.sha256(canonical(record)).hexdigest()
+        # Exclusive directory lock serializes concurrent requests, including
+        # separate Flask workers. If a process dies mid-write the lock remains:
+        # fail closed and require an operator to inspect the evidence.
         self.proposals_dir.mkdir(parents=True, exist_ok=True)
-        dest = self.proposals_dir / (record["created_utc"].replace(":", "").replace("-", "") + "_" + record["id"] + ".json")
-        with dest.open("xb") as f:
-            f.write(json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8") + b"\n")
-            f.flush()
-            os.fsync(f.fileno())
-        return record
+        lock_dir = self.proposals_dir / ".submission.lock"
+        try:
+            lock_dir.mkdir()
+        except FileExistsError as exc:
+            raise R3AdminError("Otra solicitud está en curso o requiere recuperación del bloqueo; no duplicar.") from exc
+        try:
+            for prev in self.proposals():
+                if prev["customer_key_exact"] == key and prev["effective_month"] == effective_month:
+                    # Keep legacy proposals untouched, even if the new rules
+                    # would now reject their original action.
+                    raise R3AdminError("Ya existe una solicitud para esta cuenta y mes; no duplicar ni contradecir.")
+            record = {
+                "schema": SCHEMA,
+                "id": secrets.token_hex(16),
+                "created_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "customer_key_exact": key,
+                "action": action,
+                "criterion_at_request": self.criterion_for(key),
+                "requires_erp_identity_verification": self.criterion_for(key) == "NO_EN_INVENTARIO",
+                "effective_month": effective_month,
+                "reason": reason,
+                "evidence_reference": evidence_ref,
+                "author": author,
+                "status": "PENDIENTE_APROBACION",
+                "approved": False,
+                "applies_to_refresh": False,
+                "applies_to_frozen": False,
+            }
+            record["record_sha256"] = hashlib.sha256(canonical(record)).hexdigest()
+            request_key = hashlib.sha256(canonical({
+                "customer_key_exact": key, "effective_month": effective_month,
+            })).hexdigest()
+            dest = self.proposals_dir / ("solicitud_" + request_key + ".json")
+            if dest.exists() or dest.is_symlink():
+                raise R3AdminError("Ya existe una solicitud para esta cuenta y mes; no duplicar ni contradecir.")
+            staging = self.proposals_dir / (".pendiente_" + record["id"] + ".partial")
+            try:
+                with staging.open("xb") as f:
+                    f.write(json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8") + b"\n")
+                    f.flush()
+                    os.fsync(f.fileno())
+                # Under the exclusive lock: readers never see a partial JSON.
+                os.rename(staging, dest)
+            finally:
+                if staging.exists():
+                    staging.unlink()
+            return record
+        finally:
+            lock_dir.rmdir()
